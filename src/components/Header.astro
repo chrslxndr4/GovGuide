@@ -1,0 +1,21 @@
+---
+const navItems = [
+  { label: 'Federal', href: '/federal' },
+  { label: 'States', href: '/states' },
+  { label: 'Elections', href: '/elections' },
+  { label: 'Laws', href: '/laws' },
+  { label: 'Officials', href: '/officials' },
+];
+---
+<header class="bg-civic-navy text-white">
+  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+    <a href="/" class="font-display text-2xl font-bold tracking-tight">GovGuide</a>
+    <nav class="hidden md:flex gap-6">
+      {navItems.map(item => (
+        <a href={item.href} class="text-sm font-medium text-slate-300 hover:text-white transition-colors">
+          {item.label}
+        </a>
+      ))}
+    </nav>
+  </div>
+</header>
