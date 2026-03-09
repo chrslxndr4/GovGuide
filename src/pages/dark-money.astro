@@ -1,0 +1,104 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import DarkMoneyTracker from '../components/dark-money/DarkMoneyTracker';
+---
+
+<BaseLayout
+  title="Dark Money Tracker"
+  description="Track 501(c)(4) and 501(c)(6) organizations that spend on elections without disclosing their donors. Follow the money behind America's dark money groups."
+>
+  <main class="flex-1 bg-civic-light">
+
+    {/* ------------------------------------------------------------------ */}
+    {/* Hero */}
+    {/* ------------------------------------------------------------------ */}
+    <section class="bg-civic-navy text-white py-8 px-4">
+      <div class="max-w-7xl mx-auto">
+
+        <div class="flex items-start justify-between gap-6 flex-wrap">
+
+          {/* Title + intro */}
+          <div class="max-w-2xl">
+            <div class="flex items-center gap-2 mb-2">
+              <span class="text-xs font-mono font-semibold uppercase tracking-widest text-civic-gold border border-civic-gold/40 px-2 py-0.5 rounded">
+                Transparency
+              </span>
+            </div>
+            <h1 class="text-3xl font-display font-bold mb-3">Dark Money Tracker</h1>
+            <p class="text-slate-300 leading-relaxed">
+              "Dark money" refers to political spending by nonprofit organizations that are not
+              required to publicly disclose their donors.
+              <strong class="text-white">
+                &nbsp;501(c)(4) "social welfare" groups and 501(c)(6) trade associations
+              </strong>
+              &nbsp;can spend unlimited amounts influencing elections while keeping their funders
+              secret — creating a multi-billion-dollar shadow over American democracy.
+            </p>
+          </div>
+
+          {/* At-a-glance explainer card */}
+          <div class="bg-white/10 border border-white/20 rounded-lg px-5 py-4 text-sm shrink-0 max-w-xs">
+            <p class="font-semibold text-white mb-2">Why does this matter?</p>
+            <ul class="space-y-1.5 text-slate-300 text-xs leading-relaxed">
+              <li class="flex items-start gap-2">
+                <span class="text-civic-gold mt-0.5 shrink-0" aria-hidden="true">&#9679;</span>
+                Donors are completely hidden from the public.
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-civic-gold mt-0.5 shrink-0" aria-hidden="true">&#9679;</span>
+                Spending can fund attack ads, voter outreach, and issue campaigns.
+              </li>
+              <li class="flex items-start gap-2">
+                <span class="text-civic-gold mt-0.5 shrink-0" aria-hidden="true">&#9679;</span>
+                Billions flow into elections each cycle with no accountability.
+              </li>
+            </ul>
+          </div>
+
+        </div>
+
+        {/* Org type legend */}
+        <div class="mt-6 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-400 border-t border-white/10 pt-5">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-sm bg-purple-400 inline-block"></span>
+            501(c)(4) — Social welfare orgs; no donor disclosure required
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-sm bg-blue-400 inline-block"></span>
+            501(c)(6) — Trade associations and business leagues
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-2 h-2 rounded-sm bg-orange-400 inline-block"></span>
+            Super PAC — Unlimited outside spending; donors disclosed to FEC
+          </span>
+        </div>
+
+        {/* Disclosure rating legend */}
+        <div class="mt-3 flex flex-wrap gap-x-6 gap-y-2 text-xs text-slate-400">
+          <span class="font-semibold text-slate-300 mr-1">Disclosure rating:</span>
+          <span class="flex items-center gap-1.5">
+            <span class="inline-block w-2 h-2 rounded-full bg-red-500"></span>
+            None — no donor information published
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="inline-block w-2 h-2 rounded-full bg-amber-400"></span>
+            Partial — some donors voluntarily disclosed
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="inline-block w-2 h-2 rounded-full bg-emerald-400"></span>
+            Full — complete donor list available
+          </span>
+        </div>
+
+      </div>
+    </section>
+
+    {/* ------------------------------------------------------------------ */}
+    {/* React island */}
+    {/* ------------------------------------------------------------------ */}
+    <div class="max-w-7xl mx-auto px-4 py-8">
+      <DarkMoneyTracker client:load />
+    </div>
+
+  </main>
+</BaseLayout>

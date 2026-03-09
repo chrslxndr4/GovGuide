@@ -1,471 +1,590 @@
 ---
+export const prerender = false;
+
 import BaseLayout from '../../layouts/BaseLayout.astro';
-import Header from '../../components/Header.astro';
-import Footer from '../../components/Footer.astro';
 import Breadcrumb from '../../components/Breadcrumb.astro';
-import InfoBlock from '../../components/InfoBlock.astro';
+import MoneyGraph from '../../components/graph/MoneyGraph';
 import { supabase } from '../../lib/supabase';
 
-interface OfficialOffice {
-  id: string;
-  title: string;
-  branch: string;
-  chamber: string | null;
-  district: string | null;
-  jurisdiction_id: string;
+const { slug } = Astro.params;
+
+const { data: official } = await supabase
+  .from('officials')
+  .select('*, offices(*)')
+  .eq('slug', slug)
+  .single();
+
+if (!official) return Astro.redirect('/404');
+
+const office = official.offices ?? {};
+const stateName: string = office.state ?? '';
+const officeName: string = office.title ?? office.name ?? '';
+
+// Transparency score helpers
+type TransparencyGrade = 'A' | 'B' | 'C' | 'D' | 'F';
+
+function scoreToGrade(score: number | null | undefined): TransparencyGrade {
+  if (score == null) return 'F';
+  if (score >= 90) return 'A';
+  if (score >= 80) return 'B';
+  if (score >= 70) return 'C';
+  if (score >= 60) return 'D';
+  return 'F';
 }
 
-interface OfficialRow {
-  id: string;
-  first_name: string;
-  last_name: string;
-  full_name: string;
-  slug: string;
-  party: string | null;
-  photo_url: string | null;
-  email: string | null;
-  phone: string | null;
-  website: string | null;
-  social_media: Record<string, string> | null;
-  term_start: string | null;
-  term_end: string | null;
-  bioguide_id: string | null;
-  fec_id: string | null;
-  office: OfficialOffice | null;
-}
-
-interface JurisdictionRow {
-  id: string;
-  name: string;
-  slug: string;
-  level: string;
-  state_abbr: string | null;
-}
-
-export async function getStaticPaths() {
-  const { data: officials } = await supabase
-    .from('officials')
-    .select(`
-      id, first_name, last_name, full_name, slug, party, photo_url,
-      email, phone, website, social_media, term_start, term_end,
-      bioguide_id, fec_id,
-      office:office_id(id, title, branch, chamber, district, jurisdiction_id)
-    `)
-    .eq('is_current', true);
-
-  if (!officials || officials.length === 0) return [];
-
-  // Collect all unique jurisdiction IDs from offices
-  const jurisdictionIds = [
-    ...new Set(
-      officials
-        .map((o) => {
-          const office = o.office as OfficialOffice | null;
-          return office?.jurisdiction_id ?? null;
-        })
-        .filter((id): id is string => id !== null)
-    ),
-  ];
-
-  // Fetch all relevant jurisdictions in one query
-  let jurisdictions: JurisdictionRow[] = [];
-  if (jurisdictionIds.length > 0) {
-    const { data: jData } = await supabase
-      .from('jurisdictions')
-      .select('id, name, slug, level, state_abbr')
-      .in('id', jurisdictionIds);
-    jurisdictions = (jData ?? []) as JurisdictionRow[];
-  }
-
-  const jurisdictionMap = new Map<string, JurisdictionRow>(
-    jurisdictions.map((j) => [j.id, j])
-  );
-
-  return officials.map((official) => {
-    const office = official.office as OfficialOffice | null;
-    const jurisdiction = office?.jurisdiction_id
-      ? (jurisdictionMap.get(office.jurisdiction_id) ?? null)
-      : null;
-
-    return {
-      params: { slug: official.slug },
-      props: {
-        official: official as unknown as OfficialRow,
-        jurisdiction,
-      },
-    };
-  });
-}
-
-interface Props {
-  official: OfficialRow;
-  jurisdiction: JurisdictionRow | null;
-}
-
-const { official, jurisdiction } = Astro.props;
-const office = official.office;
-
-function formatParty(party: string | null): string {
-  if (!party) return 'Unknown';
-  return party.charAt(0).toUpperCase() + party.slice(1);
-}
-
-function partyBadgeClass(party: string | null): string {
-  switch (party) {
-    case 'democratic':
-      return 'bg-blue-100 text-blue-700 border-blue-200';
-    case 'republican':
-      return 'bg-red-100 text-red-700 border-red-200';
-    case 'independent':
-      return 'bg-slate-100 text-slate-700 border-slate-200';
-    case 'libertarian':
-      return 'bg-yellow-100 text-yellow-700 border-yellow-200';
-    case 'green':
-      return 'bg-green-100 text-green-700 border-green-200';
-    default:
-      return 'bg-slate-100 text-slate-700 border-slate-200';
-  }
-}
-
-function formatBranch(branch: string): string {
-  return branch.charAt(0).toUpperCase() + branch.slice(1);
-}
-
-function formatChamber(chamber: string | null): string {
-  if (!chamber) return '';
-  switch (chamber) {
-    case 'senate':
-    case 'upper':
-      return 'Senate';
-    case 'house':
-    case 'lower':
-      return 'House of Representatives';
-    case 'unicameral':
-      return 'Unicameral Legislature';
-    default:
-      return chamber.charAt(0).toUpperCase() + chamber.slice(1);
-  }
-}
-
-function formatDate(dateStr: string | null): string {
-  if (!dateStr) return '';
-  const date = new Date(dateStr);
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'long',
-    day: 'numeric',
-  });
-}
-
-function initials(fullName: string): string {
-  return fullName
-    .split(' ')
-    .map((n) => n[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-}
-
-// Build jurisdiction breadcrumb href
-function jurisdictionHref(j: JurisdictionRow | null): string | undefined {
-  if (!j) return undefined;
-  if (j.level === 'state') return `/states/${j.slug}`;
-  if (j.slug === 'usa') return '/federal';
-  return undefined;
-}
-
-// Social media platform labels and URL patterns
-const SOCIAL_PLATFORMS: Record<string, { label: string; baseUrl: string }> = {
-  twitter: { label: 'Twitter / X', baseUrl: 'https://twitter.com/' },
-  x: { label: 'X (Twitter)', baseUrl: 'https://x.com/' },
-  facebook: { label: 'Facebook', baseUrl: 'https://facebook.com/' },
-  instagram: { label: 'Instagram', baseUrl: 'https://instagram.com/' },
-  youtube: { label: 'YouTube', baseUrl: 'https://youtube.com/' },
-  linkedin: { label: 'LinkedIn', baseUrl: 'https://linkedin.com/in/' },
+const gradeColorMap: Record<TransparencyGrade, string> = {
+  A: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+  B: 'bg-lime-100 text-lime-800 border-lime-300',
+  C: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+  D: 'bg-orange-100 text-orange-800 border-orange-300',
+  F: 'bg-red-100 text-red-800 border-red-300',
 };
 
-function buildSocialUrl(platform: string, handle: string): string {
-  if (handle.startsWith('http://') || handle.startsWith('https://')) {
-    return handle;
-  }
-  const cleanHandle = handle.startsWith('@') ? handle.slice(1) : handle;
-  const platformConfig = SOCIAL_PLATFORMS[platform.toLowerCase()];
-  if (platformConfig) {
-    return `${platformConfig.baseUrl}${cleanHandle}`;
-  }
-  return handle;
+const transparencyGrade = scoreToGrade(official.transparency_score);
+const gradeColors = gradeColorMap[transparencyGrade];
+
+// Party helpers
+type PartyKey = 'D' | 'R' | 'I' | string;
+
+function partyLabel(party: PartyKey): string {
+  const labels: Record<string, string> = {
+    D: 'Democrat',
+    R: 'Republican',
+    I: 'Independent',
+  };
+  return labels[party] ?? party ?? 'Unknown';
 }
 
-function socialLabel(platform: string): string {
-  return SOCIAL_PLATFORMS[platform.toLowerCase()]?.label ?? platform.charAt(0).toUpperCase() + platform.slice(1);
+function partyColor(party: PartyKey): string {
+  if (party === 'D') return 'bg-blue-100 text-blue-800 border-blue-200';
+  if (party === 'R') return 'bg-red-100 text-red-800 border-red-200';
+  return 'bg-slate-100 text-slate-700 border-slate-200';
 }
 
-const socialEntries = official.social_media
-  ? Object.entries(official.social_media)
-  : [];
+// Fetch related data in parallel — use type assertions because table schemas
+// will be generated via Supabase CLI; these are safe at runtime.
+const [
+  { data: donors },
+  { data: trades },
+  { data: votes },
+  { data: lobbyingRows },
+  { data: conflicts },
+] = await Promise.all([
+  supabase
+    .from('campaign_contributions')
+    .select('donor_name, donor_type, amount, cycle')
+    .eq('recipient_entity_id', official.entity_id)
+    .order('amount', { ascending: false })
+    .limit(10),
+  supabase
+    .from('stock_trades')
+    .select('ticker, asset_name, trade_type, trade_date, amount_min, amount_max, disclosed_date')
+    .eq('official_entity_id', official.entity_id)
+    .order('trade_date', { ascending: false })
+    .limit(15),
+  supabase
+    .from('votes')
+    .select('bill_id, bill_title, vote_date, position, donor_aligned')
+    .eq('official_entity_id', official.entity_id)
+    .order('vote_date', { ascending: false })
+    .limit(20),
+  supabase
+    .from('lobbying_contacts')
+    .select('industry, registrant_name, amount, cycle')
+    .eq('official_entity_id', official.entity_id)
+    .order('amount', { ascending: false })
+    .limit(10),
+  supabase
+    .from('conflict_alerts')
+    .select('alert_type, description, severity, created_at, source_url')
+    .eq('official_entity_id', official.entity_id)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false }),
+]);
 
-const hasContact = official.email || official.phone || official.website;
-const hasSocial = socialEntries.length > 0;
-const hasTermInfo = official.term_start || official.term_end;
+// Format helpers used in markup
+function formatMoney(amount: number | null | undefined): string {
+  if (amount == null) return '—';
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
+  return `$${amount.toLocaleString()}`;
+}
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+// Flag trades disclosed > 45 days after trade date (STOCK Act threshold)
+function isLateDisclosure(tradeDateStr: string | null, disclosedDateStr: string | null): boolean {
+  if (!tradeDateStr || !disclosedDateStr) return false;
+  const tradeDate = new Date(tradeDateStr);
+  const disclosedDate = new Date(disclosedDateStr);
+  const diffDays = (disclosedDate.getTime() - tradeDate.getTime()) / (1000 * 60 * 60 * 24);
+  return diffDays > 45;
+}
+
+const sections = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'donors', label: 'Donors' },
+  { id: 'stock-trades', label: 'Stock Trades' },
+  { id: 'voting-record', label: 'Voting Record' },
+  { id: 'lobbying', label: 'Lobbying' },
+  { id: 'money-graph', label: 'Money Graph' },
+  { id: 'conflicts', label: 'Conflicts' },
+];
 ---
 
 <BaseLayout
-  title={official.full_name}
-  description={`Profile for ${official.full_name}${office ? `, ${office.title}` : ''}${jurisdiction ? ` — ${jurisdiction.name}` : ''}.`}
+  title={official.name}
+  description={`Transparency profile for ${official.name} — donors, stock trades, voting record, and conflict alerts.`}
 >
-  <Header />
-  <main id="main-content" class="flex-1">
-    <!-- Hero / Profile Header -->
+  <main class="flex-1">
+
+    <!-- Hero -->
     <section class="bg-civic-navy text-white py-10 px-4">
-      <div class="max-w-7xl mx-auto">
+      <div class="max-w-5xl mx-auto">
         <Breadcrumb
           items={[
             { label: 'Officials', href: '/officials' },
-            { label: official.full_name },
+            { label: official.name },
           ]}
         />
 
-        <div class="flex items-start gap-5">
-          <!-- Photo or initials -->
-          {official.photo_url ? (
-            <img
-              src={official.photo_url}
-              alt={official.full_name}
-              class="w-20 h-20 rounded-full object-cover border-2 border-white/20 flex-shrink-0"
-            />
-          ) : (
-            <div class="w-20 h-20 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center text-white text-xl font-display font-bold flex-shrink-0">
-              {initials(official.full_name)}
-            </div>
-          )}
+        <div class="flex flex-col sm:flex-row items-start gap-6">
 
-          <div class="flex-1 min-w-0">
-            <h1 class="text-3xl md:text-4xl font-display font-bold leading-tight">
-              {official.full_name}
-            </h1>
-            {office && (
-              <p class="text-slate-300 text-base mt-1">{office.title}</p>
-            )}
-            {jurisdiction && (
-              <p class="text-slate-400 text-sm mt-0.5">{jurisdiction.name}</p>
-            )}
-            {official.party && (
-              <span class={`inline-block mt-3 text-sm font-medium px-3 py-1 rounded-full border ${partyBadgeClass(official.party)}`}>
-                {formatParty(official.party)}
-              </span>
-            )}
+          <!-- Photo placeholder -->
+          <div
+            class="shrink-0 w-24 h-24 rounded-full bg-[#2a3f6a] border-2 border-white/20
+                   flex items-center justify-center text-3xl font-display font-bold text-white/60"
+            aria-hidden="true"
+          >
+            {official.name.charAt(0).toUpperCase()}
           </div>
+
+          <!-- Identity block -->
+          <div class="flex-1 min-w-0">
+            <h1 class="text-3xl md:text-4xl font-display font-bold mb-2 leading-tight">
+              {official.name}
+            </h1>
+
+            <div class="flex flex-wrap items-center gap-2 text-sm mb-4">
+              {official.party && (
+                <span class={`inline-flex items-center px-2.5 py-0.5 rounded-full border font-medium ${partyColor(official.party)}`}>
+                  {partyLabel(official.party)}
+                </span>
+              )}
+              {officeName && (
+                <span class="text-slate-300">{officeName}</span>
+              )}
+              {stateName && (
+                <>
+                  <span class="text-slate-500" aria-hidden="true">·</span>
+                  <span class="text-slate-300">{stateName}</span>
+                </>
+              )}
+            </div>
+
+            <!-- Transparency score badge -->
+            <div class="flex items-center gap-3">
+              <span class="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                Transparency Score
+              </span>
+              <span
+                class={`inline-flex items-center justify-center w-9 h-9 rounded-full border-2 font-display font-bold text-lg ${gradeColors}`}
+                title={`Transparency grade: ${transparencyGrade}${official.transparency_score != null ? ` (${official.transparency_score}/100)` : ''}`}
+              >
+                {transparencyGrade}
+              </span>
+              {official.transparency_score != null && (
+                <span class="text-slate-400 text-sm">{official.transparency_score}/100</span>
+              )}
+            </div>
+          </div>
+
         </div>
       </div>
     </section>
 
-    <!-- Body -->
-    <div class="max-w-7xl mx-auto px-4 py-10">
-      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <!-- Main content -->
-        <div class="lg:col-span-2 space-y-8">
-          <!-- Office Details -->
-          {office && (
-            <section>
-              <h2 class="text-xl font-display text-civic-navy mb-4">Office Details</h2>
-              <div class="bg-white rounded-lg border border-slate-200 p-5">
-                <dl>
-                  <InfoBlock label="Office" value={office.title} />
-                  <InfoBlock
-                    label="Branch"
-                    value={formatBranch(office.branch)}
-                  />
-                  {office.chamber && (
-                    <InfoBlock
-                      label="Chamber"
-                      value={formatChamber(office.chamber)}
-                    />
-                  )}
-                  {office.district && (
-                    <InfoBlock label="District" value={office.district} />
-                  )}
-                  {jurisdiction && (
-                    <InfoBlock
-                      label="Jurisdiction"
-                      value={jurisdiction.name}
-                      href={jurisdictionHref(jurisdiction)}
-                    />
-                  )}
-                </dl>
-              </div>
-            </section>
-          )}
+    <!-- Sticky section nav -->
+    <nav
+      class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm overflow-x-auto"
+      aria-label="Profile sections"
+    >
+      <div class="max-w-5xl mx-auto px-4">
+        <ol class="flex items-center gap-0 text-sm font-medium whitespace-nowrap">
+          {sections.map(s => (
+            <li>
+              <a
+                href={`#${s.id}`}
+                class="block px-4 py-3 text-civic-slate hover:text-civic-blue border-b-2 border-transparent hover:border-civic-blue transition-colors"
+              >
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </nav>
 
-          <!-- Term Information -->
-          {hasTermInfo && (
-            <section>
-              <h2 class="text-xl font-display text-civic-navy mb-4">Term Information</h2>
-              <div class="bg-white rounded-lg border border-slate-200 p-5">
-                <dl>
-                  {official.term_start && (
-                    <InfoBlock
-                      label="Term Start"
-                      value={formatDate(official.term_start)}
-                    />
-                  )}
-                  {official.term_end && (
-                    <InfoBlock
-                      label="Term End"
-                      value={formatDate(official.term_end)}
-                    />
-                  )}
-                </dl>
-              </div>
-            </section>
-          )}
+    <div class="max-w-5xl mx-auto px-4 py-10 flex flex-col gap-16">
 
-          <!-- Top Donors (Pillar 2) -->
-          <section>
-            <h2 class="text-xl font-display text-civic-navy mb-4">Top Donors</h2>
-            <div id="top-donors-section" class="bg-white rounded-lg border border-slate-200 p-5">
-              <p class="text-civic-slate italic text-sm">Donor data will appear once campaign finance imports have run and entity resolution links this official.</p>
-            </div>
-          </section>
+      <!-- ── Overview ────────────────────────────────────────── -->
+      <section id="overview" aria-labelledby="overview-heading">
+        <h2 id="overview-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Overview
+        </h2>
 
-          <!-- Stock Trades (Pillar 2) -->
-          <section>
-            <h2 class="text-xl font-display text-civic-navy mb-4">Stock Trades</h2>
-            <div class="bg-white rounded-lg border border-slate-200 p-5">
-              <p class="text-civic-slate italic text-sm">Stock trade data will appear once import pipelines have run.</p>
-              <div id="trade-timeline-mount" data-official-id={official.id}></div>
-            </div>
-          </section>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
 
-          <!-- Transparency Score (Pillar 2) -->
-          <section>
-            <h2 class="text-xl font-display text-civic-navy mb-4">Transparency Score</h2>
-            <div class="bg-white rounded-lg border border-slate-200 p-5">
-              <p class="text-civic-slate italic text-sm">Transparency scoring will be available once sufficient data has been imported and analyzed.</p>
-            </div>
-          </section>
-
-          <!-- Social Media -->
-          {hasSocial && (
-            <section>
-              <h2 class="text-xl font-display text-civic-navy mb-4">Social Media</h2>
-              <div class="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
-                {socialEntries.map(([platform, handle]) => (
-                  <a
-                    href={buildSocialUrl(platform, handle)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors group"
-                  >
-                    <span class="text-sm font-medium text-civic-navy group-hover:text-civic-blue transition-colors">
-                      {socialLabel(platform)}
-                    </span>
-                    <span class="text-sm text-civic-slate font-mono">
-                      {handle.startsWith('http') ? new URL(handle).hostname : (handle.startsWith('@') ? handle : `@${handle}`)}
-                    </span>
-                  </a>
-                ))}
-              </div>
-            </section>
-          )}
-        </div>
-
-        <!-- Sidebar -->
-        <aside class="space-y-6">
-          <!-- Contact -->
-          {hasContact && (
-            <div class="bg-white rounded-lg border border-slate-200 p-5 sticky top-4">
-              <h2 class="font-display text-base text-civic-navy mb-4">Contact</h2>
-              <dl>
-                {official.email && (
-                  <InfoBlock
-                    label="Email"
-                    value={official.email}
-                    href={`mailto:${official.email}`}
-                  />
-                )}
-                {official.phone && (
-                  <InfoBlock
-                    label="Phone"
-                    value={official.phone}
-                    href={`tel:${official.phone.replace(/\D/g, '')}`}
-                  />
-                )}
-                {official.website && (
-                  <InfoBlock
-                    label="Official Website"
-                    value={new URL(official.website).hostname}
-                    href={official.website}
-                  />
-                )}
-              </dl>
-
-              {official.website && (
-                <a
-                  href={official.website}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  class="mt-5 block w-full text-center py-2 px-4 bg-civic-navy text-white text-sm font-medium rounded hover:bg-civic-blue transition-colors"
-                >
-                  Visit Official Website
-                </a>
-              )}
-            </div>
-          )}
-
-          <!-- Identifiers -->
-          {(official.bioguide_id || official.fec_id) && (
-            <div class="bg-white rounded-lg border border-slate-200 p-5">
-              <h2 class="font-display text-base text-civic-navy mb-4">
-                Identifiers
-              </h2>
-              <dl>
-                {official.bioguide_id && (
-                  <InfoBlock
-                    label="BioGuide ID"
-                    value={official.bioguide_id}
-                    href={`https://bioguide.congress.gov/search/bio/${official.bioguide_id}`}
-                  />
-                )}
-                {official.fec_id && (
-                  <InfoBlock
-                    label="FEC ID"
-                    value={official.fec_id}
-                    href={`https://www.fec.gov/data/candidate/${official.fec_id}/`}
-                  />
-                )}
-              </dl>
-            </div>
-          )}
-
-          <!-- Money Graph Link (Pillar 2) -->
-          <div class="bg-civic-blue/5 rounded-lg border border-civic-blue/20 p-5">
-            <h2 class="font-display text-base text-civic-navy mb-2">Follow the Money</h2>
-            <p class="text-xs text-civic-slate mb-3">See all financial connections for this official.</p>
-            <a
-              href={`/money/graph?entity=${official.id}`}
-              class="block w-full text-center py-2 px-4 bg-civic-blue text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
-            >
-              View Money Graph
-            </a>
+          <!-- Bio -->
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-2">Biography</h3>
+            {official.bio ? (
+              <p class="text-slate-700 leading-relaxed text-sm">{official.bio}</p>
+            ) : (
+              <p class="text-slate-400 text-sm italic">No biography on record.</p>
+            )}
           </div>
 
-          <!-- Back to jurisdiction -->
-          {jurisdiction && jurisdictionHref(jurisdiction) && (
-            <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
-              <p class="text-xs font-medium text-civic-slate uppercase tracking-wider mb-2">
-                Jurisdiction
-              </p>
-              <a
-                href={jurisdictionHref(jurisdiction)}
-                class="text-sm font-medium text-civic-blue hover:underline"
-              >
-                &larr; Back to {jurisdiction.name}
-              </a>
+          <!-- Term & office info -->
+          <div class="space-y-4">
+            <div>
+              <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-2">Term</h3>
+              <dl class="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+                <dt class="text-slate-500">Start</dt>
+                <dd class="text-slate-800 font-medium">{formatDate(official.term_start)}</dd>
+                <dt class="text-slate-500">End</dt>
+                <dd class="text-slate-800 font-medium">{formatDate(official.term_end)}</dd>
+                {official.district && (
+                  <>
+                    <dt class="text-slate-500">District</dt>
+                    <dd class="text-slate-800 font-medium">{official.district}</dd>
+                  </>
+                )}
+                {official.chamber && (
+                  <>
+                    <dt class="text-slate-500">Chamber</dt>
+                    <dd class="text-slate-800 font-medium">{official.chamber}</dd>
+                  </>
+                )}
+              </dl>
             </div>
-          )}
-        </aside>
-      </div>
+
+            <!-- Transparency score detail -->
+            <div>
+              <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-2">Transparency Score</h3>
+              <div class="flex items-center gap-3">
+                <span
+                  class={`inline-flex items-center justify-center w-12 h-12 rounded-full border-2 font-display font-bold text-2xl ${gradeColors}`}
+                >
+                  {transparencyGrade}
+                </span>
+                <div class="text-sm text-slate-600">
+                  {official.transparency_score != null ? (
+                    <p>{official.transparency_score} out of 100</p>
+                  ) : (
+                    <p class="italic text-slate-400">Score not yet calculated</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <!-- ── Donors ──────────────────────────────────────────── -->
+      <section id="donors" aria-labelledby="donors-heading">
+        <h2 id="donors-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Top Donors
+        </h2>
+
+        {donors && donors.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">Donor</th>
+                  <th class="px-4 py-3 text-left">Type</th>
+                  <th class="px-4 py-3 text-right">Amount</th>
+                  <th class="px-4 py-3 text-right">Cycle</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {donors.map((row, i) => (
+                  <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <td class="px-4 py-3 font-medium text-slate-800">{row.donor_name}</td>
+                    <td class="px-4 py-3 text-civic-slate capitalize">{row.donor_type ?? '—'}</td>
+                    <td class="px-4 py-3 text-right font-mono text-slate-800">{formatMoney(row.amount)}</td>
+                    <td class="px-4 py-3 text-right text-slate-500">{row.cycle ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No donor records on file.</p>
+        )}
+      </section>
+
+      <!-- ── Stock Trades ─────────────────────────────────────── -->
+      <section id="stock-trades" aria-labelledby="stock-trades-heading">
+        <h2 id="stock-trades-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Stock Trades
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Flags indicate disclosures filed more than 45 days after the trade date, violating the STOCK Act.
+        </p>
+
+        {trades && trades.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">Ticker</th>
+                  <th class="px-4 py-3 text-left">Asset</th>
+                  <th class="px-4 py-3 text-left">Type</th>
+                  <th class="px-4 py-3 text-right">Trade Date</th>
+                  <th class="px-4 py-3 text-right">Amount</th>
+                  <th class="px-4 py-3 text-right">Disclosed</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {trades.map((row, i) => {
+                  const late = isLateDisclosure(row.trade_date, row.disclosed_date);
+                  return (
+                    <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                      <td class="px-4 py-3 font-mono font-medium text-civic-blue">{row.ticker ?? '—'}</td>
+                      <td class="px-4 py-3 text-slate-700 max-w-[180px] truncate" title={row.asset_name ?? undefined}>
+                        {row.asset_name ?? '—'}
+                      </td>
+                      <td class="px-4 py-3">
+                        <span class={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${
+                          row.trade_type === 'purchase'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : row.trade_type === 'sale'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {row.trade_type ?? '—'}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3 text-right text-slate-600">{formatDate(row.trade_date)}</td>
+                      <td class="px-4 py-3 text-right font-mono text-slate-700">
+                        {row.amount_min != null && row.amount_max != null
+                          ? `${formatMoney(row.amount_min)} – ${formatMoney(row.amount_max)}`
+                          : formatMoney(row.amount_min ?? row.amount_max)}
+                      </td>
+                      <td class="px-4 py-3 text-right">
+                        <span class={late ? 'text-red-600 font-semibold' : 'text-slate-500'}>
+                          {formatDate(row.disclosed_date)}
+                          {late && (
+                            <span
+                              class="ml-1 inline-flex items-center"
+                              title="Disclosed more than 45 days after trade (STOCK Act violation)"
+                              aria-label="Late disclosure"
+                            >
+                              &#9888;
+                            </span>
+                          )}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No stock trade disclosures on file.</p>
+        )}
+      </section>
+
+      <!-- ── Voting Record ────────────────────────────────────── -->
+      <section id="voting-record" aria-labelledby="voting-record-heading">
+        <h2 id="voting-record-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Voting Record
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Donor alignment indicates whether the vote matched the position of this official's top donor industries.
+        </p>
+
+        {votes && votes.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">Bill</th>
+                  <th class="px-4 py-3 text-left">Date</th>
+                  <th class="px-4 py-3 text-center">Position</th>
+                  <th class="px-4 py-3 text-center">Donor Aligned</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {votes.map((row, i) => (
+                  <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <td class="px-4 py-3">
+                      <div class="font-medium text-civic-blue">{row.bill_id ?? '—'}</div>
+                      {row.bill_title && (
+                        <div class="text-xs text-slate-500 mt-0.5 max-w-sm truncate" title={row.bill_title}>
+                          {row.bill_title}
+                        </div>
+                      )}
+                    </td>
+                    <td class="px-4 py-3 text-slate-600 whitespace-nowrap">{formatDate(row.vote_date)}</td>
+                    <td class="px-4 py-3 text-center">
+                      <span class={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${
+                        row.position === 'yea' || row.position === 'yes'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : row.position === 'nay' || row.position === 'no'
+                          ? 'bg-red-100 text-red-700'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {row.position ?? '—'}
+                      </span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      {row.donor_aligned === true ? (
+                        <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                          <span aria-hidden="true">&#9888;</span> Aligned
+                        </span>
+                      ) : row.donor_aligned === false ? (
+                        <span class="text-xs text-slate-400">No</span>
+                      ) : (
+                        <span class="text-xs text-slate-300">—</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No voting record on file.</p>
+        )}
+      </section>
+
+      <!-- ── Lobbying ─────────────────────────────────────────── -->
+      <section id="lobbying" aria-labelledby="lobbying-heading">
+        <h2 id="lobbying-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Lobbying
+        </h2>
+
+        {lobbyingRows && lobbyingRows.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">Industry</th>
+                  <th class="px-4 py-3 text-left">Registrant</th>
+                  <th class="px-4 py-3 text-right">Amount</th>
+                  <th class="px-4 py-3 text-right">Cycle</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {lobbyingRows.map((row, i) => (
+                  <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <td class="px-4 py-3 font-medium text-slate-800">{row.industry ?? '—'}</td>
+                    <td class="px-4 py-3 text-civic-slate">{row.registrant_name ?? '—'}</td>
+                    <td class="px-4 py-3 text-right font-mono text-slate-800">{formatMoney(row.amount)}</td>
+                    <td class="px-4 py-3 text-right text-slate-500">{row.cycle ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No lobbying activity on record.</p>
+        )}
+      </section>
+
+      <!-- ── Money Graph ──────────────────────────────────────── -->
+      <section id="money-graph" aria-labelledby="money-graph-heading">
+        <h2 id="money-graph-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Money Graph
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Interactive network showing financial relationships up to 2 hops from this official.
+          Click any node to explore further.
+        </p>
+
+        {official.entity_id ? (
+          <MoneyGraph
+            client:visible
+            entityId={official.entity_id}
+            hops={2}
+            height="400px"
+          />
+        ) : (
+          <div class="rounded-lg border border-slate-200 bg-slate-50 h-48 flex items-center justify-center">
+            <p class="text-slate-400 italic text-sm">No entity ID — graph unavailable.</p>
+          </div>
+        )}
+      </section>
+
+      <!-- ── Conflicts ────────────────────────────────────────── -->
+      <section id="conflicts" aria-labelledby="conflicts-heading">
+        <h2 id="conflicts-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Active Conflict Alerts
+        </h2>
+
+        {conflicts && conflicts.length > 0 ? (
+          <ul class="flex flex-col gap-4" role="list">
+            {conflicts.map(alert => {
+              const severityStyles: Record<string, string> = {
+                critical: 'border-red-400 bg-red-50',
+                high: 'border-orange-400 bg-orange-50',
+                medium: 'border-yellow-400 bg-yellow-50',
+                low: 'border-slate-300 bg-white',
+              };
+              const badgeStyles: Record<string, string> = {
+                critical: 'bg-red-100 text-red-800',
+                high: 'bg-orange-100 text-orange-800',
+                medium: 'bg-yellow-100 text-yellow-800',
+                low: 'bg-slate-100 text-slate-600',
+              };
+              const severity: string = alert.severity ?? 'low';
+              const cardClass = severityStyles[severity] ?? severityStyles.low;
+              const badgeClass = badgeStyles[severity] ?? badgeStyles.low;
+
+              return (
+                <li class={`rounded-lg border-l-4 p-4 ${cardClass}`} role="listitem">
+                  <div class="flex flex-wrap items-start justify-between gap-2 mb-1.5">
+                    <span class="font-semibold text-sm text-slate-800 capitalize">
+                      {(alert.alert_type ?? 'Alert').replace(/_/g, ' ')}
+                    </span>
+                    <div class="flex items-center gap-2">
+                      <span class={`text-xs font-semibold uppercase px-2 py-0.5 rounded ${badgeClass}`}>
+                        {severity}
+                      </span>
+                      <span class="text-xs text-slate-400">{formatDate(alert.created_at)}</span>
+                    </div>
+                  </div>
+                  <p class="text-sm text-slate-700 leading-relaxed">{alert.description}</p>
+                  {alert.source_url && (
+                    <a
+                      href={alert.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="inline-block mt-2 text-xs text-civic-blue hover:underline"
+                    >
+                      Source &rarr;
+                    </a>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No active conflict alerts for this official.</p>
+        )}
+      </section>
+
     </div>
   </main>
-  <Footer />
 </BaseLayout>

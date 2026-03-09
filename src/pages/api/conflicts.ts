@@ -1,73 +1,72 @@
+export const prerender = false;
+
 import type { APIRoute } from 'astro';
 import { supabase } from '../../lib/supabase';
 
-export const prerender = false;
-
-const DEFAULT_LIMIT = 20;
-const MAX_LIMIT = 100;
-
-export const GET: APIRoute = async ({ url }) => {
-  const alertType = url.searchParams.get('alert_type');
-  const severityMin = url.searchParams.get('severity_min');
-  const entityId = url.searchParams.get('entity_id');
-  const status = url.searchParams.get('status');
-  const dateFrom = url.searchParams.get('date_from');
-  const dateTo = url.searchParams.get('date_to');
-
-  const page = Math.max(1, parseInt(url.searchParams.get('page') ?? '1', 10) || 1);
-  const rawLimit = parseInt(url.searchParams.get('limit') ?? String(DEFAULT_LIMIT), 10);
-  const limit = isNaN(rawLimit) ? DEFAULT_LIMIT : Math.min(Math.max(1, rawLimit), MAX_LIMIT);
-  const offset = (page - 1) * limit;
+export const GET: APIRoute = async ({ url, request }) => {
+  const page = parseInt(url.searchParams.get('page') || '1');
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
+  const alertType = url.searchParams.get('type');
+  const minSeverity = url.searchParams.get('min_severity');
+  const officialId = url.searchParams.get('official_id');
+  const status = url.searchParams.get('status') || 'active';
 
   let query = supabase
     .from('conflict_alerts')
-    .select('*', { count: 'exact' })
+    .select('*, official:official_id(full_name, slug)', { count: 'exact' })
+    .eq('status', status)
     .order('severity_score', { ascending: false })
     .order('detected_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+    .range((page - 1) * limit, page * limit - 1);
 
   if (alertType) query = query.eq('alert_type', alertType);
-  if (severityMin) query = query.gte('severity_score', parseFloat(severityMin));
-  if (status) query = query.eq('status', status);
-  if (dateFrom) query = query.gte('detected_at', dateFrom);
-  if (dateTo) query = query.lte('detected_at', dateTo);
-  if (entityId) query = query.contains('entity_ids', [entityId]);
+  if (minSeverity) query = query.gte('severity_score', parseFloat(minSeverity));
+  if (officialId) query = query.eq('official_id', officialId);
 
-  const { data: alerts, error, count } = await query;
+  const { data, count, error } = await query;
 
   if (error) {
-    console.error('[conflicts] Query error:', error);
-    return new Response(
-      JSON.stringify({ error: 'Failed to retrieve conflict alerts' }),
-      { status: 500, headers: { 'Content-Type': 'application/json' } }
-    );
+    return new Response(JSON.stringify({ error: error.message }), { status: 500 });
   }
 
-  // Resolve entity names for all alerts
-  const allEntityIds = [...new Set((alerts ?? []).flatMap((a) => a.entity_ids ?? []))];
-  let entityMap: Record<string, { name: string; type: string }> = {};
-
-  if (allEntityIds.length > 0) {
-    const { data: entities } = await supabase
-      .from('entities')
-      .select('id, name, entity_type')
-      .in('id', allEntityIds);
-
-    if (entities) {
-      entityMap = Object.fromEntries(
-        entities.map((e) => [e.id, { name: e.name, type: e.entity_type }])
-      );
-    }
+  // RSS feed support
+  const accept = request.headers.get('Accept') || '';
+  if (accept.includes('application/rss+xml')) {
+    const rss = generateRSS(data || []);
+    return new Response(rss, {
+      headers: { 'Content-Type': 'application/rss+xml' },
+    });
   }
 
-  const enriched = (alerts ?? []).map((alert) => ({
-    ...alert,
-    entities: (alert.entity_ids ?? [])
-      .map((id: string) => entityMap[id] ? { id, ...entityMap[id] } : { id, name: id, type: 'unknown' }),
-  }));
-
-  return new Response(
-    JSON.stringify({ data: enriched, total: count ?? 0, page }),
-    { status: 200, headers: { 'Content-Type': 'application/json' } }
-  );
+  return new Response(JSON.stringify({
+    alerts: data,
+    pagination: { page, limit, total: count, pages: Math.ceil((count || 0) / limit) },
+  }), {
+    headers: { 'Content-Type': 'application/json' },
+  });
 };
+
+function generateRSS(alerts: any[]): string {
+  const items = alerts.map(a => `
+    <item>
+      <title>${escapeXml(a.description || a.alert_type)}</title>
+      <description>${escapeXml(JSON.stringify(a.evidence))}</description>
+      <pubDate>${new Date(a.detected_at).toUTCString()}</pubDate>
+      <guid>${a.id}</guid>
+      <category>${a.alert_type}</category>
+    </item>`).join('');
+
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<rss version="2.0">
+  <channel>
+    <title>GovGuide Conflict Alerts</title>
+    <description>Government transparency conflict alerts</description>
+    <link>/conflicts</link>
+    ${items}
+  </channel>
+</rss>`;
+}
+
+function escapeXml(str: string): string {
+  return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}

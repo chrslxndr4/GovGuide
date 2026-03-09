@@ -3,117 +3,167 @@ const pillars = [
   {
     label: 'Navigate',
     items: [
-      { label: 'Federal Government', href: '/federal' },
-      { label: 'State & Local', href: '/states' },
-      { label: 'Elections & Voting', href: '/elections' },
-      { label: 'Laws & Legislation', href: '/laws' },
-      { label: 'Officials Directory', href: '/officials' },
+      { label: 'Federal', href: '/federal' },
+      { label: 'States', href: '/states' },
+      { label: 'Counties & Cities', href: '/counties-cities' },
+      { label: 'Officials', href: '/officials' },
+      { label: 'Elections', href: '/elections' },
+      { label: 'Agencies', href: '/agencies' },
     ],
   },
   {
     label: 'Follow the Money',
     items: [
-      { label: 'Money Graph Explorer', href: '/money/graph' },
-      { label: 'Campaign Finance', href: '/money' },
-      { label: 'Lobbying Dashboard', href: '/money/lobbying' },
-      { label: 'Stock Tracker', href: '/money/stocks' },
+      { label: 'Money Graph', href: '/money/graph' },
       { label: 'Dark Money', href: '/money/dark-money' },
+      { label: 'Lobbying', href: '/money/lobbying' },
+      { label: 'Stock Tracker', href: '/money/stocks' },
+      { label: 'Corporate Influence', href: '/money/corporate' },
     ],
   },
   {
     label: 'Connect the Dots',
     items: [
-      { label: 'Conflict Alerts', href: '/conflicts' },
-      { label: 'Judicial Center', href: '/judicial' },
-      { label: 'Predictions & Markets', href: '/predictions' },
+      { label: 'Conflicts', href: '/connect/conflicts' },
+      { label: 'Judicial', href: '/connect/judicial' },
+      { label: 'Predictions', href: '/connect/predictions' },
+      { label: 'Scorecards', href: '/connect/scorecards' },
+      { label: 'Local Guide', href: '/connect/local' },
     ],
   },
 ];
 ---
+
 <header class="bg-civic-navy text-white relative z-50">
   <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-    <a href="/" class="font-display text-2xl font-bold tracking-tight">GovGuide</a>
+
+    <!-- Wordmark -->
+    <a href="/" class="font-display text-2xl font-bold tracking-tight shrink-0">GovGuide</a>
 
     <!-- Desktop nav -->
-    <nav class="hidden lg:flex items-center gap-1">
-      {pillars.map((pillar) => (
-        <div class="relative group">
+    <nav class="hidden md:flex items-center gap-1" aria-label="Primary navigation">
+
+      <!-- Three-pillar dropdowns -->
+      {pillars.map(pillar => (
+        <div class="group relative">
           <button
-            class="px-3 py-2 text-sm font-medium text-slate-300 hover:text-white transition-colors flex items-center gap-1"
+            class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-slate-300 hover:text-white rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
             aria-haspopup="true"
+            aria-expanded="false"
           >
             {pillar.label}
-            <svg class="w-3 h-3 opacity-50" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+            <!-- Chevron -->
+            <svg
+              class="w-3.5 h-3.5 mt-px opacity-60 transition-transform duration-200 group-hover:rotate-180"
+              viewBox="0 0 12 12"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
             </svg>
           </button>
-          <div class="absolute left-0 top-full pt-1 hidden group-hover:block">
-            <div class="bg-white rounded-lg shadow-lg border border-slate-200 py-2 min-w-[200px]">
-              {pillar.items.map((item) => (
-                <a
-                  href={item.href}
-                  class="block px-4 py-2 text-sm text-civic-navy hover:bg-slate-50 transition-colors"
-                >
-                  {item.label}
-                </a>
+
+          <!-- Dropdown panel -->
+          <div
+            class="absolute left-0 top-full mt-1 w-52 rounded-lg shadow-xl ring-1 ring-black/20
+                   bg-[#1B2A4A] border border-white/10
+                   opacity-0 invisible translate-y-1
+                   group-hover:opacity-100 group-hover:visible group-hover:translate-y-0
+                   transition-all duration-200 ease-out"
+            role="menu"
+          >
+            <ul class="py-1.5">
+              {pillar.items.map(item => (
+                <li role="none">
+                  <a
+                    href={item.href}
+                    role="menuitem"
+                    class="block px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    {item.label}
+                  </a>
+                </li>
               ))}
-            </div>
+            </ul>
           </div>
         </div>
       ))}
 
-      <form action="/api/search" method="get" class="ml-4">
-        <input
-          type="search"
-          name="q"
-          placeholder="Search..."
-          class="px-3 py-1.5 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-400 focus:bg-white/20 focus:outline-none focus:ring-1 focus:ring-white/30 w-40"
-        />
-      </form>
+      <!-- Divider -->
+      <span class="mx-2 h-5 w-px bg-white/20" aria-hidden="true"></span>
+
+      <!-- My Government direct link -->
+      <a
+        href="/my-government"
+        class="px-3 py-2 text-sm font-medium text-slate-300 hover:text-white rounded transition-colors"
+      >
+        My Government
+      </a>
+
+      <!-- Search -->
+      <a
+        href="/search"
+        class="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-300 hover:text-white rounded transition-colors"
+        aria-label="Search"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M10 10l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Search
+      </a>
     </nav>
 
-    <!-- Mobile hamburger -->
-    <button
-      id="mobile-menu-btn"
-      class="lg:hidden p-2 text-slate-300 hover:text-white"
-      aria-label="Toggle menu"
-      aria-expanded="false"
+    <!-- Mobile: hamburger toggle (CSS-only via checkbox hack) -->
+    <label
+      for="mobile-menu-toggle"
+      class="md:hidden flex flex-col justify-center items-center w-9 h-9 cursor-pointer gap-1.5"
+      aria-label="Toggle mobile menu"
     >
-      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-      </svg>
-    </button>
+      <span class="block w-5 h-0.5 bg-slate-300 rounded transition-all"></span>
+      <span class="block w-5 h-0.5 bg-slate-300 rounded transition-all"></span>
+      <span class="block w-5 h-0.5 bg-slate-300 rounded transition-all"></span>
+    </label>
+    <input type="checkbox" id="mobile-menu-toggle" class="peer sr-only" aria-hidden="true" />
+
   </div>
 
-  <!-- Mobile menu -->
-  <div id="mobile-menu" class="lg:hidden hidden bg-civic-navy border-t border-white/10 px-4 pb-4">
-    {pillars.map((pillar) => (
-      <div class="py-2">
-        <p class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">{pillar.label}</p>
-        {pillar.items.map((item) => (
-          <a href={item.href} class="block py-1.5 text-sm text-slate-300 hover:text-white">
-            {item.label}
-          </a>
-        ))}
+  <!-- Mobile drawer — shown via peer-checked, hidden by default -->
+  <div
+    class="md:hidden max-h-0 overflow-hidden peer-checked:max-h-screen transition-all duration-300 ease-in-out border-t border-white/10"
+    id="mobile-menu"
+    aria-label="Mobile navigation"
+  >
+    <nav class="px-4 py-4 flex flex-col gap-4">
+
+      {pillars.map(pillar => (
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">{pillar.label}</p>
+          <ul class="flex flex-col gap-0.5">
+            {pillar.items.map(item => (
+              <li>
+                <a
+                  href={item.href}
+                  class="block py-1.5 text-sm text-slate-300 hover:text-white transition-colors"
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+
+      <div class="border-t border-white/10 pt-4 flex flex-col gap-0.5">
+        <a href="/my-government" class="block py-1.5 text-sm font-medium text-slate-300 hover:text-white transition-colors">
+          My Government
+        </a>
+        <a href="/search" class="block py-1.5 text-sm font-medium text-slate-300 hover:text-white transition-colors">
+          Search
+        </a>
       </div>
-    ))}
-    <form action="/api/search" method="get" class="mt-2">
-      <input
-        type="search"
-        name="q"
-        placeholder="Search..."
-        class="w-full px-3 py-2 text-sm bg-white/10 border border-white/20 rounded-lg text-white placeholder-slate-400"
-      />
-    </form>
+
+    </nav>
   </div>
 </header>
-
-<script>
-  const btn = document.getElementById('mobile-menu-btn');
-  const menu = document.getElementById('mobile-menu');
-  btn?.addEventListener('click', () => {
-    const expanded = btn.getAttribute('aria-expanded') === 'true';
-    btn.setAttribute('aria-expanded', String(!expanded));
-    menu?.classList.toggle('hidden');
-  });
-</script>

@@ -1,0 +1,58 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import StockTracker from '../components/stock/StockTracker';
+---
+
+<BaseLayout
+  title="Congressional Stock Tracker"
+  description="Track stock trades by members of Congress. Identify late STOCK Act filings and committee jurisdiction overlaps."
+>
+  <main class="flex-1 bg-civic-light">
+
+    {/* Hero */}
+    <section class="bg-civic-navy text-white py-8 px-4">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex items-start justify-between gap-6 flex-wrap">
+          <div>
+            <h1 class="text-3xl font-display font-bold mb-2">Congressional Stock Tracker</h1>
+            <p class="text-slate-300 max-w-2xl">
+              Track stock trades by members of Congress under the
+              <abbr title="Stop Trading on Congressional Knowledge Act">STOCK Act</abbr>.
+              Flag late disclosures and trades that overlap with committee jurisdiction.
+            </p>
+          </div>
+
+          {/* STOCK Act summary badge */}
+          <div class="bg-white/10 border border-white/20 rounded-lg px-4 py-3 text-sm shrink-0">
+            <p class="font-semibold text-white mb-0.5">STOCK Act</p>
+            <p class="text-slate-300 text-xs leading-relaxed">
+              Members must disclose trades<br />within <strong class="text-white">45 days</strong> of the transaction.
+            </p>
+          </div>
+        </div>
+
+        {/* Quick legend */}
+        <div class="mt-5 flex flex-wrap gap-4 text-xs text-slate-400">
+          <span class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span>
+            Filed 1–30 days late
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-red-500 inline-block"></span>
+            Filed more than 30 days late
+          </span>
+          <span class="flex items-center gap-1.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-amber-400 inline-block"></span>
+            Committee jurisdiction overlap
+          </span>
+        </div>
+      </div>
+    </section>
+
+    {/* React island */}
+    <div class="max-w-7xl mx-auto px-4 py-8">
+      <StockTracker client:load />
+    </div>
+
+  </main>
+</BaseLayout>

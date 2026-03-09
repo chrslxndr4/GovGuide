@@ -1,138 +1,363 @@
 ---
 import BaseLayout from '../../layouts/BaseLayout.astro';
 import Breadcrumb from '../../components/Breadcrumb.astro';
-import CategoryCard from '../../components/CategoryCard.astro';
-import { supabase } from '../../lib/supabase';
-
-// Fetch the federal jurisdiction ID
-const { data: jurisdiction } = await supabase
-  .from('jurisdictions')
-  .select('id')
-  .eq('slug', 'usa')
-  .single();
-
-const federalId = jurisdiction?.id ?? null;
-
-// Fetch agency count for federal jurisdiction
-const { count: agencyCount } = await supabase
-  .from('agencies')
-  .select('*', { count: 'exact', head: true })
-  .eq('jurisdiction_id', federalId ?? '');
-
-// Fetch official count for federal jurisdiction (via offices)
-const { data: federalOffices } = await supabase
-  .from('offices')
-  .select('id')
-  .eq('jurisdiction_id', federalId ?? '');
-
-const officeIds = federalOffices?.map((o) => o.id) ?? [];
-
-const { count: officialCount } = await supabase
-  .from('officials')
-  .select('*', { count: 'exact', head: true })
-  .in('office_id', officeIds.length > 0 ? officeIds : [''])
-  .eq('is_current', true);
-
-// Fetch senate and house counts for branch cards
-const { data: senateOffices } = await supabase
-  .from('offices')
-  .select('id')
-  .eq('jurisdiction_id', federalId ?? '')
-  .eq('chamber', 'senate');
-
-const senateOfficeIds = senateOffices?.map((o) => o.id) ?? [];
-
-const { count: senatorCount } = await supabase
-  .from('officials')
-  .select('*', { count: 'exact', head: true })
-  .in('office_id', senateOfficeIds.length > 0 ? senateOfficeIds : [''])
-  .eq('is_current', true);
-
-const { data: houseOffices } = await supabase
-  .from('offices')
-  .select('id')
-  .eq('jurisdiction_id', federalId ?? '')
-  .eq('chamber', 'house');
-
-const houseOfficeIds = houseOffices?.map((o) => o.id) ?? [];
-
-const { count: representativeCount } = await supabase
-  .from('officials')
-  .select('*', { count: 'exact', head: true })
-  .in('office_id', houseOfficeIds.length > 0 ? houseOfficeIds : [''])
-  .eq('is_current', true);
-
-const legislativeCount =
-  (senatorCount ?? 0) + (representativeCount ?? 0) || undefined;
 ---
 
 <BaseLayout
   title="Federal Government"
-  description="Explore the three branches of the United States federal government — Executive, Legislative, and Judicial — along with federal agencies and laws."
+  description="The three branches of the United States federal government — Executive, Legislative, and Judicial — with key officials, agencies, and links to follow the money."
 >
-  <main id="main-content" class="flex-1">
+  <main class="flex-1">
+
     <!-- Hero -->
     <section class="bg-civic-navy text-white py-10 px-4">
       <div class="max-w-7xl mx-auto">
         <Breadcrumb items={[{ label: 'Federal Government' }]} />
-        <h1 class="text-4xl md:text-5xl font-display font-bold mb-3">
-          Federal Government
-        </h1>
-        <p class="text-lg text-slate-300 max-w-2xl">
-          The United States federal government is divided into three branches —
-          each with distinct powers and responsibilities designed to balance
-          authority and protect individual rights.
-        </p>
+        <div class="max-w-3xl">
+          <h1 class="text-4xl md:text-5xl font-display font-bold mb-3">Federal Government</h1>
+          <p class="text-lg text-slate-300 leading-relaxed">
+            The United States federal government operates through three co-equal branches established by
+            the Constitution. Each branch holds distinct powers designed to check and balance the others.
+          </p>
+        </div>
       </div>
     </section>
 
     <!-- Three Branches -->
-    <section class="max-w-7xl mx-auto px-4 py-10">
-      <h2 class="text-2xl font-display text-civic-navy mb-2">Three Branches</h2>
-      <p class="text-civic-slate text-sm mb-6">
-        The separation of powers divides government authority among three
-        independent branches.
-      </p>
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-        <CategoryCard
-          title="Executive Branch"
-          description="The President, Vice President, Cabinet, and federal agencies that carry out federal law."
-          href="/federal/executive"
-          count={agencyCount ?? undefined}
-        />
-        <CategoryCard
-          title="Legislative Branch"
-          description="The Senate and House of Representatives that write and pass federal law."
-          href="/federal/legislative"
-          count={legislativeCount}
-        />
-        <CategoryCard
-          title="Judicial Branch"
-          description="The Supreme Court and lower federal courts that interpret federal law and the Constitution."
-          href="/federal/judicial"
-        />
+    <section class="max-w-7xl mx-auto px-4 py-12">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">The Three Branches</h2>
+      <p class="text-civic-slate text-sm mb-8">Separation of powers since 1789</p>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        <!-- Executive Branch -->
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
+          <div class="bg-civic-navy px-6 py-5">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-mono text-slate-400 uppercase tracking-widest">Article II</span>
+            </div>
+            <h3 class="text-xl font-display font-bold text-white">Executive</h3>
+            <p class="text-slate-300 text-sm mt-1">Enforces and implements federal law</p>
+          </div>
+
+          <div class="px-6 py-5 flex-1">
+            <dl class="space-y-3 mb-5">
+              <div class="flex justify-between items-baseline border-b border-slate-100 pb-2">
+                <dt class="text-xs font-medium text-civic-slate uppercase tracking-wider">President</dt>
+                <dd class="text-sm font-medium text-slate-800">Commander in Chief</dd>
+              </div>
+              <div class="flex justify-between items-baseline border-b border-slate-100 pb-2">
+                <dt class="text-xs font-medium text-civic-slate uppercase tracking-wider">Vice President</dt>
+                <dd class="text-sm font-medium text-slate-800">Presides over Senate</dd>
+              </div>
+              <div class="flex justify-between items-baseline border-b border-slate-100 pb-2">
+                <dt class="text-xs font-medium text-civic-slate uppercase tracking-wider">Cabinet Departments</dt>
+                <dd class="text-sm font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded">15</dd>
+              </div>
+              <div class="flex justify-between items-baseline pb-2">
+                <dt class="text-xs font-medium text-civic-slate uppercase tracking-wider">Key Agencies</dt>
+                <dd class="text-sm font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded">400+</dd>
+              </div>
+            </dl>
+
+            <div class="space-y-1.5 text-sm">
+              <p class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">Departments</p>
+              <ul class="grid grid-cols-2 gap-x-3 gap-y-1 text-civic-slate text-xs">
+                <li>State</li>
+                <li>Defense</li>
+                <li>Justice</li>
+                <li>Treasury</li>
+                <li>Homeland Security</li>
+                <li>Health &amp; Human Services</li>
+                <li>Education</li>
+                <li>Commerce</li>
+                <li>Interior</li>
+                <li>Agriculture</li>
+                <li>Labor</li>
+                <li>Transportation</li>
+                <li>Energy</li>
+                <li>Veterans Affairs</li>
+                <li>Housing &amp; Urban Dev.</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-2">
+            <a
+              href="/officials?branch=executive"
+              class="text-xs font-medium text-civic-blue hover:underline"
+            >
+              View Officials &rarr;
+            </a>
+            <span class="text-slate-300">|</span>
+            <a
+              href="/agencies?branch=executive"
+              class="text-xs font-medium text-civic-blue hover:underline"
+            >
+              All Agencies &rarr;
+            </a>
+          </div>
+        </div>
+
+        <!-- Legislative Branch -->
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
+          <div class="bg-[#1e3a6e] px-6 py-5">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-mono text-slate-400 uppercase tracking-widest">Article I</span>
+            </div>
+            <h3 class="text-xl font-display font-bold text-white">Legislative</h3>
+            <p class="text-slate-300 text-sm mt-1">Creates and passes federal law</p>
+          </div>
+
+          <div class="px-6 py-5 flex-1">
+            <dl class="space-y-3 mb-5">
+              <div class="flex justify-between items-baseline border-b border-slate-100 pb-2">
+                <dt class="text-xs font-medium text-civic-slate uppercase tracking-wider">Senate</dt>
+                <dd class="text-sm font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded">100 senators</dd>
+              </div>
+              <div class="flex justify-between items-baseline border-b border-slate-100 pb-2">
+                <dt class="text-xs font-medium text-civic-slate uppercase tracking-wider">House of Representatives</dt>
+                <dd class="text-sm font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded">435 members</dd>
+              </div>
+              <div class="flex justify-between items-baseline border-b border-slate-100 pb-2">
+                <dt class="text-xs font-medium text-civic-slate uppercase tracking-wider">Term — Senate</dt>
+                <dd class="text-sm text-slate-800">6 years, staggered</dd>
+              </div>
+              <div class="flex justify-between items-baseline pb-2">
+                <dt class="text-xs font-medium text-civic-slate uppercase tracking-wider">Term — House</dt>
+                <dd class="text-sm text-slate-800">2 years, all seats</dd>
+              </div>
+            </dl>
+
+            <div class="space-y-3 text-sm">
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">Senate Leadership</p>
+                <ul class="space-y-1 text-xs text-civic-slate">
+                  <li>Majority Leader</li>
+                  <li>Minority Leader</li>
+                  <li>President Pro Tempore</li>
+                </ul>
+              </div>
+              <div>
+                <p class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2 mt-3">House Leadership</p>
+                <ul class="space-y-1 text-xs text-civic-slate">
+                  <li>Speaker of the House</li>
+                  <li>Majority Leader</li>
+                  <li>Minority Leader</li>
+                </ul>
+              </div>
+            </div>
+          </div>
+
+          <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-2">
+            <a
+              href="/officials?branch=legislative"
+              class="text-xs font-medium text-civic-blue hover:underline"
+            >
+              Find Your Members &rarr;
+            </a>
+            <span class="text-slate-300">|</span>
+            <a
+              href="/federal/bills"
+              class="text-xs font-medium text-civic-blue hover:underline"
+            >
+              Bills &amp; Votes &rarr;
+            </a>
+          </div>
+        </div>
+
+        <!-- Judicial Branch -->
+        <div class="bg-white rounded-xl border border-slate-200 overflow-hidden flex flex-col">
+          <div class="bg-[#2d2d4e] px-6 py-5">
+            <div class="flex items-center justify-between mb-1">
+              <span class="text-xs font-mono text-slate-400 uppercase tracking-widest">Article III</span>
+            </div>
+            <h3 class="text-xl font-display font-bold text-white">Judicial</h3>
+            <p class="text-slate-300 text-sm mt-1">Interprets the Constitution and laws</p>
+          </div>
+
+          <div class="px-6 py-5 flex-1">
+            <dl class="space-y-3 mb-5">
+              <div class="flex justify-between items-baseline border-b border-slate-100 pb-2">
+                <dt class="text-xs font-medium text-civic-slate uppercase tracking-wider">Supreme Court</dt>
+                <dd class="text-sm font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded">9 justices</dd>
+              </div>
+              <div class="flex justify-between items-baseline border-b border-slate-100 pb-2">
+                <dt class="text-xs font-medium text-civic-slate uppercase tracking-wider">Circuit Courts</dt>
+                <dd class="text-sm font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded">13 circuits</dd>
+              </div>
+              <div class="flex justify-between items-baseline border-b border-slate-100 pb-2">
+                <dt class="text-xs font-medium text-civic-slate uppercase tracking-wider">District Courts</dt>
+                <dd class="text-sm font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded">94 districts</dd>
+              </div>
+              <div class="flex justify-between items-baseline pb-2">
+                <dt class="text-xs font-medium text-civic-slate uppercase tracking-wider">Appointments</dt>
+                <dd class="text-sm text-slate-800">Life tenure</dd>
+              </div>
+            </dl>
+
+            <div class="space-y-1.5">
+              <p class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-2">Supreme Court</p>
+              <ul class="space-y-1 text-xs text-civic-slate">
+                <li>Chief Justice of the United States</li>
+                <li>8 Associate Justices</li>
+                <li>~7,000 petitions annually</li>
+                <li>~60–80 cases heard per term</li>
+              </ul>
+            </div>
+          </div>
+
+          <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-2">
+            <a
+              href="/connect/judicial"
+              class="text-xs font-medium text-civic-blue hover:underline"
+            >
+              Judicial Transparency &rarr;
+            </a>
+            <span class="text-slate-300">|</span>
+            <a
+              href="/officials?branch=judicial"
+              class="text-xs font-medium text-civic-blue hover:underline"
+            >
+              View Justices &rarr;
+            </a>
+          </div>
+        </div>
+
       </div>
     </section>
 
-    <!-- Additional Sections -->
-    <section class="max-w-7xl mx-auto px-4 pb-12">
-      <h2 class="text-2xl font-display text-civic-navy mb-2">Explore More</h2>
-      <p class="text-civic-slate text-sm mb-6">
-        Dive deeper into federal agencies, departments, and legislation.
-      </p>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-        <CategoryCard
-          title="Federal Agencies"
-          description="Browse all federal departments, independent agencies, regulatory commissions, and government corporations."
-          href="/federal/agencies"
-          count={agencyCount ?? undefined}
-        />
-        <CategoryCard
-          title="Federal Laws"
-          description="Search the United States Code, recent legislation, and regulatory rules."
-          href="/laws/federal"
-        />
+    <!-- Follow the Money -->
+    <section class="bg-white border-y border-slate-200 py-12 px-4">
+      <div class="max-w-7xl mx-auto">
+        <div class="flex items-baseline justify-between mb-2">
+          <h2 class="text-2xl font-display text-civic-navy">Follow the Money</h2>
+          <a href="/money" class="text-sm text-civic-blue hover:underline">Full money dashboard &rarr;</a>
+        </div>
+        <p class="text-civic-slate text-sm mb-8">Where federal money flows — campaign donors, lobbyists, and congressional stock trades.</p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+
+          <!-- Money Graph -->
+          <a
+            href="/money/graph"
+            class="group block p-5 rounded-xl border border-slate-200 hover:border-civic-blue hover:shadow-md transition-all bg-civic-light"
+          >
+            <div class="w-9 h-9 rounded-lg bg-civic-blue/10 flex items-center justify-center mb-3" aria-hidden="true">
+              <svg class="w-5 h-5 text-civic-blue" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <circle cx="5" cy="15" r="2" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="10" cy="8" r="2" stroke="currentColor" stroke-width="1.5"/>
+                <circle cx="15" cy="4" r="2" stroke="currentColor" stroke-width="1.5"/>
+                <line x1="6.4" y1="13.2" x2="8.6" y2="9.8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="11.4" y1="6.5" x2="13.6" y2="5.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3 class="font-display text-base text-civic-navy group-hover:text-civic-blue transition-colors">Money Graph</h3>
+            <p class="text-xs text-civic-slate mt-1">Donor networks and influence maps</p>
+          </a>
+
+          <!-- Lobbying -->
+          <a
+            href="/money/lobbying"
+            class="group block p-5 rounded-xl border border-slate-200 hover:border-civic-blue hover:shadow-md transition-all bg-civic-light"
+          >
+            <div class="w-9 h-9 rounded-lg bg-civic-gold/10 flex items-center justify-center mb-3" aria-hidden="true">
+              <svg class="w-5 h-5 text-civic-gold" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <rect x="3" y="9" width="14" height="9" rx="1.5" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M7 9V6a3 3 0 016 0v3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3 class="font-display text-base text-civic-navy group-hover:text-civic-blue transition-colors">Lobbying</h3>
+            <p class="text-xs text-civic-slate mt-1">Registered lobbyists and spending by industry</p>
+          </a>
+
+          <!-- Stock Tracker -->
+          <a
+            href="/money/stocks"
+            class="group block p-5 rounded-xl border border-slate-200 hover:border-civic-blue hover:shadow-md transition-all bg-civic-light"
+          >
+            <div class="w-9 h-9 rounded-lg bg-green-500/10 flex items-center justify-center mb-3" aria-hidden="true">
+              <svg class="w-5 h-5 text-green-600" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <polyline points="2,14 7,8 11,11 18,4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                <polyline points="14,4 18,4 18,8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </div>
+            <h3 class="font-display text-base text-civic-navy group-hover:text-civic-blue transition-colors">Stock Tracker</h3>
+            <p class="text-xs text-civic-slate mt-1">Congressional stock trades and disclosures</p>
+          </a>
+
+          <!-- Dark Money -->
+          <a
+            href="/money/dark-money"
+            class="group block p-5 rounded-xl border border-slate-200 hover:border-civic-blue hover:shadow-md transition-all bg-civic-light"
+          >
+            <div class="w-9 h-9 rounded-lg bg-civic-slate/10 flex items-center justify-center mb-3" aria-hidden="true">
+              <svg class="w-5 h-5 text-civic-slate" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <path d="M10 2a8 8 0 100 16A8 8 0 0010 2z" stroke="currentColor" stroke-width="1.5"/>
+                <path d="M10 2C6 2 4 6 4 10s2 8 6 8" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+                <line x1="2" y1="10" x2="18" y2="10" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+              </svg>
+            </div>
+            <h3 class="font-display text-base text-civic-navy group-hover:text-civic-blue transition-colors">Dark Money</h3>
+            <p class="text-xs text-civic-slate mt-1">501(c)(4) nonprofits and undisclosed donors</p>
+          </a>
+
+        </div>
       </div>
     </section>
+
+    <!-- Active Alerts -->
+    <section class="max-w-7xl mx-auto px-4 py-12">
+      <div class="flex items-baseline justify-between mb-2">
+        <h2 class="text-2xl font-display text-civic-navy">Active Alerts</h2>
+        <a href="/connect/conflicts" class="text-sm text-civic-blue hover:underline">All conflicts &rarr;</a>
+      </div>
+      <p class="text-civic-slate text-sm mb-6">Potential conflicts of interest, disclosure gaps, and transparency flags at the federal level.</p>
+
+      <div class="space-y-3">
+
+        <!-- Placeholder alert item -->
+        <div class="flex items-start gap-4 p-4 rounded-xl border border-amber-200 bg-amber-50">
+          <div class="mt-0.5 shrink-0 w-2 h-2 rounded-full bg-amber-400 mt-2" aria-hidden="true"></div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-slate-800">Stock disclosure alerts — live data coming soon</p>
+            <p class="text-xs text-civic-slate mt-0.5">
+              Congressional stock trades within 45-day STOCK Act disclosure window will appear here once the tracker is live.
+            </p>
+          </div>
+          <span class="shrink-0 text-xs font-mono bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200">
+            pending
+          </span>
+        </div>
+
+        <div class="flex items-start gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50">
+          <div class="mt-0.5 shrink-0 w-2 h-2 rounded-full bg-slate-300 mt-2" aria-hidden="true"></div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-slate-800">Lobbying cross-reference — live data coming soon</p>
+            <p class="text-xs text-civic-slate mt-0.5">
+              Alerts for officials who vote on legislation affecting known campaign donors will populate here.
+            </p>
+          </div>
+          <span class="shrink-0 text-xs font-mono bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200">
+            pending
+          </span>
+        </div>
+
+        <div class="flex items-start gap-4 p-4 rounded-xl border border-slate-200 bg-slate-50">
+          <div class="mt-0.5 shrink-0 w-2 h-2 rounded-full bg-slate-300 mt-2" aria-hidden="true"></div>
+          <div class="flex-1 min-w-0">
+            <p class="text-sm font-medium text-slate-800">Judicial conflict-of-interest flags — live data coming soon</p>
+            <p class="text-xs text-civic-slate mt-0.5">
+              Recusal history and ethics disclosure gaps for federal judges will surface here.
+            </p>
+          </div>
+          <span class="shrink-0 text-xs font-mono bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200">
+            pending
+          </span>
+        </div>
+
+      </div>
+    </section>
+
   </main>
 </BaseLayout>

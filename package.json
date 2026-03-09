@@ -17,27 +17,11 @@
     "import:eos": "npx tsx --env-file=.env scripts/import-executive-orders.ts",
     "import:federal-laws": "npx tsx --env-file=.env scripts/import-federal-law-sources.ts",
     "import:federal": "npm run import:agencies && npm run import:congress && npm run import:eos && npm run import:federal-laws",
-    "import:state-officials": "npx tsx --env-file=.env scripts/import-state-officials.ts",
-    "import:election-services": "npx tsx --env-file=.env scripts/import-election-services.ts",
-    "import:state-laws": "npx tsx --env-file=.env scripts/import-state-law-sources.ts",
-    "import:state": "npm run import:state-officials && npm run import:election-services && npm run import:state-laws",
-    "import:all": "npm run import:geo && npm run import:federal && npm run import:state",
-    "import:fec-committees": "npx tsx --env-file=.env scripts/import-fec-committees.ts",
-    "import:fec-contributions": "npx tsx --env-file=.env scripts/import-fec-contributions.ts",
-    "import:fec-expenditures": "npx tsx --env-file=.env scripts/import-fec-expenditures.ts",
-    "import:lobbying": "npx tsx --env-file=.env scripts/import-lobbying.ts",
-    "import:stock-trades": "npx tsx --env-file=.env scripts/import-stock-trades.ts",
-    "import:judges": "npx tsx --env-file=.env scripts/import-judges.ts",
-    "import:judge-financials": "npx tsx --env-file=.env scripts/import-judge-financials.ts",
-    "import:bills": "npx tsx --env-file=.env scripts/import-bills.ts",
-    "import:votes": "npx tsx --env-file=.env scripts/import-votes.ts",
-    "import:polls": "npx tsx --env-file=.env scripts/import-polls.ts",
-    "import:predictions": "npx tsx --env-file=.env scripts/import-predictions.ts",
-    "detect-conflicts": "npx tsx --env-file=.env scripts/detect-conflicts.ts",
-    "resolve-entities": "npx tsx --env-file=.env scripts/resolve-entities.ts",
-    "pipeline:daily": "npx tsx --env-file=.env scripts/pipeline-daily.ts",
-    "pipeline:weekly": "npx tsx --env-file=.env scripts/pipeline-weekly.ts",
-    "validate": "npx tsx --env-file=.env scripts/validate-data.ts"
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "pipeline": "tsx scripts/pipeline/run.ts",
+    "pipeline:all": "tsx scripts/pipeline/run.ts --all",
+    "pipeline:list": "tsx scripts/pipeline/run.ts --list"
   },
   "dependencies": {
     "@astrojs/node": "^9.5.4",
@@ -49,21 +33,27 @@
     "cytoscape": "^3.33.1",
     "d3": "^7.9.0",
     "d3-sankey": "^0.12.3",
+    "graphology": "^0.26.0",
+    "graphology-layout-forceatlas2": "^0.10.1",
     "maplibre-gl": "^5.19.0",
     "pmtiles": "^4.4.0",
     "react": "^19.2.4",
     "react-chartjs-2": "^5.3.1",
-    "react-dom": "^19.2.4"
+    "react-dom": "^19.2.4",
+    "sigma": "^3.0.2"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/cytoscape": "^3.21.9",
     "@types/d3": "^7.4.3",
-    "@types/d3-sankey": "^0.12.5",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "dotenv": "^17.3.1",
+    "jsdom": "^28.1.0",
     "tailwindcss": "^3.4.19",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }

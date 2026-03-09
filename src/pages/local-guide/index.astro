@@ -1,0 +1,124 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+
+interface TopicCard {
+  slug: string;
+  title: string;
+  description: string;
+  icon: string;
+}
+
+const topics: TopicCard[] = [
+  {
+    slug: 'city-council-meetings',
+    title: 'How to Attend a City Council Meeting',
+    description: 'Find your local council schedule, understand public comment rules, and make your voice heard on issues that affect your neighborhood.',
+    icon: '&#127962;',
+  },
+  {
+    slug: 'property-taxes',
+    title: 'Understanding Your Property Taxes',
+    description: 'Learn how your property tax rate is set, who receives the revenue, how to appeal an assessment, and what exemptions may be available to you.',
+    icon: '&#127968;',
+  },
+  {
+    slug: 'zoning-land-use',
+    title: 'Local Zoning and Land Use',
+    description: 'Understand zoning maps, variance requests, and how to participate when development is proposed in your community.',
+    icon: '&#128205;',
+  },
+  {
+    slug: 'school-board',
+    title: 'School Board Participation',
+    description: 'Discover how school boards govern your local district, when and how to attend meetings, and how board members are elected.',
+    icon: '&#127979;',
+  },
+  {
+    slug: 'water-utilities',
+    title: 'Water and Utilities',
+    description: 'Find out who controls your local water and utility services, how rates are regulated, and how to access water quality reports.',
+    icon: '&#128167;',
+  },
+  {
+    slug: 'public-records',
+    title: 'Public Records Requests',
+    description: 'A step-by-step guide to submitting FOIA and state public records requests to access government documents and data.',
+    icon: '&#128196;',
+  },
+];
+---
+
+<BaseLayout
+  title="Local Government Navigator"
+  description="Your guide to navigating local government — city councils, property taxes, zoning, school boards, utilities, and public records requests."
+>
+  <main class="flex-1">
+
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-16 px-4">
+      <div class="max-w-5xl mx-auto">
+        <div class="max-w-2xl">
+          <div class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-civic-blue bg-white/10 border border-white/20 px-3 py-1 rounded-full mb-4">
+            Local Government
+          </div>
+          <h1 class="text-4xl md:text-5xl font-display font-bold mb-4 leading-tight">
+            Navigate Local Government
+          </h1>
+          <p class="text-lg text-slate-300 leading-relaxed">
+            Local government touches your daily life more directly than Washington ever will.
+            These guides help you understand how it works, where the power lies, and how to
+            make your participation count.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Topic grid -->
+    <div class="max-w-5xl mx-auto px-4 py-12">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+        {topics.map(topic => (
+          <a
+            href={`/local-guide/${topic.slug}`}
+            class="group flex flex-col rounded-xl border border-slate-200 bg-white p-6 hover:border-civic-blue hover:shadow-md transition-all"
+          >
+            <div
+              class="text-3xl mb-4 w-12 h-12 flex items-center justify-center rounded-lg bg-civic-light border border-slate-200"
+              aria-hidden="true"
+            >
+              <Fragment set:html={topic.icon} />
+            </div>
+            <h2 class="text-base font-display font-bold text-civic-navy mb-2 group-hover:text-civic-blue transition-colors leading-snug">
+              {topic.title}
+            </h2>
+            <p class="text-sm text-slate-600 leading-relaxed flex-1">
+              {topic.description}
+            </p>
+            <div class="mt-4 text-xs font-semibold text-civic-blue group-hover:underline">
+              Read guide &rarr;
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+
+    <!-- CTA strip -->
+    <section class="bg-slate-50 border-t border-slate-200 py-12 px-4">
+      <div class="max-w-5xl mx-auto text-center">
+        <h2 class="text-2xl font-display font-bold text-civic-navy mb-3">
+          Know your elected officials
+        </h2>
+        <p class="text-slate-600 text-sm max-w-lg mx-auto mb-6">
+          Look up every official representing you — from your city council member to your
+          US senators — with full transparency profiles showing donors, votes, and more.
+        </p>
+        <a
+          href="/my-government"
+          class="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-civic-blue text-white font-semibold text-sm hover:bg-civic-navy transition-colors"
+        >
+          Find my representatives &rarr;
+        </a>
+      </div>
+    </section>
+
+  </main>
+</BaseLayout>

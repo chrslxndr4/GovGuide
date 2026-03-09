@@ -1,0 +1,316 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import { supabase } from '../../lib/supabase';
+
+const { slug } = Astro.params;
+
+const { data: county } = await supabase
+  .from('jurisdictions')
+  .select('*')
+  .eq('slug', slug)
+  .eq('level', 'county')
+  .single();
+
+if (!county) return Astro.redirect('/404');
+
+// Fetch related data in parallel
+const [
+  { data: officials },
+  { data: delegation },
+  { data: elections },
+] = await Promise.all([
+  supabase
+    .from('officials')
+    .select('id, name, slug, party, title')
+    .eq('jurisdiction_id', county.id)
+    .order('title', { ascending: true }),
+  supabase
+    .from('officials')
+    .select('id, name, slug, party, title, chamber')
+    .eq('state', county.state_code)
+    .in('chamber', ['house', 'senate'])
+    .order('chamber', { ascending: true })
+    .limit(20),
+  supabase
+    .from('elections')
+    .select('id, name, election_date, type, status')
+    .eq('jurisdiction_id', county.id)
+    .order('election_date', { ascending: false })
+    .limit(10),
+]);
+
+type PartyKey = 'D' | 'R' | 'I' | string;
+
+function partyLabel(party: PartyKey): string {
+  const labels: Record<string, string> = { D: 'Democrat', R: 'Republican', I: 'Independent' };
+  return labels[party] ?? party ?? 'Unknown';
+}
+
+function partyBadge(party: PartyKey): string {
+  if (party === 'D') return 'bg-blue-100 text-blue-800 border-blue-200';
+  if (party === 'R') return 'bg-red-100 text-red-800 border-red-200';
+  return 'bg-slate-100 text-slate-700 border-slate-200';
+}
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+const sections = [
+  { id: 'officials', label: 'County Officials' },
+  { id: 'delegation', label: 'State Delegation' },
+  { id: 'spending', label: 'Local Spending' },
+  { id: 'elections', label: 'Elections' },
+];
+---
+
+<BaseLayout
+  title={county.name}
+  description={`County profile for ${county.name} — officials, state delegation, local spending, and election results.`}
+>
+  <main class="flex-1">
+
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-5xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Counties', href: '/counties' },
+            { label: county.name },
+          ]}
+        />
+
+        <div class="flex flex-col sm:flex-row items-start gap-6">
+          <div
+            class="shrink-0 w-20 h-20 rounded-lg bg-[#2a3f6a] border border-white/20
+                   flex items-center justify-center text-2xl font-display font-bold text-white/60"
+            aria-hidden="true"
+          >
+            {county.state_code ?? '??'}
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <h1 class="text-3xl md:text-4xl font-display font-bold mb-2 leading-tight">
+              {county.name}
+            </h1>
+            <div class="flex flex-wrap items-center gap-3 text-sm text-slate-300">
+              {county.state_name && <span>{county.state_name}</span>}
+              {county.population != null && (
+                <>
+                  <span class="text-slate-500" aria-hidden="true">·</span>
+                  <span>Pop. {county.population.toLocaleString()}</span>
+                </>
+              )}
+              {county.seat && (
+                <>
+                  <span class="text-slate-500" aria-hidden="true">·</span>
+                  <span>Seat: {county.seat}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sticky section nav -->
+    <nav
+      class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm overflow-x-auto"
+      aria-label="County sections"
+    >
+      <div class="max-w-5xl mx-auto px-4">
+        <ol class="flex items-center gap-0 text-sm font-medium whitespace-nowrap">
+          {sections.map(s => (
+            <li>
+              <a
+                href={`#${s.id}`}
+                class="block px-4 py-3 text-civic-slate hover:text-civic-blue border-b-2 border-transparent hover:border-civic-blue transition-colors"
+              >
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </nav>
+
+    <div class="max-w-5xl mx-auto px-4 py-10 flex flex-col gap-16">
+
+      <!-- ── County Officials ──────────────────────────────────── -->
+      <section id="officials" aria-labelledby="officials-heading">
+        <h2 id="officials-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          County Officials
+        </h2>
+
+        {officials && officials.length > 0 ? (
+          <ul class="grid grid-cols-1 sm:grid-cols-2 gap-4" role="list">
+            {officials.map(official => (
+              <li>
+                <a
+                  href={`/officials/${official.slug}`}
+                  class="flex items-center gap-3 p-4 rounded-lg border border-slate-200 bg-white hover:border-civic-blue hover:shadow-sm transition-all"
+                >
+                  <div
+                    class="shrink-0 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center
+                           text-sm font-display font-bold text-slate-500"
+                    aria-hidden="true"
+                  >
+                    {official.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-semibold text-slate-800 truncate">{official.name}</div>
+                    <div class="flex items-center gap-2 mt-0.5">
+                      <span class="text-xs text-civic-slate truncate">{official.title ?? 'Official'}</span>
+                      {official.party && (
+                        <span class={`inline-flex px-1.5 py-0.5 rounded text-xs font-semibold border ${partyBadge(official.party)}`}>
+                          {partyLabel(official.party)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                </a>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No officials on record for this county.</p>
+        )}
+      </section>
+
+      <!-- ── State Delegation ──────────────────────────────────── -->
+      <section id="delegation" aria-labelledby="delegation-heading">
+        <h2 id="delegation-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          State Delegation
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Federal legislators representing {county.state_name ?? 'this state'} in Congress.
+        </p>
+
+        {delegation && delegation.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">Name</th>
+                  <th class="px-4 py-3 text-left">Chamber</th>
+                  <th class="px-4 py-3 text-left">Party</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {delegation.map((official, i) => (
+                  <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <td class="px-4 py-3">
+                      <a href={`/officials/${official.slug}`} class="font-medium text-civic-blue hover:underline">
+                        {official.name}
+                      </a>
+                    </td>
+                    <td class="px-4 py-3 text-civic-slate capitalize">{official.chamber ?? '—'}</td>
+                    <td class="px-4 py-3">
+                      {official.party ? (
+                        <span class={`inline-flex px-2 py-0.5 rounded text-xs font-semibold border ${partyBadge(official.party)}`}>
+                          {partyLabel(official.party)}
+                        </span>
+                      ) : '—'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No delegation data on record.</p>
+        )}
+      </section>
+
+      <!-- ── Local Spending ────────────────────────────────────── -->
+      <section id="spending" aria-labelledby="spending-heading">
+        <h2 id="spending-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Local Spending
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Budget and expenditure data for {county.name}. Sourced from county financial disclosures.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { label: 'Annual Budget', value: county.annual_budget },
+            { label: 'Per Capita Spending', value: county.per_capita_spending },
+            { label: 'Fiscal Year', value: county.fiscal_year },
+          ].map(stat => (
+            <div class="rounded-lg border border-slate-200 bg-white p-4">
+              <div class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-1">
+                {stat.label}
+              </div>
+              <div class="text-2xl font-display font-bold text-civic-navy">
+                {stat.value != null
+                  ? typeof stat.value === 'number'
+                    ? `$${stat.value.toLocaleString()}`
+                    : stat.value
+                  : <span class="text-slate-300 text-base font-normal italic">Not available</span>
+                }
+              </div>
+            </div>
+          ))}
+        </div>
+
+        {county.budget_url && (
+          <div class="mt-4">
+            <a
+              href={county.budget_url}
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-flex items-center gap-1.5 text-sm text-civic-blue hover:underline"
+            >
+              View full budget document &rarr;
+            </a>
+          </div>
+        )}
+      </section>
+
+      <!-- ── Elections ─────────────────────────────────────────── -->
+      <section id="elections" aria-labelledby="elections-heading">
+        <h2 id="elections-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Elections
+        </h2>
+
+        {elections && elections.length > 0 ? (
+          <ul class="flex flex-col gap-3" role="list">
+            {elections.map(election => (
+              <li class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-4 rounded-lg border border-slate-200 bg-white">
+                <div>
+                  <div class="font-semibold text-slate-800">{election.name}</div>
+                  <div class="text-xs text-civic-slate mt-0.5 capitalize">{election.type ?? 'General'}</div>
+                </div>
+                <div class="flex items-center gap-3 shrink-0">
+                  <span class="text-sm text-slate-500">{formatDate(election.election_date)}</span>
+                  {election.status && (
+                    <span class={`text-xs font-semibold px-2 py-0.5 rounded capitalize ${
+                      election.status === 'upcoming'
+                        ? 'bg-blue-100 text-blue-700'
+                        : election.status === 'completed'
+                        ? 'bg-emerald-100 text-emerald-700'
+                        : 'bg-slate-100 text-slate-600'
+                    }`}>
+                      {election.status}
+                    </span>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No election records for this county.</p>
+        )}
+      </section>
+
+    </div>
+  </main>
+</BaseLayout>

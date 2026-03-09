@@ -1,0 +1,427 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import { supabase } from '../../lib/supabase';
+
+const { slug } = Astro.params;
+
+const { data: entity } = await supabase
+  .from('entities')
+  .select('*')
+  .eq('slug', slug)
+  .eq('entity_type', 'government_agency')
+  .single();
+
+if (!entity) return Astro.redirect('/404');
+
+// Fetch agency data in parallel
+const [
+  { data: regulations },
+  { data: lobbyingActivity },
+  { data: contractors },
+  { data: revolvingDoor },
+] = await Promise.all([
+  supabase
+    .from('regulations')
+    .select('id, title, rule_number, status, published_date, summary, source_url')
+    .eq('agency_entity_id', entity.id)
+    .order('published_date', { ascending: false })
+    .limit(10),
+  supabase
+    .from('lobbying_disclosures')
+    .select('registrant_name, client_name, issue_area, amount, cycle')
+    .eq('agency_entity_id', entity.id)
+    .order('amount', { ascending: false })
+    .limit(10),
+  supabase
+    .from('federal_contracts')
+    .select('vendor_name, description, amount, start_date, end_date')
+    .eq('agency_entity_id', entity.id)
+    .order('amount', { ascending: false })
+    .limit(15),
+  supabase
+    .from('revolving_door')
+    .select('person_name, direction, prior_role, new_role, year, entity_name')
+    .eq('agency_entity_id', entity.id)
+    .order('year', { ascending: false })
+    .limit(10),
+]);
+
+function formatMoney(amount: number | null | undefined): string {
+  if (amount == null) return '—';
+  if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(1)}B`;
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
+  return `$${amount.toLocaleString()}`;
+}
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+const sections = [
+  { id: 'mission', label: 'Mission' },
+  { id: 'budget', label: 'Budget' },
+  { id: 'regulations', label: 'Key Regulations' },
+  { id: 'lobbying', label: 'Lobbying Activity' },
+  { id: 'contractors', label: 'Contractors' },
+  { id: 'revolving-door', label: 'Revolving Door' },
+];
+---
+
+<BaseLayout
+  title={entity.name}
+  description={`Agency profile for ${entity.name} — mission, budget, key regulations, lobbying activity, contractors, and revolving door.`}
+>
+  <main class="flex-1">
+
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-5xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Agencies', href: '/agencies' },
+            { label: entity.name },
+          ]}
+        />
+
+        <div class="flex flex-col sm:flex-row items-start gap-6">
+          <div
+            class="shrink-0 w-20 h-20 rounded-lg bg-[#2a3f6a] border border-white/20
+                   flex items-center justify-center text-2xl font-display font-bold text-white/60"
+            aria-hidden="true"
+          >
+            {entity.abbreviation ?? entity.name.charAt(0).toUpperCase()}
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <h1 class="text-3xl md:text-4xl font-display font-bold mb-2 leading-tight">
+              {entity.name}
+            </h1>
+            <div class="flex flex-wrap items-center gap-3 text-sm text-slate-300">
+              {entity.abbreviation && (
+                <span class="font-mono text-civic-blue bg-white/10 px-1.5 py-0.5 rounded text-xs">
+                  {entity.abbreviation}
+                </span>
+              )}
+              {entity.parent_agency && (
+                <>
+                  <span class="text-slate-500" aria-hidden="true">·</span>
+                  <span>Under {entity.parent_agency}</span>
+                </>
+              )}
+              {entity.founded_year && (
+                <>
+                  <span class="text-slate-500" aria-hidden="true">·</span>
+                  <span>Est. {entity.founded_year}</span>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sticky section nav -->
+    <nav
+      class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm overflow-x-auto"
+      aria-label="Agency sections"
+    >
+      <div class="max-w-5xl mx-auto px-4">
+        <ol class="flex items-center gap-0 text-sm font-medium whitespace-nowrap">
+          {sections.map(s => (
+            <li>
+              <a
+                href={`#${s.id}`}
+                class="block px-4 py-3 text-civic-slate hover:text-civic-blue border-b-2 border-transparent hover:border-civic-blue transition-colors"
+              >
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </nav>
+
+    <div class="max-w-5xl mx-auto px-4 py-10 flex flex-col gap-16">
+
+      <!-- ── Mission ───────────────────────────────────────────── -->
+      <section id="mission" aria-labelledby="mission-heading">
+        <h2 id="mission-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Mission
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-2">About</h3>
+            {entity.description ? (
+              <p class="text-slate-700 leading-relaxed text-sm">{entity.description}</p>
+            ) : (
+              <p class="text-slate-400 text-sm italic">No description on record.</p>
+            )}
+            {entity.website_url && (
+              <a
+                href={entity.website_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-block mt-3 text-sm text-civic-blue hover:underline"
+              >
+                Official website &rarr;
+              </a>
+            )}
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-2">Quick Facts</h3>
+              <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                {entity.headquarters && (
+                  <>
+                    <dt class="text-slate-500">HQ</dt>
+                    <dd class="text-slate-800 font-medium">{entity.headquarters}</dd>
+                  </>
+                )}
+                {entity.employees_count != null && (
+                  <>
+                    <dt class="text-slate-500">Employees</dt>
+                    <dd class="text-slate-800 font-medium">{entity.employees_count.toLocaleString()}</dd>
+                  </>
+                )}
+                {entity.founded_year && (
+                  <>
+                    <dt class="text-slate-500">Founded</dt>
+                    <dd class="text-slate-800 font-medium">{entity.founded_year}</dd>
+                  </>
+                )}
+                {entity.administrator && (
+                  <>
+                    <dt class="text-slate-500">Leader</dt>
+                    <dd class="text-slate-800 font-medium">{entity.administrator}</dd>
+                  </>
+                )}
+              </dl>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Budget ────────────────────────────────────────────── -->
+      <section id="budget" aria-labelledby="budget-heading">
+        <h2 id="budget-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Budget
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Annual appropriations and expenditures as reported to Congress and OMB.
+        </p>
+
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          {[
+            { label: 'Annual Appropriation', value: entity.annual_budget },
+            { label: 'Discretionary Spending', value: entity.discretionary_budget },
+            { label: 'Fiscal Year', value: entity.fiscal_year },
+          ].map(stat => (
+            <div class="rounded-lg border border-slate-200 bg-white p-4">
+              <div class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-1">
+                {stat.label}
+              </div>
+              <div class="text-2xl font-display font-bold text-civic-navy">
+                {stat.value != null
+                  ? typeof stat.value === 'number'
+                    ? formatMoney(stat.value)
+                    : stat.value
+                  : <span class="text-slate-300 text-base font-normal italic">Not available</span>
+                }
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <!-- ── Key Regulations ───────────────────────────────────── -->
+      <section id="regulations" aria-labelledby="regulations-heading">
+        <h2 id="regulations-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Key Regulations
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Recent and significant rules published by {entity.name} in the Federal Register.
+        </p>
+
+        {regulations && regulations.length > 0 ? (
+          <ul class="flex flex-col gap-4" role="list">
+            {regulations.map(reg => (
+              <li class="rounded-lg border border-slate-200 bg-white p-4">
+                <div class="flex flex-wrap items-start justify-between gap-2 mb-1.5">
+                  <h3 class="font-semibold text-slate-800">{reg.title}</h3>
+                  <div class="flex items-center gap-2 shrink-0">
+                    {reg.rule_number && (
+                      <span class="font-mono text-xs text-civic-slate">{reg.rule_number}</span>
+                    )}
+                    {reg.status && (
+                      <span class={`text-xs font-semibold px-2 py-0.5 rounded capitalize ${
+                        reg.status === 'final'
+                          ? 'bg-emerald-100 text-emerald-700'
+                          : reg.status === 'proposed'
+                          ? 'bg-blue-100 text-blue-700'
+                          : 'bg-slate-100 text-slate-600'
+                      }`}>
+                        {reg.status}
+                      </span>
+                    )}
+                    <span class="text-xs text-slate-400">{formatDate(reg.published_date)}</span>
+                  </div>
+                </div>
+                {reg.summary && (
+                  <p class="text-sm text-slate-600 leading-relaxed">{reg.summary}</p>
+                )}
+                {reg.source_url && (
+                  <a
+                    href={reg.source_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-block mt-2 text-xs text-civic-blue hover:underline"
+                  >
+                    View in Federal Register &rarr;
+                  </a>
+                )}
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No regulation records on file for this agency.</p>
+        )}
+      </section>
+
+      <!-- ── Lobbying Activity ─────────────────────────────────── -->
+      <section id="lobbying" aria-labelledby="lobbying-heading">
+        <h2 id="lobbying-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Lobbying Activity
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Registered lobbyists and organizations that have contacted {entity.name} on behalf of clients.
+        </p>
+
+        {lobbyingActivity && lobbyingActivity.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">Registrant</th>
+                  <th class="px-4 py-3 text-left">Client</th>
+                  <th class="px-4 py-3 text-left">Issue Area</th>
+                  <th class="px-4 py-3 text-right">Amount</th>
+                  <th class="px-4 py-3 text-right">Cycle</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {lobbyingActivity.map((row, i) => (
+                  <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <td class="px-4 py-3 font-medium text-slate-800">{row.registrant_name ?? '—'}</td>
+                    <td class="px-4 py-3 text-civic-slate">{row.client_name ?? '—'}</td>
+                    <td class="px-4 py-3 text-slate-600 capitalize">{row.issue_area?.replace(/_/g, ' ') ?? '—'}</td>
+                    <td class="px-4 py-3 text-right font-mono text-slate-800">{formatMoney(row.amount)}</td>
+                    <td class="px-4 py-3 text-right text-slate-500">{row.cycle ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No lobbying activity on record for this agency.</p>
+        )}
+      </section>
+
+      <!-- ── Contractors ───────────────────────────────────────── -->
+      <section id="contractors" aria-labelledby="contractors-heading">
+        <h2 id="contractors-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Contractors
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Top federal contracts awarded by {entity.name} by dollar value. Source: USASpending.gov.
+        </p>
+
+        {contractors && contractors.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">Vendor</th>
+                  <th class="px-4 py-3 text-left">Description</th>
+                  <th class="px-4 py-3 text-right">Amount</th>
+                  <th class="px-4 py-3 text-right">Start</th>
+                  <th class="px-4 py-3 text-right">End</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {contractors.map((row, i) => (
+                  <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <td class="px-4 py-3 font-medium text-slate-800 whitespace-nowrap">{row.vendor_name ?? '—'}</td>
+                    <td class="px-4 py-3 text-slate-600 max-w-xs truncate" title={row.description ?? undefined}>
+                      {row.description ?? '—'}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono font-semibold text-slate-800">{formatMoney(row.amount)}</td>
+                    <td class="px-4 py-3 text-right text-slate-500 whitespace-nowrap">{formatDate(row.start_date)}</td>
+                    <td class="px-4 py-3 text-right text-slate-500 whitespace-nowrap">{formatDate(row.end_date)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No contractor records on file for this agency.</p>
+        )}
+      </section>
+
+      <!-- ── Revolving Door ────────────────────────────────────── -->
+      <section id="revolving-door" aria-labelledby="revolving-door-heading">
+        <h2 id="revolving-door-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Revolving Door
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Movement of individuals between {entity.name} and the private sector, tracked via
+          disclosure filings and public records.
+        </p>
+
+        {revolvingDoor && revolvingDoor.length > 0 ? (
+          <ul class="flex flex-col gap-3" role="list">
+            {revolvingDoor.map(entry => {
+              const isInbound = entry.direction === 'government_to_private';
+              return (
+                <li class="flex flex-col sm:flex-row sm:items-center gap-3 p-4 rounded-lg border border-slate-200 bg-white">
+                  <div class={`shrink-0 w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                    isInbound ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'
+                  }`} aria-hidden="true">
+                    {isInbound ? 'OUT' : 'IN'}
+                  </div>
+                  <div class="flex-1 min-w-0">
+                    <div class="font-semibold text-slate-800">{entry.person_name ?? '—'}</div>
+                    <div class="text-xs text-civic-slate mt-0.5">
+                      <span>{entry.prior_role ?? '—'}</span>
+                      <span class="mx-1.5 text-slate-300" aria-hidden="true">&rarr;</span>
+                      <span>{entry.new_role ?? '—'}</span>
+                      {entry.entity_name && (
+                        <span class="text-slate-400"> at {entry.entity_name}</span>
+                      )}
+                    </div>
+                  </div>
+                  {entry.year && (
+                    <span class="shrink-0 text-sm text-slate-400">{entry.year}</span>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No revolving door records on file for this agency.</p>
+        )}
+      </section>
+
+    </div>
+  </main>
+</BaseLayout>

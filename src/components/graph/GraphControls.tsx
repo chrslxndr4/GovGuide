@@ -1,179 +1,139 @@
-// ─── Types ────────────────────────────────────────────────────────────────────
+import { useState } from 'react';
 
 interface GraphControlsProps {
-  depth: number;
-  onDepthChange: (depth: number) => void;
-  minAmount: number;
-  onMinAmountChange: (amount: number) => void;
+  hops: number;
+  onHopsChange: (hops: number) => void;
+  minAmount: number | undefined;
+  onMinAmountChange: (amount: number | undefined) => void;
   relationshipTypes: string[];
-  activeTypes: string[];
-  onToggleType: (type: string) => void;
-  layout: string;
-  onLayoutChange: (layout: string) => void;
+  onRelationshipTypesChange: (types: string[]) => void;
+  onExport?: () => void;
 }
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
-const LAYOUT_OPTIONS: { value: string; label: string }[] = [
-  { value: 'cose', label: 'Force-directed' },
-  { value: 'breadthfirst', label: 'Hierarchical' },
-  { value: 'circle', label: 'Circular' },
+const RELATIONSHIP_TYPE_OPTIONS = [
+  { value: 'donated_to', label: 'Donations' },
+  { value: 'contributed_to', label: 'Contributions' },
+  { value: 'spent_for', label: 'Spent For' },
+  { value: 'spent_against', label: 'Spent Against' },
+  { value: 'lobbied_via', label: 'Lobbied Via' },
+  { value: 'granted_to', label: 'Grants' },
+  { value: 'paid_by', label: 'Contracts' },
+  { value: 'affiliated_with', label: 'Affiliations' },
 ];
 
-const RELATIONSHIP_TYPE_META: Record<string, { label: string; color: string }> = {
-  donation: { label: 'Donations', color: '#059669' },
-  lobbying: { label: 'Lobbying', color: '#D97706' },
-  contract: { label: 'Contracts', color: '#DC2626' },
-};
-
-const AMOUNT_PRESETS: { label: string; value: number }[] = [
-  { label: 'Any', value: 0 },
-  { label: '$1K+', value: 1_000 },
-  { label: '$10K+', value: 10_000 },
-  { label: '$100K+', value: 100_000 },
-  { label: '$1M+', value: 1_000_000 },
+const AMOUNT_THRESHOLDS = [
+  { value: undefined, label: 'No minimum' },
+  { value: 1000, label: '$1,000+' },
+  { value: 10000, label: '$10,000+' },
+  { value: 50000, label: '$50,000+' },
+  { value: 100000, label: '$100,000+' },
+  { value: 500000, label: '$500,000+' },
+  { value: 1000000, label: '$1,000,000+' },
 ];
-
-// ─── GraphControls ────────────────────────────────────────────────────────────
 
 export default function GraphControls({
-  depth,
-  onDepthChange,
+  hops,
+  onHopsChange,
   minAmount,
   onMinAmountChange,
   relationshipTypes,
-  activeTypes,
-  onToggleType,
-  layout,
-  onLayoutChange,
+  onRelationshipTypesChange,
+  onExport,
 }: GraphControlsProps) {
+  const [expanded, setExpanded] = useState(false);
+
+  function toggleRelType(type: string) {
+    if (relationshipTypes.includes(type)) {
+      onRelationshipTypesChange(relationshipTypes.filter(t => t !== type));
+    } else {
+      onRelationshipTypesChange([...relationshipTypes, type]);
+    }
+  }
+
   return (
-    <div
-      className="flex flex-wrap items-center gap-x-6 gap-y-2 px-4 py-2.5"
-      role="toolbar"
-      aria-label="Graph controls"
-    >
-      {/* ── Depth slider ────────────────────────────────────────────────────── */}
-      <fieldset className="flex items-center gap-2">
-        <legend className="text-[10px] font-semibold text-civic-slate uppercase tracking-wider sr-only">
-          Depth
-        </legend>
-        <label
-          htmlFor="graph-depth"
-          className="text-[10px] font-semibold text-civic-slate uppercase tracking-wider whitespace-nowrap"
+    <div className="bg-white border border-slate-200 rounded-lg p-4 space-y-4">
+      <div className="flex items-center justify-between">
+        <h3 className="font-semibold text-slate-800 text-sm">Graph Controls</h3>
+        <button
+          onClick={() => setExpanded(!expanded)}
+          className="text-xs text-blue-600 hover:text-blue-800"
         >
-          Depth
+          {expanded ? 'Collapse' : 'Expand'}
+        </button>
+      </div>
+
+      {/* Depth slider */}
+      <div>
+        <label className="block text-xs text-slate-600 mb-1">
+          Depth: {hops} hop{hops !== 1 ? 's' : ''}
         </label>
-        <div className="flex items-center gap-1.5">
-          <input
-            id="graph-depth"
-            type="range"
-            min={1}
-            max={5}
-            step={1}
-            value={depth}
-            onChange={(e) => onDepthChange(Number(e.target.value))}
-            className="w-24 h-1.5 accent-civic-navy cursor-pointer"
-            aria-valuemin={1}
-            aria-valuemax={5}
-            aria-valuenow={depth}
-          />
-          <span className="text-xs font-mono font-bold text-civic-navy w-4 text-center">{depth}</span>
-        </div>
-      </fieldset>
+        <input
+          type="range"
+          min={1}
+          max={5}
+          value={hops}
+          onChange={e => onHopsChange(parseInt(e.target.value))}
+          className="w-full"
+        />
+      </div>
 
-      {/* ── Divider ─────────────────────────────────────────────────────────── */}
-      <span className="hidden sm:block w-px h-5 bg-slate-200 flex-none" aria-hidden="true" />
-
-      {/* ── Min amount presets ──────────────────────────────────────────────── */}
-      <fieldset className="flex items-center gap-1.5">
-        <legend className="text-[10px] font-semibold text-civic-slate uppercase tracking-wider whitespace-nowrap mr-1">
-          Min Amount
-        </legend>
-        {AMOUNT_PRESETS.map((preset) => (
-          <button
-            key={preset.value}
-            type="button"
-            onClick={() => onMinAmountChange(preset.value)}
-            aria-pressed={minAmount === preset.value}
-            className={`px-2 py-0.5 rounded text-[10px] font-medium transition-colors ${
-              minAmount === preset.value
-                ? 'bg-civic-navy text-white'
-                : 'bg-slate-100 text-civic-slate hover:bg-slate-200 hover:text-civic-navy'
-            }`}
-          >
-            {preset.label}
-          </button>
-        ))}
-      </fieldset>
-
-      {/* ── Divider ─────────────────────────────────────────────────────────── */}
-      <span className="hidden sm:block w-px h-5 bg-slate-200 flex-none" aria-hidden="true" />
-
-      {/* ── Relationship type toggles ────────────────────────────────────────── */}
-      <fieldset className="flex items-center gap-2">
-        <legend className="text-[10px] font-semibold text-civic-slate uppercase tracking-wider whitespace-nowrap">
-          Show
-        </legend>
-        {relationshipTypes.map((type) => {
-          const meta = RELATIONSHIP_TYPE_META[type] ?? { label: type, color: '#475569' };
-          const isActive = activeTypes.includes(type);
-          return (
-            <label
-              key={type}
-              className="flex items-center gap-1 cursor-pointer select-none"
-              title={`Toggle ${meta.label}`}
-            >
-              <input
-                type="checkbox"
-                checked={isActive}
-                onChange={() => onToggleType(type)}
-                className="sr-only"
-              />
-              <span
-                className={`flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-medium border transition-colors ${
-                  isActive
-                    ? 'border-transparent text-white'
-                    : 'bg-white border-slate-200 text-civic-slate hover:border-slate-400'
-                }`}
-                style={isActive ? { backgroundColor: meta.color } : undefined}
-                aria-hidden="true"
-              >
-                <span
-                  className="w-2 h-2 rounded-full flex-none"
-                  style={{ backgroundColor: isActive ? '#ffffff' : meta.color }}
-                />
-                {meta.label}
-              </span>
-            </label>
-          );
-        })}
-      </fieldset>
-
-      {/* ── Divider ─────────────────────────────────────────────────────────── */}
-      <span className="hidden sm:block w-px h-5 bg-slate-200 flex-none" aria-hidden="true" />
-
-      {/* ── Layout selector ─────────────────────────────────────────────────── */}
-      <div className="flex items-center gap-2">
-        <label
-          htmlFor="graph-layout"
-          className="text-[10px] font-semibold text-civic-slate uppercase tracking-wider whitespace-nowrap"
-        >
-          Layout
-        </label>
+      {/* Amount threshold */}
+      <div>
+        <label className="block text-xs text-slate-600 mb-1">Minimum Amount</label>
         <select
-          id="graph-layout"
-          value={layout}
-          onChange={(e) => onLayoutChange(e.target.value)}
-          className="text-[11px] font-medium text-civic-navy bg-slate-50 border border-slate-200 rounded px-2 py-0.5 cursor-pointer hover:border-slate-300 focus:outline-none focus:ring-1 focus:ring-civic-blue"
+          value={minAmount ?? ''}
+          onChange={e => onMinAmountChange(e.target.value ? parseInt(e.target.value) : undefined)}
+          className="w-full text-sm border border-slate-300 rounded px-2 py-1"
         >
-          {LAYOUT_OPTIONS.map((opt) => (
-            <option key={opt.value} value={opt.value}>
-              {opt.label}
+          {AMOUNT_THRESHOLDS.map(t => (
+            <option key={t.label} value={t.value ?? ''}>
+              {t.label}
             </option>
           ))}
         </select>
       </div>
+
+      {expanded && (
+        <>
+          {/* Relationship type toggles */}
+          <div>
+            <label className="block text-xs text-slate-600 mb-2">Relationship Types</label>
+            <div className="flex flex-wrap gap-1">
+              {RELATIONSHIP_TYPE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  onClick={() => toggleRelType(opt.value)}
+                  className={`text-xs px-2 py-1 rounded ${
+                    relationshipTypes.length === 0 || relationshipTypes.includes(opt.value)
+                      ? 'bg-blue-100 text-blue-800 border border-blue-300'
+                      : 'bg-slate-100 text-slate-500 border border-slate-200'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {relationshipTypes.length > 0 && (
+              <button
+                onClick={() => onRelationshipTypesChange([])}
+                className="text-xs text-slate-500 mt-1 hover:text-slate-700"
+              >
+                Show all types
+              </button>
+            )}
+          </div>
+
+          {/* Export */}
+          {onExport && (
+            <button
+              onClick={onExport}
+              className="w-full text-sm bg-slate-100 text-slate-700 py-2 rounded hover:bg-slate-200"
+            >
+              Export Graph Data
+            </button>
+          )}
+        </>
+      )}
     </div>
   );
 }
