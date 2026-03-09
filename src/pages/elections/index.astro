@@ -1,0 +1,214 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import CategoryCard from '../../components/CategoryCard.astro';
+import ZipSearch from '../../components/ZipSearch';
+import { supabase } from '../../lib/supabase';
+
+// Fetch states that have election services configured
+const { count: statesWithServicesCount } = await supabase
+  .from('election_services')
+  .select('*', { count: 'exact', head: true });
+---
+
+<BaseLayout
+  title="Elections & Voting"
+  description="Find your elections, register to vote, track your ballot, and get voter information for every state."
+>
+  <main id="main-content" class="flex-1">
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-7xl mx-auto">
+        <Breadcrumb items={[{ label: 'Elections & Voting' }]} />
+        <h1 class="text-4xl md:text-5xl font-display font-bold mb-3">
+          Elections & Voting
+        </h1>
+        <p class="text-lg text-slate-300 max-w-2xl mb-8">
+          Register to vote, find upcoming elections in your area, track your ballot,
+          and connect with your local election office — all in one place.
+        </p>
+
+        <!-- ZIP Search -->
+        <div class="bg-white/10 backdrop-blur rounded-xl p-6 max-w-lg">
+          <p class="text-sm font-medium text-slate-300 mb-3">
+            Enter your ZIP code to find your elections and voter services
+          </p>
+          <ZipSearch client:load />
+        </div>
+      </div>
+    </section>
+
+    <!-- Quick Access -->
+    <section class="max-w-7xl mx-auto px-4 py-10">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">Voter Toolbox</h2>
+      <p class="text-civic-slate text-sm mb-6">
+        Everything you need to participate in American democracy.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <CategoryCard
+          title="Find Your Elections"
+          description="Look up upcoming elections, candidates, and ballot measures for your ZIP code."
+          href="/elections/lookup"
+        />
+        <CategoryCard
+          title="State Election Offices"
+          description="Contact information, voter registration portals, and ballot tracking for all 50 states."
+          href="/states"
+          count={statesWithServicesCount ?? undefined}
+        />
+        <CategoryCard
+          title="Voter Registration"
+          description="Check your registration status or register to vote through your state's official portal."
+          href="/elections/lookup"
+        />
+      </div>
+    </section>
+
+    <!-- How Voting Works -->
+    <section class="bg-civic-light border-t border-slate-200 py-10 px-4">
+      <div class="max-w-7xl mx-auto">
+        <h2 class="text-2xl font-display text-civic-navy mb-2">How Voting Works</h2>
+        <p class="text-civic-slate text-sm mb-8">
+          A quick overview of the American electoral process from registration to results.
+        </p>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <!-- Step 1 -->
+          <div class="bg-white rounded-lg border border-slate-200 p-5">
+            <div class="w-8 h-8 rounded-full bg-civic-blue text-white flex items-center justify-center text-sm font-bold mb-3">
+              1
+            </div>
+            <h3 class="font-display font-semibold text-civic-navy mb-2">Register to Vote</h3>
+            <p class="text-sm text-civic-slate">
+              Most states require registration before Election Day. Deadlines vary — check your
+              state's rules early. Some states offer same-day registration.
+            </p>
+          </div>
+
+          <!-- Step 2 -->
+          <div class="bg-white rounded-lg border border-slate-200 p-5">
+            <div class="w-8 h-8 rounded-full bg-civic-blue text-white flex items-center justify-center text-sm font-bold mb-3">
+              2
+            </div>
+            <h3 class="font-display font-semibold text-civic-navy mb-2">Know Your Ballot</h3>
+            <p class="text-sm text-civic-slate">
+              Ballots include federal, state, and local races plus ballot measures. Research
+              candidates and propositions before you go to the polls.
+            </p>
+          </div>
+
+          <!-- Step 3 -->
+          <div class="bg-white rounded-lg border border-slate-200 p-5">
+            <div class="w-8 h-8 rounded-full bg-civic-blue text-white flex items-center justify-center text-sm font-bold mb-3">
+              3
+            </div>
+            <h3 class="font-display font-semibold text-civic-navy mb-2">Cast Your Vote</h3>
+            <p class="text-sm text-civic-slate">
+              Vote in person on Election Day, during early voting, or by mail — depending on your
+              state's options. Bring valid ID where required.
+            </p>
+          </div>
+
+          <!-- Step 4 -->
+          <div class="bg-white rounded-lg border border-slate-200 p-5">
+            <div class="w-8 h-8 rounded-full bg-civic-blue text-white flex items-center justify-center text-sm font-bold mb-3">
+              4
+            </div>
+            <h3 class="font-display font-semibold text-civic-navy mb-2">Track Your Ballot</h3>
+            <p class="text-sm text-civic-slate">
+              Many states let you track your mail-in or absentee ballot online to confirm
+              it was received and counted.
+            </p>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Registration & Tracking Info -->
+    <section class="max-w-7xl mx-auto px-4 py-10">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Voter Registration -->
+        <div class="bg-white rounded-lg border border-slate-200 p-6">
+          <h2 class="text-xl font-display text-civic-navy mb-3">Voter Registration</h2>
+          <p class="text-sm text-civic-slate mb-4">
+            Registering to vote is the first step to making your voice heard. Requirements
+            and deadlines differ by state.
+          </p>
+          <ul class="space-y-2 text-sm text-civic-slate mb-5">
+            <li class="flex items-start gap-2">
+              <span class="text-civic-blue mt-0.5" aria-hidden="true">&#10003;</span>
+              Must be a U.S. citizen and at least 18 years old by Election Day
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-civic-blue mt-0.5" aria-hidden="true">&#10003;</span>
+              Register at your current address — update if you've moved
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-civic-blue mt-0.5" aria-hidden="true">&#10003;</span>
+              Deadlines range from same-day to 30 days before the election
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-civic-blue mt-0.5" aria-hidden="true">&#10003;</span>
+              Online registration available in most states
+            </li>
+          </ul>
+          <a
+            href="/elections/lookup"
+            class="inline-block px-4 py-2 bg-civic-blue text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors"
+          >
+            Find Registration Portal
+          </a>
+        </div>
+
+        <!-- Ballot Tracking -->
+        <div class="bg-white rounded-lg border border-slate-200 p-6">
+          <h2 class="text-xl font-display text-civic-navy mb-3">Ballot Tracking</h2>
+          <p class="text-sm text-civic-slate mb-4">
+            If you vote by mail or absentee ballot, most states provide online tools to
+            track your ballot's status from submission to counting.
+          </p>
+          <ul class="space-y-2 text-sm text-civic-slate mb-5">
+            <li class="flex items-start gap-2">
+              <span class="text-civic-gold mt-0.5" aria-hidden="true">&#9679;</span>
+              Track when your ballot is mailed to you
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-civic-gold mt-0.5" aria-hidden="true">&#9679;</span>
+              Confirm your completed ballot was received
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-civic-gold mt-0.5" aria-hidden="true">&#9679;</span>
+              Get notified if there's an issue with your ballot
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="text-civic-gold mt-0.5" aria-hidden="true">&#9679;</span>
+              Verify your vote was counted after the election
+            </li>
+          </ul>
+          <a
+            href="/elections/lookup"
+            class="inline-block px-4 py-2 bg-white border border-civic-blue text-civic-blue rounded-lg text-sm font-medium hover:bg-civic-blue/5 transition-colors"
+          >
+            Find Ballot Tracker
+          </a>
+        </div>
+      </div>
+    </section>
+
+    <!-- Browse by State -->
+    <section class="bg-civic-light border-t border-slate-200 py-10 px-4">
+      <div class="max-w-7xl mx-auto">
+        <h2 class="text-2xl font-display text-civic-navy mb-2">Browse by State</h2>
+        <p class="text-civic-slate text-sm mb-6">
+          Select your state to view registration deadlines, election dates, voter ID laws, and contact your local election office.
+        </p>
+        <a
+          href="/states"
+          class="inline-block px-6 py-3 bg-civic-navy text-white font-medium rounded-lg hover:bg-blue-900 transition-colors"
+        >
+          View All States
+        </a>
+      </div>
+    </section>
+  </main>
+</BaseLayout>
