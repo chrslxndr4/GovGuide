@@ -1,0 +1,385 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import { supabase } from '../../lib/supabase';
+
+interface LawSource {
+  id: string;
+  title: string;
+  description: string | null;
+  law_type: string;
+  source_url: string | null;
+  api_url: string | null;
+}
+
+// Fetch the federal jurisdiction
+const { data: federalJurisdiction } = await supabase
+  .from('jurisdictions')
+  .select('id, name')
+  .eq('slug', 'usa')
+  .single();
+
+const federalId = federalJurisdiction?.id ?? null;
+
+// Fetch all federal law sources
+const { data: rawSources } = await supabase
+  .from('law_sources')
+  .select('id, title, description, law_type, source_url, api_url')
+  .eq('jurisdiction_id', federalId ?? '')
+  .order('law_type');
+
+const lawSources = (rawSources ?? []) as LawSource[];
+
+// Define the display order for sections
+const sectionOrder: string[] = [
+  'constitution',
+  'statute',
+  'regulation',
+  'executive_order',
+  'administrative_code',
+];
+
+const sectionConfig: Record<string, { label: string; description: string }> = {
+  constitution: {
+    label: 'Constitution',
+    description:
+      'The supreme law of the United States, establishing the structure of the federal government and enumerating the rights of citizens.',
+  },
+  statute: {
+    label: 'U.S. Code (Statutes)',
+    description:
+      'The codification of the general and permanent laws of the United States, organized into 54 titles by subject matter.',
+  },
+  regulation: {
+    label: 'Code of Federal Regulations',
+    description:
+      'The codification of rules and regulations published by federal agencies and departments in the Federal Register.',
+  },
+  executive_order: {
+    label: 'Executive Orders',
+    description:
+      'Presidential directives that manage operations of the federal government and have the force of law.',
+  },
+  administrative_code: {
+    label: 'Administrative Code',
+    description:
+      'Federal administrative rules and guidance documents issued by executive departments and agencies.',
+  },
+};
+
+// Group law sources by law_type
+const grouped = new Map<string, LawSource[]>();
+lawSources.forEach((source) => {
+  const existing = grouped.get(source.law_type) ?? [];
+  existing.push(source);
+  grouped.set(source.law_type, existing);
+});
+
+// Build ordered sections — known types first, then any unexpected types
+const orderedTypes = [
+  ...sectionOrder.filter((t) => grouped.has(t)),
+  ...[...grouped.keys()].filter((t) => !sectionOrder.includes(t)),
+];
+
+const fallbackSections: { type: string; label: string; description: string; url: string }[] = [
+  {
+    type: 'constitution',
+    label: 'U.S. Constitution',
+    description: 'The Constitution of the United States, including all 27 Amendments.',
+    url: 'https://constitution.congress.gov/',
+  },
+  {
+    type: 'statute',
+    label: 'United States Code',
+    description:
+      'The official compilation of U.S. federal statutes, published by the Office of the Law Revision Counsel.',
+    url: 'https://uscode.house.gov/',
+  },
+  {
+    type: 'regulation',
+    label: 'Code of Federal Regulations (CFR)',
+    description:
+      'The annual codification of administrative rules issued by federal agencies, published by the Office of the Federal Register.',
+    url: 'https://www.ecfr.gov/',
+  },
+  {
+    type: 'regulation',
+    label: 'Federal Register',
+    description:
+      'The daily journal of the U.S. federal government, containing proposed and final rules, notices, and executive orders.',
+    url: 'https://www.federalregister.gov/',
+  },
+];
+---
+
+<BaseLayout
+  title="Federal Laws"
+  description="Browse the U.S. Constitution, U.S. Code, Code of Federal Regulations, and other federal law sources."
+>
+  <main id="main-content" class="flex-1">
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-7xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Laws & Regulations', href: '/laws' },
+            { label: 'Federal Laws' },
+          ]}
+        />
+        <h1 class="text-4xl md:text-5xl font-display font-bold mb-3">
+          Federal Laws
+        </h1>
+        <p class="text-lg text-slate-300 max-w-2xl">
+          The body of federal law encompasses the U.S. Constitution, statutes
+          enacted by Congress, regulations issued by federal agencies, and
+          presidential executive orders.
+        </p>
+      </div>
+    </section>
+
+    <!-- Law Sources from Database -->
+    {lawSources.length > 0 ? (
+      <div class="max-w-7xl mx-auto px-4 py-10 space-y-10">
+        {orderedTypes.map((type) => {
+          const sources = grouped.get(type) ?? [];
+          const config = sectionConfig[type];
+          const label = config?.label ?? type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+          const description = config?.description ?? null;
+
+          return (
+            <section>
+              <h2 class="text-2xl font-display text-civic-navy mb-1">{label}</h2>
+              {description && (
+                <p class="text-sm text-civic-slate mb-5">{description}</p>
+              )}
+              <div class="space-y-3">
+                {sources.map((source) => (
+                  <div class="bg-white rounded-lg border border-slate-200 p-5">
+                    <div class="flex items-start justify-between gap-4">
+                      <div class="flex-1 min-w-0">
+                        <h3 class="font-medium text-civic-navy">{source.title}</h3>
+                        {source.description && (
+                          <p class="text-sm text-civic-slate mt-1">{source.description}</p>
+                        )}
+                        {source.api_url && (
+                          <p class="text-xs text-civic-slate mt-2 font-mono truncate">
+                            API: {source.api_url}
+                          </p>
+                        )}
+                      </div>
+                      {source.source_url && (
+                        <a
+                          href={source.source_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          class="text-sm text-civic-blue hover:underline shrink-0 font-medium"
+                        >
+                          View &rarr;
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    ) : (
+      /* Fallback: static well-known sources when database has no data */
+      <div class="max-w-7xl mx-auto px-4 py-10">
+        <div class="bg-amber-50 border border-amber-200 rounded-lg px-5 py-3 mb-8 text-sm text-amber-800">
+          Federal law source records are being added to our database. In the
+          meantime, the authoritative sources below link directly to official
+          government websites.
+        </div>
+
+        <!-- Constitution -->
+        <section class="mb-10">
+          <h2 class="text-2xl font-display text-civic-navy mb-1">Constitution</h2>
+          <p class="text-sm text-civic-slate mb-5">
+            {sectionConfig.constitution.description}
+          </p>
+          <div class="bg-white rounded-lg border border-slate-200 p-5">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h3 class="font-medium text-civic-navy">U.S. Constitution</h3>
+                <p class="text-sm text-civic-slate mt-1">
+                  The Constitution of the United States, including all 27
+                  Amendments, as maintained by the U.S. Congress.
+                </p>
+              </div>
+              <a
+                href="https://constitution.congress.gov/"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-sm text-civic-blue hover:underline shrink-0 font-medium"
+              >
+                View &rarr;
+              </a>
+            </div>
+          </div>
+        </section>
+
+        <!-- U.S. Code -->
+        <section class="mb-10">
+          <h2 class="text-2xl font-display text-civic-navy mb-1">U.S. Code (Statutes)</h2>
+          <p class="text-sm text-civic-slate mb-5">
+            {sectionConfig.statute.description}
+          </p>
+          <div class="space-y-3">
+            <div class="bg-white rounded-lg border border-slate-200 p-5">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <h3 class="font-medium text-civic-navy">United States Code</h3>
+                  <p class="text-sm text-civic-slate mt-1">
+                    The official compilation of U.S. federal statutes, published
+                    by the Office of the Law Revision Counsel of the House of
+                    Representatives.
+                  </p>
+                </div>
+                <a
+                  href="https://uscode.house.gov/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-sm text-civic-blue hover:underline shrink-0 font-medium"
+                >
+                  View &rarr;
+                </a>
+              </div>
+            </div>
+            <div class="bg-white rounded-lg border border-slate-200 p-5">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <h3 class="font-medium text-civic-navy">Congress.gov — Legislation</h3>
+                  <p class="text-sm text-civic-slate mt-1">
+                    Search and track legislation introduced in Congress,
+                    including bills, resolutions, and enacted laws.
+                  </p>
+                </div>
+                <a
+                  href="https://www.congress.gov/legislation"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-sm text-civic-blue hover:underline shrink-0 font-medium"
+                >
+                  View &rarr;
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Code of Federal Regulations -->
+        <section class="mb-10">
+          <h2 class="text-2xl font-display text-civic-navy mb-1">Code of Federal Regulations</h2>
+          <p class="text-sm text-civic-slate mb-5">
+            {sectionConfig.regulation.description}
+          </p>
+          <div class="space-y-3">
+            <div class="bg-white rounded-lg border border-slate-200 p-5">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <h3 class="font-medium text-civic-navy">eCFR — Electronic Code of Federal Regulations</h3>
+                  <p class="text-sm text-civic-slate mt-1">
+                    The continuously updated online version of the CFR,
+                    maintained by the National Archives and Records
+                    Administration.
+                  </p>
+                </div>
+                <a
+                  href="https://www.ecfr.gov/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-sm text-civic-blue hover:underline shrink-0 font-medium"
+                >
+                  View &rarr;
+                </a>
+              </div>
+            </div>
+            <div class="bg-white rounded-lg border border-slate-200 p-5">
+              <div class="flex items-start justify-between gap-4">
+                <div>
+                  <h3 class="font-medium text-civic-navy">Federal Register</h3>
+                  <p class="text-sm text-civic-slate mt-1">
+                    The official daily publication for rules, proposed rules,
+                    and notices of federal agencies and organizations, as well as
+                    executive orders and other presidential documents.
+                  </p>
+                </div>
+                <a
+                  href="https://www.federalregister.gov/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-sm text-civic-blue hover:underline shrink-0 font-medium"
+                >
+                  View &rarr;
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- Executive Orders (fallback link) -->
+        <section class="mb-10">
+          <h2 class="text-2xl font-display text-civic-navy mb-1">Executive Orders</h2>
+          <p class="text-sm text-civic-slate mb-5">
+            {sectionConfig.executive_order.description}
+          </p>
+          <div class="bg-white rounded-lg border border-slate-200 p-5">
+            <div class="flex items-start justify-between gap-4">
+              <div>
+                <h3 class="font-medium text-civic-navy">Executive Orders — Federal Register</h3>
+                <p class="text-sm text-civic-slate mt-1">
+                  Presidential executive orders published in the Federal
+                  Register, searchable by number, subject, and president.
+                </p>
+              </div>
+              <a
+                href="https://www.federalregister.gov/presidential-documents/executive-orders"
+                target="_blank"
+                rel="noopener noreferrer"
+                class="text-sm text-civic-blue hover:underline shrink-0 font-medium"
+              >
+                View &rarr;
+              </a>
+            </div>
+          </div>
+          <div class="mt-4">
+            <a
+              href="/laws/executive-orders"
+              class="text-sm text-civic-blue hover:underline font-medium"
+            >
+              Browse Executive Orders on GovGuide &rarr;
+            </a>
+          </div>
+        </section>
+      </div>
+    )}
+
+    <!-- Related Links -->
+    <section class="max-w-7xl mx-auto px-4 pb-12 border-t border-slate-100 pt-8">
+      <h2 class="text-xl font-display text-civic-navy mb-4">Related</h2>
+      <div class="flex flex-wrap gap-3">
+        <a
+          href="/laws/executive-orders"
+          class="text-sm text-civic-blue border border-civic-blue rounded px-3 py-1.5 hover:bg-civic-blue hover:text-white transition-colors"
+        >
+          Executive Orders
+        </a>
+        <a
+          href="/states"
+          class="text-sm text-civic-blue border border-civic-blue rounded px-3 py-1.5 hover:bg-civic-blue hover:text-white transition-colors"
+        >
+          State Laws
+        </a>
+        <a
+          href="/federal"
+          class="text-sm text-civic-blue border border-civic-blue rounded px-3 py-1.5 hover:bg-civic-blue hover:text-white transition-colors"
+        >
+          Federal Government
+        </a>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

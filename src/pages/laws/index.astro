@@ -1,0 +1,200 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import CategoryCard from '../../components/CategoryCard.astro';
+import { supabase } from '../../lib/supabase';
+
+// Fetch the federal jurisdiction ID
+const { data: federalJurisdiction } = await supabase
+  .from('jurisdictions')
+  .select('id')
+  .eq('slug', 'usa')
+  .single();
+
+const federalId = federalJurisdiction?.id ?? null;
+
+// Total law_sources count across all jurisdictions
+const { count: totalCount } = await supabase
+  .from('law_sources')
+  .select('*', { count: 'exact', head: true });
+
+// Federal law sources count
+const { count: federalCount } = await supabase
+  .from('law_sources')
+  .select('*', { count: 'exact', head: true })
+  .eq('jurisdiction_id', federalId ?? '');
+
+// Executive orders count
+const { count: eoCount } = await supabase
+  .from('law_sources')
+  .select('*', { count: 'exact', head: true })
+  .eq('jurisdiction_id', federalId ?? '')
+  .eq('law_type', 'executive_order');
+---
+
+<BaseLayout
+  title="Laws & Regulations"
+  description="Browse laws, statutes, regulations, and the U.S. Constitution — from federal law to state and local codes."
+>
+  <main id="main-content" class="flex-1">
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-7xl mx-auto">
+        <Breadcrumb items={[{ label: 'Laws & Regulations' }]} />
+        <h1 class="text-4xl md:text-5xl font-display font-bold mb-3">
+          Laws & Regulations
+        </h1>
+        <p class="text-lg text-slate-300 max-w-2xl">
+          The legal framework of the United States spans federal statutes,
+          executive orders, agency regulations, and state and local codes.
+          {totalCount && totalCount > 0 ? (
+            <span> GovGuide tracks {totalCount.toLocaleString()} official law sources.</span>
+          ) : null}
+        </p>
+      </div>
+    </section>
+
+    <!-- Category Cards -->
+    <section class="max-w-7xl mx-auto px-4 py-10">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">Browse by Category</h2>
+      <p class="text-civic-slate text-sm mb-6">
+        Explore laws at every level of government — federal, state, and local.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CategoryCard
+          title="Federal Laws"
+          description="The U.S. Constitution, U.S. Code, and the Code of Federal Regulations — the supreme law of the land."
+          href="/laws/federal"
+          count={federalCount ?? undefined}
+        />
+        <CategoryCard
+          title="Executive Orders"
+          description="Presidential directives that manage operations of the federal executive branch."
+          href="/laws/executive-orders"
+          count={eoCount ?? undefined}
+        />
+        <CategoryCard
+          title="State Laws"
+          description="Constitutions, statutes, and administrative codes for all 50 states — browse by state."
+          href="/states"
+        />
+      </div>
+    </section>
+
+    <!-- How Laws Work -->
+    <section class="max-w-7xl mx-auto px-4 pb-12">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">How Laws Work</h2>
+      <p class="text-civic-slate text-sm mb-8">
+        The United States operates under a layered legal system. Federal law is
+        supreme, but states and localities retain broad authority to govern within
+        their own jurisdictions.
+      </p>
+
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <!-- Federal -->
+        <div class="bg-white rounded-lg border border-slate-200 p-6">
+          <div class="w-8 h-8 rounded-full bg-civic-navy flex items-center justify-center mb-4">
+            <span class="text-white text-sm font-bold">1</span>
+          </div>
+          <h3 class="font-display text-lg text-civic-navy mb-2">Federal Law</h3>
+          <p class="text-sm text-civic-slate mb-4">
+            Federal law applies to all 50 states and U.S. territories. Under the
+            Supremacy Clause, federal law overrides any conflicting state or local
+            law.
+          </p>
+          <ul class="space-y-1.5 text-sm text-slate-700">
+            <li class="flex items-start gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-civic-navy mt-1.5 flex-shrink-0"></span>
+              <span><span class="font-medium">U.S. Constitution</span> — the supreme law of the land</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-civic-navy mt-1.5 flex-shrink-0"></span>
+              <span><span class="font-medium">U.S. Code</span> — statutes passed by Congress</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-civic-navy mt-1.5 flex-shrink-0"></span>
+              <span><span class="font-medium">CFR</span> — rules issued by federal agencies</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-civic-navy mt-1.5 flex-shrink-0"></span>
+              <span><span class="font-medium">Executive Orders</span> — presidential directives</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- State -->
+        <div class="bg-white rounded-lg border border-slate-200 p-6">
+          <div class="w-8 h-8 rounded-full bg-civic-blue flex items-center justify-center mb-4">
+            <span class="text-white text-sm font-bold">2</span>
+          </div>
+          <h3 class="font-display text-lg text-civic-navy mb-2">State Law</h3>
+          <p class="text-sm text-civic-slate mb-4">
+            States have their own constitutions, legislatures, and courts. State
+            law governs most areas of everyday life — contracts, property, family
+            law, and most crimes.
+          </p>
+          <ul class="space-y-1.5 text-sm text-slate-700">
+            <li class="flex items-start gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-civic-blue mt-1.5 flex-shrink-0"></span>
+              <span><span class="font-medium">State Constitution</span> — each state's foundational law</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-civic-blue mt-1.5 flex-shrink-0"></span>
+              <span><span class="font-medium">State Statutes</span> — laws passed by state legislatures</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-civic-blue mt-1.5 flex-shrink-0"></span>
+              <span><span class="font-medium">Administrative Code</span> — rules from state agencies</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-civic-blue mt-1.5 flex-shrink-0"></span>
+              <span><span class="font-medium">Governor's Orders</span> — executive orders at state level</span>
+            </li>
+          </ul>
+        </div>
+
+        <!-- Local -->
+        <div class="bg-white rounded-lg border border-slate-200 p-6">
+          <div class="w-8 h-8 rounded-full bg-civic-slate flex items-center justify-center mb-4">
+            <span class="text-white text-sm font-bold">3</span>
+          </div>
+          <h3 class="font-display text-lg text-civic-navy mb-2">Local Law</h3>
+          <p class="text-sm text-civic-slate mb-4">
+            Counties, cities, and towns enact ordinances and municipal codes that
+            govern local matters — zoning, business licenses, noise ordinances,
+            and more.
+          </p>
+          <ul class="space-y-1.5 text-sm text-slate-700">
+            <li class="flex items-start gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-civic-slate mt-1.5 flex-shrink-0"></span>
+              <span><span class="font-medium">City Ordinances</span> — laws passed by city councils</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-civic-slate mt-1.5 flex-shrink-0"></span>
+              <span><span class="font-medium">Municipal Code</span> — compiled local laws</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-civic-slate mt-1.5 flex-shrink-0"></span>
+              <span><span class="font-medium">County Regulations</span> — county-level rules</span>
+            </li>
+            <li class="flex items-start gap-2">
+              <span class="w-1.5 h-1.5 rounded-full bg-civic-slate mt-1.5 flex-shrink-0"></span>
+              <span><span class="font-medium">Zoning Codes</span> — land use and planning rules</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+
+      <!-- Hierarchy note -->
+      <div class="mt-6 bg-civic-light border border-slate-200 rounded-lg p-5">
+        <h3 class="font-medium text-civic-navy mb-1">The Supremacy Clause</h3>
+        <p class="text-sm text-civic-slate">
+          Article VI of the U.S. Constitution establishes that federal law is
+          "the supreme Law of the Land." When federal and state laws conflict,
+          federal law prevails — a principle known as federal preemption. State
+          law, in turn, overrides conflicting local ordinances within that state.
+        </p>
+      </div>
+    </section>
+  </main>
+</BaseLayout>

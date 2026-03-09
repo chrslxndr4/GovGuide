@@ -1,0 +1,305 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import { supabase } from '../../lib/supabase';
+
+interface LawSourceMetadata {
+  date?: string;
+  number?: string;
+  president?: string;
+  [key: string]: string | undefined;
+}
+
+interface ExecutiveOrder {
+  id: string;
+  title: string;
+  description: string | null;
+  source_url: string | null;
+  api_url: string | null;
+  metadata: LawSourceMetadata | null;
+}
+
+// Fetch the federal jurisdiction
+const { data: federalJurisdiction } = await supabase
+  .from('jurisdictions')
+  .select('id')
+  .eq('slug', 'usa')
+  .single();
+
+const federalId = federalJurisdiction?.id ?? null;
+
+// Fetch executive orders for the federal jurisdiction
+const { data: rawOrders } = await supabase
+  .from('law_sources')
+  .select('id, title, description, source_url, api_url, metadata')
+  .eq('jurisdiction_id', federalId ?? '')
+  .eq('law_type', 'executive_order')
+  .order('title', { ascending: false });
+
+const executiveOrders = (rawOrders ?? []) as ExecutiveOrder[];
+
+// Sort by date from metadata (descending — most recent first), falling back to title order
+function extractDate(order: ExecutiveOrder): string {
+  return order.metadata?.date ?? '';
+}
+
+const sortedOrders = [...executiveOrders].sort((a, b) => {
+  const dateA = extractDate(a);
+  const dateB = extractDate(b);
+  if (dateA && dateB) return dateB.localeCompare(dateA);
+  if (dateA) return -1;
+  if (dateB) return 1;
+  return 0;
+});
+
+function formatDate(dateStr: string | undefined): string | null {
+  if (!dateStr) return null;
+  try {
+    const date = new Date(dateStr);
+    if (isNaN(date.getTime())) return dateStr;
+    return date.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+---
+
+<BaseLayout
+  title="Executive Orders"
+  description="Browse presidential executive orders — directives issued by the President of the United States that manage federal government operations."
+>
+  <main id="main-content" class="flex-1">
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-7xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Laws & Regulations', href: '/laws' },
+            { label: 'Executive Orders' },
+          ]}
+        />
+        <h1 class="text-4xl md:text-5xl font-display font-bold mb-3">
+          Executive Orders
+        </h1>
+        <p class="text-lg text-slate-300 max-w-2xl">
+          Presidential executive orders are legally binding directives issued by
+          the President of the United States to manage the operations of the
+          federal government.
+          {sortedOrders.length > 0 && (
+            <span> {sortedOrders.length} orders tracked.</span>
+          )}
+        </p>
+      </div>
+    </section>
+
+    <!-- Explainer -->
+    <section class="max-w-7xl mx-auto px-4 py-8">
+      <div class="bg-white rounded-lg border border-slate-200 p-6 grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div>
+          <h2 class="font-display text-base text-civic-navy mb-2">What is an Executive Order?</h2>
+          <p class="text-sm text-civic-slate">
+            An executive order is a signed, written, and published directive
+            from the President of the United States that manages operations of
+            the federal government. They have the force of law but can be
+            revoked by a future president or invalidated by Congress or the
+            courts.
+          </p>
+        </div>
+        <div>
+          <h2 class="font-display text-base text-civic-navy mb-2">Legal Authority</h2>
+          <p class="text-sm text-civic-slate">
+            Executive orders are authorized by Article II of the U.S.
+            Constitution, which vests executive power in the President.
+            They are published in the Federal Register and codified in Title 3
+            of the Code of Federal Regulations.
+          </p>
+        </div>
+        <div>
+          <h2 class="font-display text-base text-civic-navy mb-2">Limits on Executive Orders</h2>
+          <p class="text-sm text-civic-slate">
+            Executive orders cannot override an Act of Congress or the
+            Constitution. Congress can pass legislation to override an executive
+            order, and federal courts can strike one down if it exceeds
+            presidential authority.
+          </p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Executive Orders List -->
+    <section class="max-w-7xl mx-auto px-4 pb-12">
+      {sortedOrders.length > 0 ? (
+        <div>
+          <h2 class="text-2xl font-display text-civic-navy mb-2">
+            All Executive Orders
+          </h2>
+          <p class="text-sm text-civic-slate mb-6">
+            Listed in reverse chronological order — most recent first.
+          </p>
+          <div class="space-y-3">
+            {sortedOrders.map((order) => {
+              const date = formatDate(order.metadata?.date);
+              const orderNumber = order.metadata?.number;
+              const president = order.metadata?.president;
+
+              return (
+                <div class="bg-white rounded-lg border border-slate-200 p-5 hover:border-civic-blue transition-colors">
+                  <div class="flex items-start justify-between gap-4">
+                    <div class="flex-1 min-w-0">
+                      <div class="flex items-center gap-2 flex-wrap mb-1">
+                        {orderNumber && (
+                          <span class="text-xs font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded shrink-0">
+                            EO {orderNumber}
+                          </span>
+                        )}
+                        {date && (
+                          <span class="text-xs text-civic-slate">{date}</span>
+                        )}
+                        {president && (
+                          <span class="text-xs text-civic-slate">&mdash; {president}</span>
+                        )}
+                      </div>
+                      <h3 class="font-medium text-civic-navy">{order.title}</h3>
+                      {order.description && (
+                        <p class="text-sm text-civic-slate mt-1">{order.description}</p>
+                      )}
+                    </div>
+                    {order.source_url && (
+                      <a
+                        href={order.source_url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        class="text-sm text-civic-blue hover:underline shrink-0 font-medium"
+                      >
+                        View &rarr;
+                      </a>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      ) : (
+        <div>
+          <h2 class="text-2xl font-display text-civic-navy mb-4">
+            Executive Orders
+          </h2>
+          <div class="bg-white border border-slate-200 rounded-lg p-8 text-center">
+            <p class="text-civic-slate mb-2">
+              Executive order records are being added to our database.
+            </p>
+            <p class="text-sm text-civic-slate mb-6">
+              In the meantime, you can browse all presidential executive orders
+              directly from the official Federal Register.
+            </p>
+            <a
+              href="https://www.federalregister.gov/presidential-documents/executive-orders"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="inline-block bg-civic-blue text-white text-sm font-medium px-5 py-2.5 rounded hover:opacity-90 transition-opacity"
+            >
+              Browse on Federal Register &rarr;
+            </a>
+          </div>
+
+          <!-- Static reference sources -->
+          <div class="mt-8">
+            <h3 class="text-lg font-display text-civic-navy mb-4">Official Sources</h3>
+            <div class="space-y-3">
+              <div class="bg-white rounded-lg border border-slate-200 p-5">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <h4 class="font-medium text-civic-navy">Federal Register — Executive Orders</h4>
+                    <p class="text-sm text-civic-slate mt-1">
+                      All presidential executive orders published in the Federal
+                      Register, searchable by EO number, subject, and
+                      administration.
+                    </p>
+                  </div>
+                  <a
+                    href="https://www.federalregister.gov/presidential-documents/executive-orders"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-sm text-civic-blue hover:underline shrink-0 font-medium"
+                  >
+                    View &rarr;
+                  </a>
+                </div>
+              </div>
+              <div class="bg-white rounded-lg border border-slate-200 p-5">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <h4 class="font-medium text-civic-navy">The American Presidency Project — Executive Orders</h4>
+                    <p class="text-sm text-civic-slate mt-1">
+                      A comprehensive archive of executive orders from George
+                      Washington to the present, maintained by the University of
+                      California, Santa Barbara.
+                    </p>
+                  </div>
+                  <a
+                    href="https://www.presidency.ucsb.edu/documents/app-categories/presidential/executive-orders"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-sm text-civic-blue hover:underline shrink-0 font-medium"
+                  >
+                    View &rarr;
+                  </a>
+                </div>
+              </div>
+              <div class="bg-white rounded-lg border border-slate-200 p-5">
+                <div class="flex items-start justify-between gap-4">
+                  <div>
+                    <h4 class="font-medium text-civic-navy">Code of Federal Regulations — Title 3</h4>
+                    <p class="text-sm text-civic-slate mt-1">
+                      Title 3 of the CFR contains the compilations of
+                      presidential documents, including executive orders,
+                      proclamations, and other presidential directives.
+                    </p>
+                  </div>
+                  <a
+                    href="https://www.ecfr.gov/current/title-3"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="text-sm text-civic-blue hover:underline shrink-0 font-medium"
+                  >
+                    View &rarr;
+                  </a>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+
+    <!-- Related Links -->
+    <section class="max-w-7xl mx-auto px-4 pb-12 border-t border-slate-100 pt-8">
+      <h2 class="text-xl font-display text-civic-navy mb-4">Related</h2>
+      <div class="flex flex-wrap gap-3">
+        <a
+          href="/laws/federal"
+          class="text-sm text-civic-blue border border-civic-blue rounded px-3 py-1.5 hover:bg-civic-blue hover:text-white transition-colors"
+        >
+          Federal Laws
+        </a>
+        <a
+          href="/federal/executive"
+          class="text-sm text-civic-blue border border-civic-blue rounded px-3 py-1.5 hover:bg-civic-blue hover:text-white transition-colors"
+        >
+          Executive Branch
+        </a>
+        <a
+          href="/laws"
+          class="text-sm text-civic-blue border border-civic-blue rounded px-3 py-1.5 hover:bg-civic-blue hover:text-white transition-colors"
+        >
+          Laws & Regulations
+        </a>
+      </div>
+    </section>
+  </main>
+</BaseLayout>
