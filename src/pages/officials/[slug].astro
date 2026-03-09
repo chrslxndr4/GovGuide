@@ -1,0 +1,434 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import InfoBlock from '../../components/InfoBlock.astro';
+import { supabase } from '../../lib/supabase';
+
+interface OfficialOffice {
+  id: string;
+  title: string;
+  branch: string;
+  chamber: string | null;
+  district: string | null;
+  jurisdiction_id: string;
+}
+
+interface OfficialRow {
+  id: string;
+  first_name: string;
+  last_name: string;
+  full_name: string;
+  slug: string;
+  party: string | null;
+  photo_url: string | null;
+  email: string | null;
+  phone: string | null;
+  website: string | null;
+  social_media: Record<string, string> | null;
+  term_start: string | null;
+  term_end: string | null;
+  bioguide_id: string | null;
+  fec_id: string | null;
+  office: OfficialOffice | null;
+}
+
+interface JurisdictionRow {
+  id: string;
+  name: string;
+  slug: string;
+  level: string;
+  state_abbr: string | null;
+}
+
+export async function getStaticPaths() {
+  const { data: officials } = await supabase
+    .from('officials')
+    .select(`
+      id, first_name, last_name, full_name, slug, party, photo_url,
+      email, phone, website, social_media, term_start, term_end,
+      bioguide_id, fec_id,
+      office:office_id(id, title, branch, chamber, district, jurisdiction_id)
+    `)
+    .eq('is_current', true);
+
+  if (!officials || officials.length === 0) return [];
+
+  // Collect all unique jurisdiction IDs from offices
+  const jurisdictionIds = [
+    ...new Set(
+      officials
+        .map((o) => {
+          const office = o.office as OfficialOffice | null;
+          return office?.jurisdiction_id ?? null;
+        })
+        .filter((id): id is string => id !== null)
+    ),
+  ];
+
+  // Fetch all relevant jurisdictions in one query
+  let jurisdictions: JurisdictionRow[] = [];
+  if (jurisdictionIds.length > 0) {
+    const { data: jData } = await supabase
+      .from('jurisdictions')
+      .select('id, name, slug, level, state_abbr')
+      .in('id', jurisdictionIds);
+    jurisdictions = (jData ?? []) as JurisdictionRow[];
+  }
+
+  const jurisdictionMap = new Map<string, JurisdictionRow>(
+    jurisdictions.map((j) => [j.id, j])
+  );
+
+  return officials.map((official) => {
+    const office = official.office as OfficialOffice | null;
+    const jurisdiction = office?.jurisdiction_id
+      ? (jurisdictionMap.get(office.jurisdiction_id) ?? null)
+      : null;
+
+    return {
+      params: { slug: official.slug },
+      props: {
+        official: official as unknown as OfficialRow,
+        jurisdiction,
+      },
+    };
+  });
+}
+
+interface Props {
+  official: OfficialRow;
+  jurisdiction: JurisdictionRow | null;
+}
+
+const { official, jurisdiction } = Astro.props;
+const office = official.office;
+
+function formatParty(party: string | null): string {
+  if (!party) return 'Unknown';
+  return party.charAt(0).toUpperCase() + party.slice(1);
+}
+
+function partyBadgeClass(party: string | null): string {
+  switch (party) {
+    case 'democratic':
+      return 'bg-blue-100 text-blue-700 border-blue-200';
+    case 'republican':
+      return 'bg-red-100 text-red-700 border-red-200';
+    case 'independent':
+      return 'bg-slate-100 text-slate-700 border-slate-200';
+    case 'libertarian':
+      return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+    case 'green':
+      return 'bg-green-100 text-green-700 border-green-200';
+    default:
+      return 'bg-slate-100 text-slate-700 border-slate-200';
+  }
+}
+
+function formatBranch(branch: string): string {
+  return branch.charAt(0).toUpperCase() + branch.slice(1);
+}
+
+function formatChamber(chamber: string | null): string {
+  if (!chamber) return '';
+  switch (chamber) {
+    case 'senate':
+    case 'upper':
+      return 'Senate';
+    case 'house':
+    case 'lower':
+      return 'House of Representatives';
+    case 'unicameral':
+      return 'Unicameral Legislature';
+    default:
+      return chamber.charAt(0).toUpperCase() + chamber.slice(1);
+  }
+}
+
+function formatDate(dateStr: string | null): string {
+  if (!dateStr) return '';
+  const date = new Date(dateStr);
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric',
+  });
+}
+
+function initials(fullName: string): string {
+  return fullName
+    .split(' ')
+    .map((n) => n[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+}
+
+// Build jurisdiction breadcrumb href
+function jurisdictionHref(j: JurisdictionRow | null): string | undefined {
+  if (!j) return undefined;
+  if (j.level === 'state') return `/states/${j.slug}`;
+  if (j.slug === 'usa') return '/federal';
+  return undefined;
+}
+
+// Social media platform labels and URL patterns
+const SOCIAL_PLATFORMS: Record<string, { label: string; baseUrl: string }> = {
+  twitter: { label: 'Twitter / X', baseUrl: 'https://twitter.com/' },
+  x: { label: 'X (Twitter)', baseUrl: 'https://x.com/' },
+  facebook: { label: 'Facebook', baseUrl: 'https://facebook.com/' },
+  instagram: { label: 'Instagram', baseUrl: 'https://instagram.com/' },
+  youtube: { label: 'YouTube', baseUrl: 'https://youtube.com/' },
+  linkedin: { label: 'LinkedIn', baseUrl: 'https://linkedin.com/in/' },
+};
+
+function buildSocialUrl(platform: string, handle: string): string {
+  if (handle.startsWith('http://') || handle.startsWith('https://')) {
+    return handle;
+  }
+  const cleanHandle = handle.startsWith('@') ? handle.slice(1) : handle;
+  const platformConfig = SOCIAL_PLATFORMS[platform.toLowerCase()];
+  if (platformConfig) {
+    return `${platformConfig.baseUrl}${cleanHandle}`;
+  }
+  return handle;
+}
+
+function socialLabel(platform: string): string {
+  return SOCIAL_PLATFORMS[platform.toLowerCase()]?.label ?? platform.charAt(0).toUpperCase() + platform.slice(1);
+}
+
+const socialEntries = official.social_media
+  ? Object.entries(official.social_media)
+  : [];
+
+const hasContact = official.email || official.phone || official.website;
+const hasSocial = socialEntries.length > 0;
+const hasTermInfo = official.term_start || official.term_end;
+---
+
+<BaseLayout
+  title={official.full_name}
+  description={`Profile for ${official.full_name}${office ? `, ${office.title}` : ''}${jurisdiction ? ` — ${jurisdiction.name}` : ''}.`}
+>
+  <Header />
+  <main id="main-content" class="flex-1">
+    <!-- Hero / Profile Header -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-7xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Officials', href: '/officials' },
+            { label: official.full_name },
+          ]}
+        />
+
+        <div class="flex items-start gap-5">
+          <!-- Photo or initials -->
+          {official.photo_url ? (
+            <img
+              src={official.photo_url}
+              alt={official.full_name}
+              class="w-20 h-20 rounded-full object-cover border-2 border-white/20 flex-shrink-0"
+            />
+          ) : (
+            <div class="w-20 h-20 rounded-full bg-white/10 border-2 border-white/20 flex items-center justify-center text-white text-xl font-display font-bold flex-shrink-0">
+              {initials(official.full_name)}
+            </div>
+          )}
+
+          <div class="flex-1 min-w-0">
+            <h1 class="text-3xl md:text-4xl font-display font-bold leading-tight">
+              {official.full_name}
+            </h1>
+            {office && (
+              <p class="text-slate-300 text-base mt-1">{office.title}</p>
+            )}
+            {jurisdiction && (
+              <p class="text-slate-400 text-sm mt-0.5">{jurisdiction.name}</p>
+            )}
+            {official.party && (
+              <span class={`inline-block mt-3 text-sm font-medium px-3 py-1 rounded-full border ${partyBadgeClass(official.party)}`}>
+                {formatParty(official.party)}
+              </span>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Body -->
+    <div class="max-w-7xl mx-auto px-4 py-10">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main content -->
+        <div class="lg:col-span-2 space-y-8">
+          <!-- Office Details -->
+          {office && (
+            <section>
+              <h2 class="text-xl font-display text-civic-navy mb-4">Office Details</h2>
+              <div class="bg-white rounded-lg border border-slate-200 p-5">
+                <dl>
+                  <InfoBlock label="Office" value={office.title} />
+                  <InfoBlock
+                    label="Branch"
+                    value={formatBranch(office.branch)}
+                  />
+                  {office.chamber && (
+                    <InfoBlock
+                      label="Chamber"
+                      value={formatChamber(office.chamber)}
+                    />
+                  )}
+                  {office.district && (
+                    <InfoBlock label="District" value={office.district} />
+                  )}
+                  {jurisdiction && (
+                    <InfoBlock
+                      label="Jurisdiction"
+                      value={jurisdiction.name}
+                      href={jurisdictionHref(jurisdiction)}
+                    />
+                  )}
+                </dl>
+              </div>
+            </section>
+          )}
+
+          <!-- Term Information -->
+          {hasTermInfo && (
+            <section>
+              <h2 class="text-xl font-display text-civic-navy mb-4">Term Information</h2>
+              <div class="bg-white rounded-lg border border-slate-200 p-5">
+                <dl>
+                  {official.term_start && (
+                    <InfoBlock
+                      label="Term Start"
+                      value={formatDate(official.term_start)}
+                    />
+                  )}
+                  {official.term_end && (
+                    <InfoBlock
+                      label="Term End"
+                      value={formatDate(official.term_end)}
+                    />
+                  )}
+                </dl>
+              </div>
+            </section>
+          )}
+
+          <!-- Social Media -->
+          {hasSocial && (
+            <section>
+              <h2 class="text-xl font-display text-civic-navy mb-4">Social Media</h2>
+              <div class="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
+                {socialEntries.map(([platform, handle]) => (
+                  <a
+                    href={buildSocialUrl(platform, handle)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors group"
+                  >
+                    <span class="text-sm font-medium text-civic-navy group-hover:text-civic-blue transition-colors">
+                      {socialLabel(platform)}
+                    </span>
+                    <span class="text-sm text-civic-slate font-mono">
+                      {handle.startsWith('http') ? new URL(handle).hostname : (handle.startsWith('@') ? handle : `@${handle}`)}
+                    </span>
+                  </a>
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        <!-- Sidebar -->
+        <aside class="space-y-6">
+          <!-- Contact -->
+          {hasContact && (
+            <div class="bg-white rounded-lg border border-slate-200 p-5 sticky top-4">
+              <h2 class="font-display text-base text-civic-navy mb-4">Contact</h2>
+              <dl>
+                {official.email && (
+                  <InfoBlock
+                    label="Email"
+                    value={official.email}
+                    href={`mailto:${official.email}`}
+                  />
+                )}
+                {official.phone && (
+                  <InfoBlock
+                    label="Phone"
+                    value={official.phone}
+                    href={`tel:${official.phone.replace(/\D/g, '')}`}
+                  />
+                )}
+                {official.website && (
+                  <InfoBlock
+                    label="Official Website"
+                    value={new URL(official.website).hostname}
+                    href={official.website}
+                  />
+                )}
+              </dl>
+
+              {official.website && (
+                <a
+                  href={official.website}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="mt-5 block w-full text-center py-2 px-4 bg-civic-navy text-white text-sm font-medium rounded hover:bg-civic-blue transition-colors"
+                >
+                  Visit Official Website
+                </a>
+              )}
+            </div>
+          )}
+
+          <!-- Identifiers -->
+          {(official.bioguide_id || official.fec_id) && (
+            <div class="bg-white rounded-lg border border-slate-200 p-5">
+              <h2 class="font-display text-base text-civic-navy mb-4">
+                Identifiers
+              </h2>
+              <dl>
+                {official.bioguide_id && (
+                  <InfoBlock
+                    label="BioGuide ID"
+                    value={official.bioguide_id}
+                    href={`https://bioguide.congress.gov/search/bio/${official.bioguide_id}`}
+                  />
+                )}
+                {official.fec_id && (
+                  <InfoBlock
+                    label="FEC ID"
+                    value={official.fec_id}
+                    href={`https://www.fec.gov/data/candidate/${official.fec_id}/`}
+                  />
+                )}
+              </dl>
+            </div>
+          )}
+
+          <!-- Back to jurisdiction -->
+          {jurisdiction && jurisdictionHref(jurisdiction) && (
+            <div class="bg-slate-50 rounded-lg border border-slate-200 p-4">
+              <p class="text-xs font-medium text-civic-slate uppercase tracking-wider mb-2">
+                Jurisdiction
+              </p>
+              <a
+                href={jurisdictionHref(jurisdiction)}
+                class="text-sm font-medium text-civic-blue hover:underline"
+              >
+                &larr; Back to {jurisdiction.name}
+              </a>
+            </div>
+          )}
+        </aside>
+      </div>
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>
