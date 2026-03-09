@@ -1,0 +1,44 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import { supabase } from '../../lib/supabase';
+
+const { data: states } = await supabase
+  .from('jurisdictions')
+  .select('name, slug, state_abbr, population')
+  .eq('level', 'state')
+  .order('name');
+---
+<BaseLayout title="State Governments" description="Explore all 50 state governments, their officials, agencies, and laws.">
+  <Header />
+  <main class="flex-1">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+      <Breadcrumb items={[{ label: 'States' }]} />
+
+      <h1 class="text-3xl font-display text-civic-navy mb-2">State Governments</h1>
+      <p class="text-civic-slate mb-8">All 50 states and the District of Columbia — governors, legislators, agencies, courts, and election info.</p>
+
+      <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+        {states?.map((state) => (
+          <a
+            href={`/states/${state.slug}`}
+            class="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 hover:border-civic-blue hover:shadow-md transition-all group"
+          >
+            <div>
+              <span class="font-medium text-civic-navy group-hover:text-civic-blue transition-colors">{state.name}</span>
+              {state.population && (
+                <span class="block text-xs text-civic-slate font-mono">
+                  {state.population.toLocaleString()} pop.
+                </span>
+              )}
+            </div>
+            <span class="text-sm font-mono text-civic-slate">{state.state_abbr}</span>
+          </a>
+        ))}
+      </div>
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>

@@ -1,0 +1,139 @@
+---
+import BaseLayout from '../../../../layouts/BaseLayout.astro';
+import Header from '../../../../components/Header.astro';
+import Footer from '../../../../components/Footer.astro';
+import Breadcrumb from '../../../../components/Breadcrumb.astro';
+import InfoBlock from '../../../../components/InfoBlock.astro';
+import { supabase } from '../../../../lib/supabase';
+
+export async function getStaticPaths() {
+  const { data: counties } = await supabase
+    .from('jurisdictions')
+    .select('id, name, slug, fips_code, population, website, parent_id')
+    .eq('level', 'county');
+
+  if (!counties) return [];
+
+  const parentIds = [...new Set(counties.map((c) => c.parent_id).filter(Boolean))];
+  const { data: states } = await supabase
+    .from('jurisdictions')
+    .select('id, name, slug')
+    .in('id', parentIds);
+
+  const stateMap = new Map(states?.map((s) => [s.id, s]) ?? []);
+
+  return counties.map((county) => {
+    const state = stateMap.get(county.parent_id);
+    return {
+      params: { slug: state?.slug ?? '', county: county.slug },
+      props: { county, state },
+    };
+  });
+}
+
+const { county, state } = Astro.props;
+
+// Get officials for this county
+const { data: offices } = await supabase
+  .from('offices')
+  .select('id, title, branch')
+  .eq('jurisdiction_id', county.id);
+
+let officials: any[] = [];
+if (offices && offices.length > 0) {
+  const { data } = await supabase
+    .from('officials')
+    .select('full_name, slug, party, office_id')
+    .in('office_id', offices.map((o) => o.id))
+    .eq('is_current', true);
+  officials = data ?? [];
+}
+
+// Get cities in this county
+const { data: cities } = await supabase
+  .from('jurisdictions')
+  .select('name, slug, population')
+  .eq('level', 'city')
+  .eq('parent_id', county.id)
+  .order('population', { ascending: false })
+  .limit(20);
+---
+<BaseLayout title={`${county.name}, ${state?.name}`} description={`Government information for ${county.name}, ${state?.name}.`}>
+  <Header />
+  <main class="flex-1">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+      <Breadcrumb items={[
+        { label: 'States', href: '/states' },
+        { label: state?.name ?? '', href: `/states/${state?.slug}` },
+        { label: 'Counties', href: `/states/${state?.slug}/counties` },
+        { label: county.name },
+      ]} />
+
+      <h1 class="text-3xl font-display text-civic-navy mb-2">{county.name}</h1>
+      <p class="text-civic-slate mb-8">{state?.name}</p>
+
+      <!-- Quick Facts -->
+      <div class="bg-white rounded-lg border border-slate-200 p-6 mb-8">
+        <h2 class="text-lg font-display text-civic-navy mb-4">Details</h2>
+        <dl class="grid grid-cols-2 md:grid-cols-3 gap-4">
+          <InfoBlock label="FIPS Code" value={county.fips_code ?? 'N/A'} />
+          {county.population && (
+            <InfoBlock label="Population" value={county.population.toLocaleString()} />
+          )}
+          {county.website && (
+            <InfoBlock label="Website" value="Official Site" href={county.website} />
+          )}
+        </dl>
+      </div>
+
+      <!-- Officials -->
+      {officials.length > 0 && (
+        <div class="mb-8">
+          <h2 class="text-xl font-display text-civic-navy mb-4">Officials</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {officials.map((official) => {
+              const office = offices?.find((o) => o.id === official.office_id);
+              return (
+                <a href={`/officials/${official.slug}`}
+                  class="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 hover:border-civic-blue transition-all group">
+                  <div>
+                    <span class="font-medium text-civic-navy group-hover:text-civic-blue">{official.full_name}</span>
+                    {office && <span class="block text-xs text-civic-slate">{office.title}</span>}
+                  </div>
+                  {official.party && (
+                    <span class={`text-xs font-mono px-2 py-0.5 rounded ${
+                      official.party === 'democratic' ? 'bg-blue-100 text-blue-700' :
+                      official.party === 'republican' ? 'bg-red-100 text-red-700' :
+                      'bg-slate-100 text-slate-700'
+                    }`}>
+                      {official.party.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </a>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      <!-- Cities -->
+      {cities && cities.length > 0 && (
+        <div>
+          <h2 class="text-xl font-display text-civic-navy mb-4">Cities & Towns</h2>
+          <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">
+            {cities.map((city) => (
+              <a href={`/states/${state?.slug}/cities/${city.slug}`}
+                class="p-3 bg-white rounded-lg border border-slate-200 hover:border-civic-blue transition-all group">
+                <span class="font-medium text-civic-navy group-hover:text-civic-blue text-sm">{city.name}</span>
+                {city.population && (
+                  <span class="block text-xs text-civic-slate font-mono">{city.population.toLocaleString()}</span>
+                )}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>

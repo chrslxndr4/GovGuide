@@ -1,0 +1,61 @@
+---
+import BaseLayout from '../../../../layouts/BaseLayout.astro';
+import Header from '../../../../components/Header.astro';
+import Footer from '../../../../components/Footer.astro';
+import Breadcrumb from '../../../../components/Breadcrumb.astro';
+import { supabase } from '../../../../lib/supabase';
+
+export async function getStaticPaths() {
+  const { data: states } = await supabase
+    .from('jurisdictions')
+    .select('id, name, slug')
+    .eq('level', 'state');
+
+  return states?.map((state) => ({
+    params: { slug: state.slug },
+    props: { state },
+  })) ?? [];
+}
+
+const { state } = Astro.props;
+
+const { data: counties } = await supabase
+  .from('jurisdictions')
+  .select('name, slug, fips_code, population')
+  .eq('level', 'county')
+  .eq('parent_id', state.id)
+  .order('name');
+---
+<BaseLayout title={`${state.name} Counties`} description={`All counties in ${state.name} with population data and government information.`}>
+  <Header />
+  <main class="flex-1">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+      <Breadcrumb items={[
+        { label: 'States', href: '/states' },
+        { label: state.name, href: `/states/${state.slug}` },
+        { label: 'Counties' },
+      ]} />
+
+      <h1 class="text-3xl font-display text-civic-navy mb-2">{state.name} Counties</h1>
+      <p class="text-civic-slate mb-8">{counties?.length ?? 0} counties</p>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+        {counties?.map((county) => (
+          <a
+            href={`/states/${state.slug}/counties/${county.slug}`}
+            class="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 hover:border-civic-blue hover:shadow-md transition-all group"
+          >
+            <span class="font-medium text-civic-navy group-hover:text-civic-blue transition-colors">{county.name}</span>
+            <div class="text-right">
+              {county.population && (
+                <span class="text-xs text-civic-slate font-mono">{county.population.toLocaleString()}</span>
+              )}
+              <span class="block text-xs text-slate-400 font-mono">{county.fips_code}</span>
+            </div>
+          </a>
+        ))}
+      </div>
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>

@@ -1,0 +1,169 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import Breadcrumb from '../../../components/Breadcrumb.astro';
+import { supabase } from '../../../lib/supabase';
+
+export async function getStaticPaths() {
+  const { data: states } = await supabase
+    .from('jurisdictions')
+    .select('id, name, slug')
+    .eq('level', 'state');
+
+  return states?.map((state) => ({
+    params: { slug: state.slug },
+    props: { state },
+  })) ?? [];
+}
+
+const { state } = Astro.props;
+
+// Get all offices in this state
+const { data: offices } = await supabase
+  .from('offices')
+  .select('id, title, branch, chamber, district')
+  .eq('jurisdiction_id', state.id)
+  .order('branch')
+  .order('title');
+
+const officeIds = offices?.map((o) => o.id) ?? [];
+
+let officials: any[] = [];
+if (officeIds.length > 0) {
+  const { data } = await supabase
+    .from('officials')
+    .select('id, full_name, slug, party, photo_url, office_id')
+    .in('office_id', officeIds)
+    .eq('is_current', true)
+    .order('last_name');
+  officials = data ?? [];
+}
+
+// Group by branch
+const executive = officials.filter((o) => {
+  const office = offices?.find((off) => off.id === o.office_id);
+  return office?.branch === 'executive';
+});
+const legislative = officials.filter((o) => {
+  const office = offices?.find((off) => off.id === o.office_id);
+  return office?.branch === 'legislative';
+});
+const judicial = officials.filter((o) => {
+  const office = offices?.find((off) => off.id === o.office_id);
+  return office?.branch === 'judicial';
+});
+---
+<BaseLayout title={`${state.name} Officials`} description={`Current elected and appointed officials in ${state.name}.`}>
+  <Header />
+  <main class="flex-1">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+      <Breadcrumb items={[
+        { label: 'States', href: '/states' },
+        { label: state.name, href: `/states/${state.slug}` },
+        { label: 'Officials' },
+      ]} />
+
+      <h1 class="text-3xl font-display text-civic-navy mb-2">{state.name} Officials</h1>
+      <p class="text-civic-slate mb-8">{officials.length} current officials</p>
+
+      {executive.length > 0 && (
+        <section class="mb-8">
+          <h2 class="text-xl font-display text-civic-navy mb-4">Executive Branch</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {executive.map((official) => {
+              const office = offices?.find((o) => o.id === official.office_id);
+              return (
+                <a href={`/officials/${official.slug}`}
+                  class="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 hover:border-civic-blue transition-all group">
+                  {official.photo_url ? (
+                    <img src={official.photo_url} alt="" class="w-10 h-10 rounded-full object-cover" />
+                  ) : (
+                    <div class="w-10 h-10 rounded-full bg-slate-200 flex items-center justify-center text-civic-slate text-sm font-medium">
+                      {official.full_name.split(' ').map((n: string) => n[0]).join('')}
+                    </div>
+                  )}
+                  <div class="flex-1">
+                    <span class="font-medium text-civic-navy group-hover:text-civic-blue">{official.full_name}</span>
+                    {office && <span class="block text-xs text-civic-slate">{office.title}</span>}
+                  </div>
+                  {official.party && (
+                    <span class={`text-xs font-mono px-2 py-0.5 rounded ${
+                      official.party === 'democratic' ? 'bg-blue-100 text-blue-700' :
+                      official.party === 'republican' ? 'bg-red-100 text-red-700' :
+                      'bg-slate-100 text-slate-700'
+                    }`}>
+                      {official.party.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </a>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {legislative.length > 0 && (
+        <section class="mb-8">
+          <h2 class="text-xl font-display text-civic-navy mb-4">Legislative Branch</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+            {legislative.map((official) => {
+              const office = offices?.find((o) => o.id === official.office_id);
+              return (
+                <a href={`/officials/${official.slug}`}
+                  class="flex items-center gap-3 p-3 bg-white rounded-lg border border-slate-200 hover:border-civic-blue transition-all group">
+                  <div class="flex-1 min-w-0">
+                    <span class="font-medium text-civic-navy group-hover:text-civic-blue text-sm truncate block">{official.full_name}</span>
+                    {office && (
+                      <span class="text-xs text-civic-slate">
+                        {office.chamber === 'upper' || office.chamber === 'senate' ? 'Senate' : 'House'}
+                        {office.district ? ` — Dist. ${office.district}` : ''}
+                      </span>
+                    )}
+                  </div>
+                  {official.party && (
+                    <span class={`text-xs font-mono px-2 py-0.5 rounded shrink-0 ${
+                      official.party === 'democratic' ? 'bg-blue-100 text-blue-700' :
+                      official.party === 'republican' ? 'bg-red-100 text-red-700' :
+                      'bg-slate-100 text-slate-700'
+                    }`}>
+                      {official.party.charAt(0).toUpperCase()}
+                    </span>
+                  )}
+                </a>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {judicial.length > 0 && (
+        <section class="mb-8">
+          <h2 class="text-xl font-display text-civic-navy mb-4">Judicial Branch</h2>
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {judicial.map((official) => {
+              const office = offices?.find((o) => o.id === official.office_id);
+              return (
+                <a href={`/officials/${official.slug}`}
+                  class="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200 hover:border-civic-blue transition-all group">
+                  <div>
+                    <span class="font-medium text-civic-navy group-hover:text-civic-blue">{official.full_name}</span>
+                    {office && <span class="block text-xs text-civic-slate">{office.title}</span>}
+                  </div>
+                </a>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {officials.length === 0 && (
+        <div class="text-center py-12 text-civic-slate">
+          <p>No officials data available yet for {state.name}.</p>
+          <p class="text-sm mt-1">Check back as we continue building our database.</p>
+        </div>
+      )}
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>

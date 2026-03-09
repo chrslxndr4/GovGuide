@@ -1,0 +1,168 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import Breadcrumb from '../../../components/Breadcrumb.astro';
+import InfoBlock from '../../../components/InfoBlock.astro';
+import { supabase } from '../../../lib/supabase';
+
+export async function getStaticPaths() {
+  const { data: states } = await supabase
+    .from('jurisdictions')
+    .select('id, name, slug')
+    .eq('level', 'state');
+
+  return states?.map((state) => ({
+    params: { slug: state.slug },
+    props: { state },
+  })) ?? [];
+}
+
+const { state } = Astro.props;
+
+// Get election services
+const { data: services } = await supabase
+  .from('election_services')
+  .select('*')
+  .eq('jurisdiction_id', state.id)
+  .maybeSingle();
+
+// Get upcoming elections
+const today = new Date().toISOString().split('T')[0];
+const { data: elections } = await supabase
+  .from('elections')
+  .select('id, name, slug, election_type, election_date, registration_deadline, early_voting_start, early_voting_end')
+  .eq('jurisdiction_id', state.id)
+  .gte('election_date', today)
+  .order('election_date')
+  .limit(10);
+
+// Get past elections
+const { data: pastElections } = await supabase
+  .from('elections')
+  .select('id, name, slug, election_type, election_date')
+  .eq('jurisdiction_id', state.id)
+  .lt('election_date', today)
+  .order('election_date', { ascending: false })
+  .limit(5);
+---
+<BaseLayout title={`${state.name} Elections`} description={`Elections, voter registration, and ballot tracking for ${state.name}.`}>
+  <Header />
+  <main class="flex-1">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+      <Breadcrumb items={[
+        { label: 'States', href: '/states' },
+        { label: state.name, href: `/states/${state.slug}` },
+        { label: 'Elections' },
+      ]} />
+
+      <h1 class="text-3xl font-display text-civic-navy mb-8">{state.name} Elections & Voting</h1>
+
+      <!-- Voter Services -->
+      {services && (
+        <div class="bg-civic-blue/5 border border-civic-blue/20 rounded-lg p-6 mb-8">
+          <h2 class="text-xl font-display text-civic-navy mb-4">Voter Services</h2>
+
+          <div class="flex flex-wrap gap-3 mb-6">
+            {services.registration_url && (
+              <a href={services.registration_url} target="_blank" rel="noopener noreferrer"
+                class="px-4 py-2 bg-civic-blue text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                Register to Vote
+              </a>
+            )}
+            {services.ballot_tracking_url && (
+              <a href={services.ballot_tracking_url} target="_blank" rel="noopener noreferrer"
+                class="px-4 py-2 bg-white border border-civic-blue text-civic-blue rounded-lg text-sm font-medium hover:bg-civic-blue/5 transition-colors">
+                Track Your Ballot
+              </a>
+            )}
+            {services.registration_status_url && (
+              <a href={services.registration_status_url} target="_blank" rel="noopener noreferrer"
+                class="px-4 py-2 bg-white border border-slate-300 text-civic-slate rounded-lg text-sm font-medium hover:border-civic-blue hover:text-civic-blue transition-colors">
+                Check Registration
+              </a>
+            )}
+          </div>
+
+          <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {services.election_office_name && (
+              <InfoBlock label="Election Office" value={services.election_office_name} />
+            )}
+            {services.election_office_phone && (
+              <InfoBlock label="Phone" value={services.election_office_phone} />
+            )}
+            {services.election_office_email && (
+              <InfoBlock label="Email" value={services.election_office_email} />
+            )}
+            {services.election_office_address && (
+              <InfoBlock label="Address" value={services.election_office_address} />
+            )}
+            <InfoBlock label="Online Registration" value={services.has_online_registration ? 'Available' : 'Not available'} />
+            <InfoBlock label="Ballot Tracking" value={services.has_ballot_tracking ? 'Available' : 'Not available'} />
+          </dl>
+
+          {services.requirements && (
+            <div class="mt-4 p-3 bg-white rounded border border-slate-200">
+              <h3 class="text-sm font-medium text-civic-navy mb-1">Requirements</h3>
+              <p class="text-sm text-civic-slate">{services.requirements}</p>
+            </div>
+          )}
+        </div>
+      )}
+
+      <!-- Upcoming Elections -->
+      <section class="mb-8">
+        <h2 class="text-xl font-display text-civic-navy mb-4">Upcoming Elections</h2>
+        {elections && elections.length > 0 ? (
+          <div class="space-y-3">
+            {elections.map((election) => (
+              <div class="bg-white rounded-lg border border-slate-200 p-4">
+                <div class="flex items-start justify-between">
+                  <div>
+                    <h3 class="font-medium text-civic-navy">{election.name}</h3>
+                    <span class="text-xs font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded mt-1 inline-block">
+                      {election.election_type}
+                    </span>
+                  </div>
+                  <span class="text-sm font-mono text-civic-blue">
+                    {new Date(election.election_date).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}
+                  </span>
+                </div>
+                {(election.registration_deadline || election.early_voting_start) && (
+                  <div class="mt-3 flex flex-wrap gap-4 text-xs text-civic-slate">
+                    {election.registration_deadline && (
+                      <span>Registration deadline: {new Date(election.registration_deadline).toLocaleDateString()}</span>
+                    )}
+                    {election.early_voting_start && election.early_voting_end && (
+                      <span>Early voting: {new Date(election.early_voting_start).toLocaleDateString()} — {new Date(election.early_voting_end).toLocaleDateString()}</span>
+                    )}
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p class="text-civic-slate">No upcoming elections scheduled.</p>
+        )}
+      </section>
+
+      <!-- Past Elections -->
+      {pastElections && pastElections.length > 0 && (
+        <section>
+          <h2 class="text-xl font-display text-civic-navy mb-4">Recent Elections</h2>
+          <div class="space-y-2">
+            {pastElections.map((election) => (
+              <div class="flex items-center justify-between p-3 bg-white rounded-lg border border-slate-200">
+                <span class="text-sm text-civic-navy">{election.name}</span>
+                <span class="text-xs font-mono text-civic-slate">
+                  {new Date(election.election_date).toLocaleDateString()}
+                </span>
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>

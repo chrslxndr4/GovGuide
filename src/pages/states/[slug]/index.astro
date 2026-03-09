@@ -1,0 +1,166 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import Breadcrumb from '../../../components/Breadcrumb.astro';
+import CategoryCard from '../../../components/CategoryCard.astro';
+import InfoBlock from '../../../components/InfoBlock.astro';
+import { supabase } from '../../../lib/supabase';
+
+export async function getStaticPaths() {
+  const { data: states } = await supabase
+    .from('jurisdictions')
+    .select('id, name, slug, state_abbr, population, website')
+    .eq('level', 'state');
+
+  return states?.map((state) => ({
+    params: { slug: state.slug },
+    props: { state },
+  })) ?? [];
+}
+
+const { state } = Astro.props;
+
+// Get county count
+const { count: countyCount } = await supabase
+  .from('jurisdictions')
+  .select('id', { count: 'exact', head: true })
+  .eq('level', 'county')
+  .eq('parent_id', state.id);
+
+// Get city count
+const { count: cityCount } = await supabase
+  .from('jurisdictions')
+  .select('id', { count: 'exact', head: true })
+  .eq('level', 'city')
+  .eq('parent_id', state.id);
+
+// Get officials count
+const { data: offices } = await supabase
+  .from('offices')
+  .select('id')
+  .eq('jurisdiction_id', state.id);
+
+const officeIds = offices?.map((o) => o.id) ?? [];
+let officialCount = 0;
+if (officeIds.length > 0) {
+  const { count } = await supabase
+    .from('officials')
+    .select('id', { count: 'exact', head: true })
+    .in('office_id', officeIds)
+    .eq('is_current', true);
+  officialCount = count ?? 0;
+}
+
+// Get agencies
+const { count: agencyCount } = await supabase
+  .from('agencies')
+  .select('id', { count: 'exact', head: true })
+  .eq('jurisdiction_id', state.id);
+
+// Get election services
+const { data: electionServices } = await supabase
+  .from('election_services')
+  .select('*')
+  .eq('jurisdiction_id', state.id)
+  .maybeSingle();
+---
+<BaseLayout title={state.name} description={`Government information for ${state.name} — officials, agencies, elections, and laws.`}>
+  <Header />
+  <main class="flex-1">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+      <Breadcrumb items={[
+        { label: 'States', href: '/states' },
+        { label: state.name },
+      ]} />
+
+      <div class="flex items-start justify-between mb-8">
+        <div>
+          <h1 class="text-3xl font-display text-civic-navy">{state.name}</h1>
+          <p class="text-civic-slate mt-1">{state.state_abbr} &middot; FIPS {state.slug}</p>
+        </div>
+        {state.website && (
+          <a href={state.website} target="_blank" rel="noopener noreferrer" class="text-sm text-civic-blue hover:underline">
+            Official Website &rarr;
+          </a>
+        )}
+      </div>
+
+      <!-- Quick Facts -->
+      <div class="bg-white rounded-lg border border-slate-200 p-6 mb-8">
+        <h2 class="text-lg font-display text-civic-navy mb-4">Quick Facts</h2>
+        <dl class="grid grid-cols-2 md:grid-cols-4 gap-4">
+          {state.population && (
+            <InfoBlock label="Population" value={state.population.toLocaleString()} />
+          )}
+          <InfoBlock label="Counties" value={String(countyCount ?? 0)} href={`/states/${state.slug}/counties`} />
+          <InfoBlock label="Cities/Towns" value={String(cityCount ?? 0)} />
+          <InfoBlock label="Officials" value={String(officialCount)} href={`/states/${state.slug}/officials`} />
+        </dl>
+      </div>
+
+      <!-- Voter Info -->
+      {electionServices && (
+        <div class="bg-civic-blue/5 border border-civic-blue/20 rounded-lg p-6 mb-8">
+          <h2 class="text-lg font-display text-civic-navy mb-3">Voter Information</h2>
+          <div class="flex flex-wrap gap-3">
+            {electionServices.registration_url && (
+              <a href={electionServices.registration_url} target="_blank" rel="noopener noreferrer"
+                class="px-4 py-2 bg-civic-blue text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
+                Register to Vote
+              </a>
+            )}
+            {electionServices.ballot_tracking_url && (
+              <a href={electionServices.ballot_tracking_url} target="_blank" rel="noopener noreferrer"
+                class="px-4 py-2 bg-white border border-civic-blue text-civic-blue rounded-lg text-sm font-medium hover:bg-civic-blue/5 transition-colors">
+                Track Your Ballot
+              </a>
+            )}
+            {electionServices.registration_status_url && (
+              <a href={electionServices.registration_status_url} target="_blank" rel="noopener noreferrer"
+                class="px-4 py-2 bg-white border border-slate-300 text-civic-slate rounded-lg text-sm font-medium hover:border-civic-blue hover:text-civic-blue transition-colors">
+                Check Registration Status
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+
+      <!-- Navigation Cards -->
+      <h2 class="text-xl font-display text-civic-navy mb-4">Explore {state.name}</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <CategoryCard
+          title="Officials"
+          description={`Current elected and appointed officials in ${state.name}`}
+          href={`/states/${state.slug}/officials`}
+          count={officialCount}
+        />
+        <CategoryCard
+          title="Counties"
+          description={`County governments within ${state.name}`}
+          href={`/states/${state.slug}/counties`}
+          count={countyCount ?? 0}
+        />
+        <CategoryCard
+          title="Elections"
+          description={`Upcoming elections, voter registration, and ballot info`}
+          href={`/states/${state.slug}/elections`}
+        />
+        <CategoryCard
+          title="Laws & Regulations"
+          description={`State constitution, statutes, and administrative code`}
+          href={`/states/${state.slug}/laws`}
+        />
+        {(agencyCount ?? 0) > 0 && (
+          <CategoryCard
+            title="Agencies"
+            description={`State agencies and departments`}
+            href={`/states/${state.slug}/agencies`}
+            count={agencyCount ?? 0}
+          />
+        )}
+      </div>
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>

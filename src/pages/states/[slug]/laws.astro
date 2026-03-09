@@ -1,0 +1,96 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import Breadcrumb from '../../../components/Breadcrumb.astro';
+import { supabase } from '../../../lib/supabase';
+
+export async function getStaticPaths() {
+  const { data: states } = await supabase
+    .from('jurisdictions')
+    .select('id, name, slug')
+    .eq('level', 'state');
+
+  return states?.map((state) => ({
+    params: { slug: state.slug },
+    props: { state },
+  })) ?? [];
+}
+
+const { state } = Astro.props;
+
+const { data: lawSources } = await supabase
+  .from('law_sources')
+  .select('id, title, description, law_type, source_url')
+  .eq('jurisdiction_id', state.id)
+  .order('law_type');
+
+// Group by type
+const grouped = new Map<string, typeof lawSources>();
+lawSources?.forEach((source) => {
+  const existing = grouped.get(source.law_type) ?? [];
+  existing.push(source);
+  grouped.set(source.law_type, existing);
+});
+
+const typeLabels: Record<string, string> = {
+  constitution: 'Constitution',
+  statute: 'Statutes & Code',
+  regulation: 'Regulations',
+  administrative_code: 'Administrative Code',
+  executive_order: 'Executive Orders',
+  ordinance: 'Ordinances',
+  municipal_code: 'Municipal Code',
+};
+---
+<BaseLayout title={`${state.name} Laws`} description={`Laws, statutes, and regulations for ${state.name}.`}>
+  <Header />
+  <main class="flex-1">
+    <div class="max-w-7xl mx-auto px-4 py-8">
+      <Breadcrumb items={[
+        { label: 'States', href: '/states' },
+        { label: state.name, href: `/states/${state.slug}` },
+        { label: 'Laws & Regulations' },
+      ]} />
+
+      <h1 class="text-3xl font-display text-civic-navy mb-2">{state.name} Laws & Regulations</h1>
+      <p class="text-civic-slate mb-8">Legal resources and official code for {state.name}.</p>
+
+      {lawSources && lawSources.length > 0 ? (
+        <div class="space-y-8">
+          {[...grouped.entries()].map(([type, sources]) => (
+            <section>
+              <h2 class="text-xl font-display text-civic-navy mb-4">{typeLabels[type] ?? type}</h2>
+              <div class="space-y-3">
+                {sources?.map((source) => (
+                  <div class="bg-white rounded-lg border border-slate-200 p-4">
+                    <div class="flex items-start justify-between">
+                      <div>
+                        <h3 class="font-medium text-civic-navy">{source.title}</h3>
+                        {source.description && (
+                          <p class="text-sm text-civic-slate mt-1">{source.description}</p>
+                        )}
+                      </div>
+                      {source.source_url && (
+                        <a href={source.source_url} target="_blank" rel="noopener noreferrer"
+                          class="text-sm text-civic-blue hover:underline shrink-0 ml-4">
+                          View &rarr;
+                        </a>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div class="text-center py-12 text-civic-slate">
+          <p>No law sources available yet for {state.name}.</p>
+          <p class="text-sm mt-1">Check back as we continue building our database.</p>
+        </div>
+      )}
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>
