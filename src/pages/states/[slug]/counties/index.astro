@@ -28,7 +28,7 @@ const { data: counties } = await supabase
 ---
 <BaseLayout title={`${state.name} Counties`} description={`All counties in ${state.name} with population data and government information.`}>
   <Header />
-  <main class="flex-1">
+  <main id="main-content" class="flex-1">
     <div class="max-w-7xl mx-auto px-4 py-8">
       <Breadcrumb items={[
         { label: 'States', href: '/states' },

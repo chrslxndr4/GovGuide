@@ -48,7 +48,7 @@ const { data: pastElections } = await supabase
 ---
 <BaseLayout title={`${state.name} Elections`} description={`Elections, voter registration, and ballot tracking for ${state.name}.`}>
   <Header />
-  <main class="flex-1">
+  <main id="main-content" class="flex-1">
     <div class="max-w-7xl mx-auto px-4 py-8">
       <Breadcrumb items={[
         { label: 'States', href: '/states' },

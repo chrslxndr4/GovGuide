@@ -51,7 +51,7 @@ if (offices && offices.length > 0) {
 ---
 <BaseLayout title={`${city.name}, ${state?.name}`} description={`Government information for ${city.name}, ${state?.name}.`}>
   <Header />
-  <main class="flex-1">
+  <main id="main-content" class="flex-1">
     <div class="max-w-7xl mx-auto px-4 py-8">
       <Breadcrumb items={[
         { label: 'States', href: '/states' },

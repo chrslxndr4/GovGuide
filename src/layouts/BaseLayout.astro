@@ -1,13 +1,14 @@
 ---
-import Header from '../components/Header.astro';
-import Footer from '../components/Footer.astro';
 import '../styles/global.css';
 
 interface Props {
   title: string;
   description?: string;
+  ogImage?: string;
 }
-const { title, description = 'Your complete guide to American government at every level.' } = Astro.props;
+const { title, description = 'Your complete guide to American government at every level.', ogImage } = Astro.props;
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? 'https://govguide.us');
+const fullTitle = title === 'Home' ? 'GovGuide — Know Your Government' : `${title} | GovGuide`;
 ---
 <!doctype html>
 <html lang="en">
@@ -15,14 +16,44 @@ const { title, description = 'Your complete guide to American government at ever
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
-    <title>{title} | GovGuide</title>
+    <link rel="canonical" href={canonicalUrl.href} />
+
+    <!-- Open Graph -->
+    <meta property="og:title" content={fullTitle} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalUrl.href} />
+    <meta property="og:site_name" content="GovGuide" />
+    {ogImage && <meta property="og:image" content={ogImage} />}
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={fullTitle} />
+    <meta name="twitter:description" content={description} />
+
+    <title>{fullTitle}</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Plus+Jakarta+Sans:wght@600;700;800&family=JetBrains+Mono:wght@400&display=swap" rel="stylesheet" />
+
+    <!-- JSON-LD Structured Data -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "GovGuide",
+      "url": "https://govguide.us",
+      "description": "Free, public civic transparency platform mapping every level of US government.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://govguide.us/api/search?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    })} />
   </head>
   <body class="min-h-screen flex flex-col">
-    <Header />
+    <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-civic-blue focus:text-white focus:rounded-lg focus:outline-none">
+      Skip to main content
+    </a>
     <slot />
-    <Footer />
   </body>
 </html>
