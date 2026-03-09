@@ -14,7 +14,7 @@ import CategoryCard from '../components/CategoryCard.astro';
       <div class="max-w-7xl mx-auto text-center mb-6">
         <h1 class="text-4xl md:text-5xl font-display font-bold mb-3">Know Your Government</h1>
         <p class="text-lg text-slate-300 max-w-2xl mx-auto mb-6">
-          Every official, every agency, every law — from the White House to your city hall.
+          Every official, every dollar, every connection — from the White House to your city hall.
         </p>
         <ZipSearch client:load />
       </div>
@@ -25,10 +25,13 @@ import CategoryCard from '../components/CategoryCard.astro';
       <GovMap client:load />
     </section>
 
-    <!-- Category Grid -->
+    <!-- Pillar 1: Navigate -->
     <section class="max-w-7xl mx-auto px-4 py-12">
-      <h2 class="text-2xl font-display text-civic-navy mb-6">Explore</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div class="mb-2">
+        <h2 class="text-2xl font-display text-civic-navy">Navigate Your Government</h2>
+        <p class="text-civic-slate text-sm mt-1">Explore every level of government, find your representatives, and understand the laws that affect you.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-4">
         <CategoryCard
           title="Federal Government"
           description="Three branches, cabinet departments, agencies, and officials"
@@ -46,19 +49,71 @@ import CategoryCard from '../components/CategoryCard.astro';
           href="/elections"
         />
         <CategoryCard
-          title="Follow the Money"
-          description="Campaign finance, lobbying, dark money, and donor networks"
-          href="/money"
-        />
-        <CategoryCard
           title="Officials Directory"
           description="Find your elected officials at every level of government"
           href="/officials"
         />
         <CategoryCard
-          title="Connect the Dots"
-          description="Conflicts of interest, judicial transparency, and voting analysis"
-          href="/connections"
+          title="Laws & Legislation"
+          description="Federal and state laws, executive orders, and regulations"
+          href="/laws"
+        />
+      </div>
+    </section>
+
+    <!-- Pillar 2: Follow the Money -->
+    <section class="bg-slate-50 py-12">
+      <div class="max-w-7xl mx-auto px-4">
+        <div class="mb-2">
+          <h2 class="text-2xl font-display text-civic-navy">Follow the Money</h2>
+          <p class="text-civic-slate text-sm mt-1">Trace campaign contributions, lobbying expenditures, stock trades, and dark money flows through the political system.</p>
+        </div>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-4">
+          <CategoryCard
+            title="Money Graph Explorer"
+            description="Interactive visualization of money flows between donors, PACs, and officials"
+            href="/money/graph"
+          />
+          <CategoryCard
+            title="Lobbying Dashboard"
+            description="Who's lobbying whom, on what bills, and how much"
+            href="/money/lobbying"
+          />
+          <CategoryCard
+            title="Stock Tracker"
+            description="Congressional stock trades and STOCK Act compliance"
+            href="/money/stocks"
+          />
+          <CategoryCard
+            title="Dark Money"
+            description="501(c)(4) grants, super PAC spending, and dark money chains"
+            href="/money/dark-money"
+          />
+        </div>
+      </div>
+    </section>
+
+    <!-- Pillar 3: Connect the Dots -->
+    <section class="max-w-7xl mx-auto px-4 py-12">
+      <div class="mb-2">
+        <h2 class="text-2xl font-display text-civic-navy">Connect the Dots</h2>
+        <p class="text-civic-slate text-sm mt-1">Automated conflict detection, judicial transparency, and prediction market analysis.</p>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mt-4">
+        <CategoryCard
+          title="Conflict Alerts"
+          description="Automated detection of donor-vote conflicts, suspicious trades, and revolving doors"
+          href="/conflicts"
+        />
+        <CategoryCard
+          title="Judicial Transparency"
+          description="Federal judge profiles, financial disclosures, and conflict flags"
+          href="/judicial"
+        />
+        <CategoryCard
+          title="Predictions & Markets"
+          description="Polling averages, prediction market odds, and anomaly detection"
+          href="/predictions"
         />
       </div>
     </section>

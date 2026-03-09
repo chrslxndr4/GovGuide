@@ -319,6 +319,31 @@ const hasTermInfo = official.term_start || official.term_end;
             </section>
           )}
 
+          <!-- Top Donors (Pillar 2) -->
+          <section>
+            <h2 class="text-xl font-display text-civic-navy mb-4">Top Donors</h2>
+            <div id="top-donors-section" class="bg-white rounded-lg border border-slate-200 p-5">
+              <p class="text-civic-slate italic text-sm">Donor data will appear once campaign finance imports have run and entity resolution links this official.</p>
+            </div>
+          </section>
+
+          <!-- Stock Trades (Pillar 2) -->
+          <section>
+            <h2 class="text-xl font-display text-civic-navy mb-4">Stock Trades</h2>
+            <div class="bg-white rounded-lg border border-slate-200 p-5">
+              <p class="text-civic-slate italic text-sm">Stock trade data will appear once import pipelines have run.</p>
+              <div id="trade-timeline-mount" data-official-id={official.id}></div>
+            </div>
+          </section>
+
+          <!-- Transparency Score (Pillar 2) -->
+          <section>
+            <h2 class="text-xl font-display text-civic-navy mb-4">Transparency Score</h2>
+            <div class="bg-white rounded-lg border border-slate-200 p-5">
+              <p class="text-civic-slate italic text-sm">Transparency scoring will be available once sufficient data has been imported and analyzed.</p>
+            </div>
+          </section>
+
           <!-- Social Media -->
           {hasSocial && (
             <section>
@@ -411,6 +436,18 @@ const hasTermInfo = official.term_start || official.term_end;
               </dl>
             </div>
           )}
+
+          <!-- Money Graph Link (Pillar 2) -->
+          <div class="bg-civic-blue/5 rounded-lg border border-civic-blue/20 p-5">
+            <h2 class="font-display text-base text-civic-navy mb-2">Follow the Money</h2>
+            <p class="text-xs text-civic-slate mb-3">See all financial connections for this official.</p>
+            <a
+              href={`/money/graph?entity=${official.id}`}
+              class="block w-full text-center py-2 px-4 bg-civic-blue text-white text-sm font-medium rounded hover:bg-blue-700 transition-colors"
+            >
+              View Money Graph
+            </a>
+          </div>
 
           <!-- Back to jurisdiction -->
           {jurisdiction && jurisdictionHref(jurisdiction) && (

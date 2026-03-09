@@ -1,0 +1,102 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { supabase } from '../../lib/supabase';
+
+export const prerender = false;
+
+const { data: darkMoneyFlows } = await supabase
+  .from('dark_money_flows')
+  .select(`
+    id,
+    amount,
+    year,
+    source:source_entity_id(id, name, entity_type),
+    target:target_entity_id(id, name, entity_type)
+  `)
+  .order('amount', { ascending: false })
+  .limit(50);
+
+const { data: c4Orgs } = await supabase
+  .from('entity_501c4s')
+  .select('entity_id, ein, total_revenue, total_grants_made, entity:entity_id(id, name)')
+  .order('total_grants_made', { ascending: false, nullsFirst: false })
+  .limit(20);
+
+const totalDarkMoney = (darkMoneyFlows ?? []).reduce((sum, f) => sum + (f.amount ?? 0), 0);
+---
+<BaseLayout title="Dark Money Tracker">
+  <Header />
+  <main id="main-content" class="flex-1">
+    <section class="bg-civic-navy text-white py-12 px-4">
+      <div class="max-w-7xl mx-auto text-center">
+        <h1 class="text-4xl font-display font-bold mb-4">Dark Money Tracker</h1>
+        <p class="text-lg text-slate-300 max-w-2xl mx-auto">
+          Tracing undisclosed political spending through 501(c)(4) organizations,
+          super PACs, and opaque funding networks.
+        </p>
+      </div>
+    </section>
+
+    <section class="max-w-7xl mx-auto px-4 py-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+          <p class="text-3xl font-bold text-civic-red">${(totalDarkMoney / 1e6).toFixed(1)}M</p>
+          <p class="text-sm text-civic-slate">Total Tracked Dark Money</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+          <p class="text-3xl font-bold text-civic-navy">{(c4Orgs ?? []).length}</p>
+          <p class="text-sm text-civic-slate">501(c)(4) Organizations</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+          <p class="text-3xl font-bold text-civic-navy">{(darkMoneyFlows ?? []).length}</p>
+          <p class="text-sm text-civic-slate">Tracked Flows</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2">
+          <h2 class="text-xl font-display text-civic-navy mb-4">Largest Dark Money Flows</h2>
+          {(darkMoneyFlows ?? []).length === 0 ? (
+            <p class="text-civic-slate italic">No dark money flows tracked yet. Data will appear as import pipelines run.</p>
+          ) : (
+            <div class="space-y-3">
+              {(darkMoneyFlows ?? []).map((flow) => (
+                <div class="bg-white rounded-lg shadow p-4 flex justify-between items-center">
+                  <div>
+                    <p class="font-medium text-civic-navy">
+                      {(flow.source as { name?: string } | null)?.name ?? 'Unknown'} &rarr; {(flow.target as { name?: string } | null)?.name ?? 'Unknown'}
+                    </p>
+                    <p class="text-sm text-civic-slate">{flow.year}</p>
+                  </div>
+                  <p class="text-lg font-bold text-civic-red">${(flow.amount ?? 0).toLocaleString()}</p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h2 class="text-xl font-display text-civic-navy mb-4">Top 501(c)(4) Organizations</h2>
+          {(c4Orgs ?? []).length === 0 ? (
+            <p class="text-civic-slate italic">No organizations tracked yet.</p>
+          ) : (
+            <div class="space-y-3">
+              {(c4Orgs ?? []).map((org) => (
+                <div class="bg-white rounded-lg shadow p-3">
+                  <p class="font-medium text-civic-navy text-sm">{(org.entity as { name?: string } | null)?.name ?? 'Unknown'}</p>
+                  <p class="text-xs text-civic-slate">
+                    Revenue: ${((org.total_revenue ?? 0) / 1e6).toFixed(1)}M |
+                    Grants: ${((org.total_grants_made ?? 0) / 1e6).toFixed(1)}M
+                  </p>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>

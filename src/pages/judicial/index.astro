@@ -1,0 +1,134 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import CategoryCard from '../../components/CategoryCard.astro';
+import { supabase } from '../../lib/supabase';
+
+export const prerender = false;
+
+const { count: judgeCount } = await supabase
+  .from('judges')
+  .select('*', { count: 'exact', head: true });
+
+const { count: courtCount } = await supabase
+  .from('courts')
+  .select('*', { count: 'exact', head: true });
+
+const { data: scotusJudges } = await supabase
+  .from('judges')
+  .select('id, full_name, slug, metadata, court:court_id(name)')
+  .ilike('court_id.name', '%supreme%')
+  .limit(20);
+
+const { count: conflictCount } = await supabase
+  .from('conflict_alerts')
+  .select('*', { count: 'exact', head: true })
+  .eq('alert_type', 'judicial_financial');
+
+const { data: recentDecisions } = await supabase
+  .from('judicial_decisions')
+  .select('id, title, case_number, decision_date, outcome')
+  .order('decision_date', { ascending: false })
+  .limit(10);
+
+const { data: courts } = await supabase
+  .from('courts')
+  .select('id, name, court_type')
+  .order('name');
+
+const courtsByType: Record<string, typeof courts> = {};
+for (const court of courts ?? []) {
+  const type = court.court_type ?? 'other';
+  if (!courtsByType[type]) courtsByType[type] = [];
+  courtsByType[type]!.push(court);
+}
+---
+<BaseLayout title="Judicial Transparency Center">
+  <Header />
+  <main id="main-content" class="flex-1">
+    <section class="bg-civic-navy text-white py-12 px-4">
+      <div class="max-w-7xl mx-auto text-center">
+        <h1 class="text-4xl font-display font-bold mb-4">Judicial Transparency Center</h1>
+        <p class="text-lg text-slate-300 max-w-2xl mx-auto">
+          Track federal judges, their financial disclosures, conflicts of interest,
+          and the political chains behind their appointments.
+        </p>
+      </div>
+    </section>
+
+    <section class="max-w-7xl mx-auto px-4 py-8">
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+          <p class="text-3xl font-bold text-civic-navy">{(judgeCount ?? 0).toLocaleString()}</p>
+          <p class="text-sm text-civic-slate">Federal Judges</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+          <p class="text-3xl font-bold text-civic-navy">{(courtCount ?? 0).toLocaleString()}</p>
+          <p class="text-sm text-civic-slate">Courts</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center border-l-4 border-civic-red">
+          <p class="text-3xl font-bold text-civic-red">{(conflictCount ?? 0).toLocaleString()}</p>
+          <p class="text-sm text-civic-slate">Financial Conflicts</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-4 text-center">
+          <p class="text-3xl font-bold text-civic-navy">{(recentDecisions ?? []).length}</p>
+          <p class="text-sm text-civic-slate">Recent Decisions</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2">
+          <h2 class="text-2xl font-display text-civic-navy mb-4">Court Structure</h2>
+          {Object.entries(courtsByType).map(([type, typeCourts]) => (
+            <div class="mb-6">
+              <h3 class="text-lg font-semibold text-civic-slate capitalize mb-2">{type} Courts</h3>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-2">
+                {(typeCourts ?? []).map((court) => (
+                  <div class="bg-white rounded shadow p-3 text-sm">
+                    <p class="font-medium text-civic-navy">{court.name}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+
+          {(recentDecisions ?? []).length > 0 && (
+            <div class="mt-8">
+              <h2 class="text-2xl font-display text-civic-navy mb-4">Recent Decisions</h2>
+              <div class="space-y-3">
+                {(recentDecisions ?? []).map((d) => (
+                  <div class="bg-white rounded-lg shadow p-4">
+                    <p class="font-medium text-civic-navy">{d.title ?? d.case_number}</p>
+                    <p class="text-sm text-civic-slate">
+                      {d.case_number} | {d.decision_date ?? 'Date unknown'} | {d.outcome ?? 'Pending'}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div>
+          <h2 class="text-xl font-display text-civic-navy mb-4">Supreme Court</h2>
+          {(scotusJudges ?? []).length === 0 ? (
+            <p class="text-civic-slate italic text-sm">No SCOTUS data yet.</p>
+          ) : (
+            <div class="space-y-2">
+              {(scotusJudges ?? []).map((judge) => (
+                <a href={`/judicial/${judge.slug}`} class="block bg-white rounded-lg shadow p-3 hover:shadow-md transition-shadow">
+                  <p class="font-medium text-civic-navy">{judge.full_name}</p>
+                  <p class="text-xs text-civic-slate">
+                    Appointed by {(judge.metadata as Record<string, string> | null)?.appointing_president ?? 'Unknown'}
+                  </p>
+                </a>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>

@@ -1,0 +1,36 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import MoneyGraph from '../../components/graph/MoneyGraph';
+import GraphSidebar from '../../components/graph/GraphSidebar';
+import GraphControls from '../../components/graph/GraphControls';
+
+export const prerender = false;
+
+const entityId = Astro.url.searchParams.get('entity') ?? undefined;
+const query = Astro.url.searchParams.get('q') ?? undefined;
+---
+<BaseLayout title="Money Graph Explorer">
+  <Header />
+  <main id="main-content" class="flex-1 bg-slate-50">
+    <section class="bg-civic-navy text-white py-6 px-4">
+      <div class="max-w-7xl mx-auto">
+        <h1 class="text-2xl font-display font-bold">Money Graph Explorer</h1>
+        <p class="text-slate-300 text-sm mt-1">
+          Visualize connections between donors, PACs, corporations, and elected officials.
+          Click any node to explore, double-click to re-center.
+        </p>
+      </div>
+    </section>
+
+    <div class="max-w-full mx-auto" style="height: calc(100vh - 200px); min-height: 500px;">
+      <MoneyGraph
+        client:load
+        initialEntityId={entityId}
+        initialQuery={query}
+      />
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>

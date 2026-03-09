@@ -1,0 +1,136 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Header from '../../../components/Header.astro';
+import Footer from '../../../components/Footer.astro';
+import { supabase } from '../../../lib/supabase';
+
+export const prerender = false;
+
+const search = Astro.url.searchParams.get('q') ?? '';
+const page = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1', 10) || 1);
+const limit = 25;
+const offset = (page - 1) * limit;
+
+let query = supabase
+  .from('lobbying_registrations')
+  .select(`
+    id,
+    issues,
+    effective_date,
+    termination_date,
+    firm:firm_entity_id(id, name),
+    client:client_entity_id(id, name)
+  `, { count: 'exact' })
+  .order('effective_date', { ascending: false })
+  .range(offset, offset + limit - 1);
+
+if (search) {
+  query = query.or(`firm_entity_id.name.ilike.%${search}%,client_entity_id.name.ilike.%${search}%`);
+}
+
+const { data: registrations, count: totalCount } = await query;
+
+const { data: topFirms } = await supabase
+  .from('lobbying_activities')
+  .select('registration:registration_id(firm:firm_entity_id(id, name)), amount')
+  .order('amount', { ascending: false, nullsFirst: false })
+  .limit(10);
+
+const { count: activeCount } = await supabase
+  .from('lobbying_registrations')
+  .select('*', { count: 'exact', head: true })
+  .is('termination_date', null);
+
+const totalPages = Math.ceil((totalCount ?? 0) / limit);
+---
+<BaseLayout title="Lobbying Dashboard">
+  <Header />
+  <main id="main-content" class="flex-1">
+    <section class="bg-civic-navy text-white py-12 px-4">
+      <div class="max-w-7xl mx-auto text-center">
+        <h1 class="text-4xl font-display font-bold mb-4">Lobbying Dashboard</h1>
+        <p class="text-lg text-slate-300 max-w-2xl mx-auto">
+          Track who is lobbying whom, on what bills, and how much they're spending.
+        </p>
+      </div>
+    </section>
+
+    <section class="max-w-7xl mx-auto px-4 py-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+          <p class="text-3xl font-bold text-civic-navy">{(totalCount ?? 0).toLocaleString()}</p>
+          <p class="text-sm text-civic-slate">Total Registrations</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+          <p class="text-3xl font-bold text-civic-navy">{(activeCount ?? 0).toLocaleString()}</p>
+          <p class="text-sm text-civic-slate">Active Registrations</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+          <p class="text-3xl font-bold text-civic-gold">{(topFirms ?? []).length}</p>
+          <p class="text-sm text-civic-slate">Top Firms Tracked</p>
+        </div>
+      </div>
+
+      <form method="get" class="mb-6">
+        <div class="flex gap-2">
+          <input
+            type="text"
+            name="q"
+            value={search}
+            placeholder="Search by firm or client name..."
+            class="flex-1 px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-civic-blue focus:border-transparent"
+          />
+          <button type="submit" class="px-6 py-2 bg-civic-blue text-white rounded-lg hover:bg-blue-700 transition-colors">
+            Search
+          </button>
+        </div>
+      </form>
+
+      {(registrations ?? []).length === 0 ? (
+        <p class="text-civic-slate italic text-center py-8">
+          No lobbying registrations found. Data will appear as import pipelines run.
+        </p>
+      ) : (
+        <div class="bg-white rounded-lg shadow overflow-hidden">
+          <table class="w-full text-sm">
+            <thead class="bg-slate-50">
+              <tr>
+                <th class="px-4 py-3 text-left text-civic-navy font-semibold">Firm</th>
+                <th class="px-4 py-3 text-left text-civic-navy font-semibold">Client</th>
+                <th class="px-4 py-3 text-left text-civic-navy font-semibold">Issues</th>
+                <th class="px-4 py-3 text-left text-civic-navy font-semibold">Effective Date</th>
+                <th class="px-4 py-3 text-left text-civic-navy font-semibold">Status</th>
+              </tr>
+            </thead>
+            <tbody class="divide-y divide-slate-100">
+              {(registrations ?? []).map((reg) => (
+                <tr class="hover:bg-slate-50">
+                  <td class="px-4 py-3 font-medium">{(reg.firm as { name?: string } | null)?.name ?? 'Unknown'}</td>
+                  <td class="px-4 py-3">{(reg.client as { name?: string } | null)?.name ?? 'Unknown'}</td>
+                  <td class="px-4 py-3 text-xs">{(reg.issues ?? []).slice(0, 3).join(', ')}</td>
+                  <td class="px-4 py-3">{reg.effective_date ?? '—'}</td>
+                  <td class="px-4 py-3">
+                    {reg.termination_date ? (
+                      <span class="text-xs px-2 py-1 bg-slate-100 text-civic-slate rounded">Terminated</span>
+                    ) : (
+                      <span class="text-xs px-2 py-1 bg-green-100 text-green-800 rounded">Active</span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+
+      {totalPages > 1 && (
+        <div class="flex justify-center gap-2 mt-6">
+          {page > 1 && <a href={`?q=${search}&page=${page - 1}`} class="px-4 py-2 bg-white border rounded hover:bg-slate-50">&laquo; Prev</a>}
+          <span class="px-4 py-2 text-civic-slate">Page {page} of {totalPages}</span>
+          {page < totalPages && <a href={`?q=${search}&page=${page + 1}`} class="px-4 py-2 bg-white border rounded hover:bg-slate-50">Next &raquo;</a>}
+        </div>
+      )}
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>

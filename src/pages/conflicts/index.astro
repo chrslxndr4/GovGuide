@@ -1,0 +1,77 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import ConflictFeed from '../../components/alerts/ConflictFeed';
+import { supabase } from '../../lib/supabase';
+
+export const prerender = false;
+
+const { count: totalAlerts } = await supabase
+  .from('conflict_alerts')
+  .select('*', { count: 'exact', head: true });
+
+const { count: criticalAlerts } = await supabase
+  .from('conflict_alerts')
+  .select('*', { count: 'exact', head: true })
+  .gte('severity_score', 8);
+
+const { count: activeAlerts } = await supabase
+  .from('conflict_alerts')
+  .select('*', { count: 'exact', head: true })
+  .eq('status', 'active');
+
+const { data: initialAlerts } = await supabase
+  .from('conflict_alerts')
+  .select('*')
+  .eq('status', 'active')
+  .order('severity_score', { ascending: false })
+  .limit(20);
+---
+<BaseLayout title="Conflict Alerts">
+  <Header />
+  <main id="main-content" class="flex-1">
+    <section class="bg-civic-navy text-white py-12 px-4">
+      <div class="max-w-7xl mx-auto text-center">
+        <h1 class="text-4xl font-display font-bold mb-4">Conflict of Interest Alerts</h1>
+        <p class="text-lg text-slate-300 max-w-2xl mx-auto">
+          Automated detection of potential conflicts — donor-vote alignment, suspicious stock trades,
+          judicial financial conflicts, and revolving door patterns.
+        </p>
+      </div>
+    </section>
+
+    <section class="max-w-7xl mx-auto px-4 py-8">
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+          <p class="text-3xl font-bold text-civic-navy">{(totalAlerts ?? 0).toLocaleString()}</p>
+          <p class="text-sm text-civic-slate">Total Alerts</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6 text-center border-l-4 border-civic-red">
+          <p class="text-3xl font-bold text-civic-red">{(criticalAlerts ?? 0).toLocaleString()}</p>
+          <p class="text-sm text-civic-slate">Critical Severity</p>
+        </div>
+        <div class="bg-white rounded-lg shadow p-6 text-center">
+          <p class="text-3xl font-bold text-civic-gold">{(activeAlerts ?? 0).toLocaleString()}</p>
+          <p class="text-sm text-civic-slate">Active Alerts</p>
+        </div>
+      </div>
+
+      <div class="flex justify-end mb-4">
+        <a
+          href="/api/alerts/feed?format=rss"
+          class="text-sm text-civic-blue hover:underline flex items-center gap-1"
+        >
+          RSS Feed
+        </a>
+      </div>
+
+      <ConflictFeed
+        client:load
+        initialAlerts={initialAlerts ?? []}
+        apiEndpoint="/api/conflicts"
+      />
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>

@@ -1,0 +1,170 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Header from '../../components/Header.astro';
+import Footer from '../../components/Footer.astro';
+import { supabase } from '../../lib/supabase';
+
+export async function getStaticPaths() {
+  const { data: judges } = await supabase.from('judges').select('slug');
+  return (judges ?? []).map((j) => ({ params: { slug: j.slug } }));
+}
+
+const { slug } = Astro.params;
+
+const { data: judge } = await supabase
+  .from('judges')
+  .select('*, court:court_id(id, name, court_type)')
+  .eq('slug', slug)
+  .single();
+
+if (!judge) return Astro.redirect('/judicial');
+
+const meta = (judge.metadata ?? {}) as Record<string, string | number | null>;
+
+const { data: disclosures } = await supabase
+  .from('judge_financial_disclosures')
+  .select('*')
+  .eq('judge_id', judge.id)
+  .order('year', { ascending: false });
+
+const { data: investments } = await supabase
+  .from('judge_investments')
+  .select('*')
+  .eq('judge_id', judge.id)
+  .order('value_range_high', { ascending: false, nullsFirst: false });
+
+const { data: conflicts } = await supabase
+  .from('mv_judge_conflict_flags')
+  .select('*')
+  .eq('judge_id', judge.id);
+
+const { data: cases } = await supabase
+  .from('case_judges')
+  .select('case:case_id(id, title, case_number, decision_date, outcome)')
+  .eq('judge_id', judge.id)
+  .limit(20);
+
+function formatAmount(low?: number | null, high?: number | null): string {
+  if (!low && !high) return 'Not disclosed';
+  const fmt = (n: number) => n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n}`;
+  if (low && high) return `${fmt(low)} – ${fmt(high)}`;
+  return fmt(low ?? high ?? 0);
+}
+---
+<BaseLayout title={judge.full_name}>
+  <Header />
+  <main id="main-content" class="flex-1">
+    <section class="bg-civic-navy text-white py-8 px-4">
+      <div class="max-w-7xl mx-auto">
+        <p class="text-sm text-slate-400 mb-1">
+          <a href="/judicial" class="hover:text-white">Judicial Center</a> &rsaquo; Judge Profile
+        </p>
+        <h1 class="text-3xl font-display font-bold">{judge.full_name}</h1>
+        <p class="text-slate-300 mt-1">{(judge.court as { name?: string } | null)?.name ?? 'Unknown Court'}</p>
+      </div>
+    </section>
+
+    <section class="max-w-7xl mx-auto px-4 py-8">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div class="lg:col-span-2 space-y-8">
+          <!-- Quick Facts -->
+          <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-display text-civic-navy mb-4">Quick Facts</h2>
+            <dl class="grid grid-cols-2 gap-4 text-sm">
+              <div><dt class="text-civic-slate">Appointing President</dt><dd class="font-medium">{meta.appointing_president ?? '—'}</dd></div>
+              <div><dt class="text-civic-slate">Confirmation Date</dt><dd class="font-medium">{judge.confirmation_date ?? '—'}</dd></div>
+              <div><dt class="text-civic-slate">ABA Rating</dt><dd class="font-medium">{judge.aba_rating ?? '—'}</dd></div>
+              <div><dt class="text-civic-slate">Status</dt><dd class="font-medium">{meta.status ?? 'Active'}</dd></div>
+              {judge.confirmation_vote && <div><dt class="text-civic-slate">Confirmation Vote</dt><dd class="font-medium">{judge.confirmation_vote}</dd></div>}
+            </dl>
+          </div>
+
+          <!-- Holdings -->
+          <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-xl font-display text-civic-navy mb-4">Investment Holdings</h2>
+            {(investments ?? []).length === 0 ? (
+              <p class="text-civic-slate italic">No investment data available.</p>
+            ) : (
+              <table class="w-full text-sm">
+                <thead><tr class="border-b"><th class="text-left py-2 text-civic-slate">Asset</th><th class="text-left py-2 text-civic-slate">Ticker</th><th class="text-left py-2 text-civic-slate">Value Range</th></tr></thead>
+                <tbody>
+                  {(investments ?? []).map((inv) => (
+                    <tr class="border-b border-slate-100">
+                      <td class="py-2">{inv.asset_name}</td>
+                      <td class="py-2 font-mono">{inv.ticker ?? '—'}</td>
+                      <td class="py-2">{formatAmount(inv.value_range_low, inv.value_range_high)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            )}
+          </div>
+
+          <!-- Cases -->
+          {(cases ?? []).length > 0 && (
+            <div class="bg-white rounded-lg shadow p-6">
+              <h2 class="text-xl font-display text-civic-navy mb-4">Recent Cases</h2>
+              <div class="space-y-3">
+                {(cases ?? []).map((c) => {
+                  const caseData = c.case as { title?: string; case_number?: string; decision_date?: string; outcome?: string } | null;
+                  return (
+                    <div class="border-b border-slate-100 pb-3">
+                      <p class="font-medium">{caseData?.title ?? caseData?.case_number ?? 'Unknown'}</p>
+                      <p class="text-sm text-civic-slate">{caseData?.decision_date ?? ''} | {caseData?.outcome ?? 'Pending'}</p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div class="space-y-6">
+          <!-- Conflict Flags -->
+          <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-display text-civic-navy mb-3">Conflict Flags</h2>
+            {(conflicts ?? []).length === 0 ? (
+              <p class="text-green-600 text-sm font-medium">No conflicts detected</p>
+            ) : (
+              <div class="space-y-3">
+                {(conflicts ?? []).map((c) => (
+                  <div class="border-l-4 border-civic-red pl-3 py-2">
+                    <p class="text-sm font-medium text-civic-red">Holding matches case party</p>
+                    <p class="text-xs text-civic-slate">
+                      Ticker: {c.ticker} | Party: {c.party_name} | Case: {c.case_title ?? 'Unknown'}
+                    </p>
+                    <p class="text-xs text-civic-slate">
+                      Holding: {formatAmount(c.value_range_low, c.value_range_high)}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          <!-- Financial Disclosures -->
+          <div class="bg-white rounded-lg shadow p-6">
+            <h2 class="text-lg font-display text-civic-navy mb-3">Financial Disclosures</h2>
+            {(disclosures ?? []).length === 0 ? (
+              <p class="text-civic-slate italic text-sm">No disclosures on file.</p>
+            ) : (
+              <div class="space-y-2">
+                {(disclosures ?? []).map((d) => (
+                  <div class="flex justify-between items-center text-sm">
+                    <span class="font-medium">{d.year}</span>
+                    {d.filing_url ? (
+                      <a href={d.filing_url} target="_blank" rel="noopener" class="text-civic-blue hover:underline text-xs">View Filing</a>
+                    ) : (
+                      <span class="text-civic-slate text-xs">No link</span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>
