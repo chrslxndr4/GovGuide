@@ -1,0 +1,288 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+
+const { topic } = Astro.params;
+
+// Topic metadata map — drives title, description, and structured content sections.
+// When full content is authored, this map will be replaced or augmented by a CMS fetch.
+
+interface TopicSection {
+  heading: string;
+  body: string;
+}
+
+interface TopicMeta {
+  title: string;
+  description: string;
+  intro: string;
+  sections: TopicSection[];
+  resources: { label: string; url: string }[];
+}
+
+const topicMap: Record<string, TopicMeta> = {
+  'city-council-meetings': {
+    title: 'How to Attend a City Council Meeting',
+    description: 'Find your local council schedule, understand public comment rules, and make your voice heard at city hall.',
+    intro: 'City council meetings are one of the most accessible entry points for civic participation. Most councils meet at least twice a month and are required by law to allow public comment.',
+    sections: [
+      {
+        heading: 'Finding Your Council\'s Schedule',
+        body: 'Visit your city or town\'s official website and look for a "City Council" or "Board of Aldermen" section. Meeting agendas are typically posted 24–72 hours in advance. You can also subscribe to email alerts or check your local newspaper.',
+      },
+      {
+        heading: 'Understanding the Agenda',
+        body: 'Agendas list items in order: consent calendar (routine items voted on together), public hearings, new business, and public comment. Review the agenda before attending so you can speak on relevant items.',
+      },
+      {
+        heading: 'Making Public Comment',
+        body: 'Most councils reserve 2–3 minutes per speaker during designated public comment periods. Arrive early to sign up. Be concise, stay on topic, address the council rather than the audience, and state your name and address for the record.',
+      },
+      {
+        heading: 'Remote Participation',
+        body: 'Since 2020, many councils have added hybrid meeting options. Check if your council offers a call-in number or video link. Some allow written comments to be submitted before the meeting and read into the record.',
+      },
+    ],
+    resources: [
+      { label: 'National League of Cities — Council Meeting Guide', url: 'https://www.nlc.org' },
+      { label: 'MRSC — Running Effective Public Meetings', url: 'https://mrsc.org' },
+    ],
+  },
+  'property-taxes': {
+    title: 'Understanding Your Property Taxes',
+    description: 'How your property tax rate is set, who receives the revenue, how to appeal an assessment, and what exemptions may apply.',
+    intro: 'Property taxes are the primary funding source for local schools, fire departments, and infrastructure. Understanding how they are calculated gives you tools to verify your bill and potentially reduce it.',
+    sections: [
+      {
+        heading: 'How Your Tax Bill is Calculated',
+        body: 'Your tax bill equals your property\'s assessed value multiplied by the mill rate (tax rate per $1,000 of value). Assessed value is determined by your local assessor\'s office, typically as a percentage of market value.',
+      },
+      {
+        heading: 'Who Receives the Revenue',
+        body: 'Property tax revenue is split among several taxing districts: your municipality, school district, county, and sometimes special districts for fire, water, or parks. Your bill will itemize each recipient.',
+      },
+      {
+        heading: 'How to Appeal Your Assessment',
+        body: 'If you believe your assessment is too high, you can file an appeal with your local Board of Assessment Appeals. Gather comparable property sales data and submit your appeal within the statutory deadline, which varies by state.',
+      },
+      {
+        heading: 'Exemptions You May Qualify For',
+        body: 'Homestead exemptions, senior citizen freezes, veteran exemptions, and disability exemptions can significantly reduce your tax burden. Contact your assessor\'s office to learn what programs are available in your jurisdiction.',
+      },
+    ],
+    resources: [
+      { label: 'Lincoln Institute of Land Policy — Property Tax Overview', url: 'https://www.lincolninst.edu' },
+      { label: 'National Taxpayers Union — Assessment Appeal Guide', url: 'https://www.ntu.org' },
+    ],
+  },
+  'zoning-land-use': {
+    title: 'Local Zoning and Land Use',
+    description: 'Understand zoning maps, variance requests, and how to participate when development is proposed in your community.',
+    intro: 'Zoning laws divide your city or county into districts with rules governing what can be built, how tall buildings can be, and how land can be used. These rules shape your neighborhood\'s character and affect property values.',
+    sections: [
+      {
+        heading: 'Reading a Zoning Map',
+        body: 'Most cities provide interactive zoning maps online. Common zone types include R (residential), C (commercial), M or I (industrial), and mixed-use. Each zone has a code — like R-1 or C-2 — with specific rules about density, setbacks, and permitted uses.',
+      },
+      {
+        heading: 'Variance and Special Use Permits',
+        body: 'If a property owner wants to use land in a way that doesn\'t conform to current zoning, they must apply for a variance or special use permit. These require public hearings where neighbors can testify in favor or opposition.',
+      },
+      {
+        heading: 'Participating in Planning Decisions',
+        body: 'Planning commission meetings are often more consequential than city council meetings for land use. Review pending applications on your city\'s planning portal. Submit written comments before the hearing deadline, or attend to speak during the public comment period.',
+      },
+      {
+        heading: 'Environmental Review',
+        body: 'Larger development projects must undergo environmental review under NEPA (federal) or state equivalents like CEQA in California. These processes generate public documents you can review and comment on.',
+      },
+    ],
+    resources: [
+      { label: 'American Planning Association — Zoning Basics', url: 'https://www.planning.org' },
+      { label: 'Planetizen — Land Use Glossary', url: 'https://www.planetizen.com' },
+    ],
+  },
+  'school-board': {
+    title: 'School Board Participation',
+    description: 'How school boards govern your local district, when and how to attend meetings, and how board members are elected.',
+    intro: 'School boards make decisions about curriculum, budgets, staffing, and facilities for your local public schools. They are elected bodies accountable to voters, and their meetings are open to the public.',
+    sections: [
+      {
+        heading: 'What School Boards Decide',
+        body: 'Board responsibilities include adopting the annual budget, approving curriculum materials, hiring and evaluating the superintendent, setting district policy, and approving collective bargaining agreements with staff unions.',
+      },
+      {
+        heading: 'How to Find and Attend Meetings',
+        body: 'Your district\'s website — typically under a [districtname].k12.[state].us or similar domain — will have a meeting calendar. Regular board meetings are usually held twice a month in the evening to accommodate working families.',
+      },
+      {
+        heading: 'Giving Public Comment',
+        body: 'Most boards set aside time for community members to address the board on any topic. Sign up before the meeting starts. Topics can range from budget priorities to specific curriculum concerns. Boards are not required to respond during the meeting, but comments become part of the public record.',
+      },
+      {
+        heading: 'Running for School Board',
+        body: 'School board elections are nonpartisan in most states and held in off-cycle years, leading to very low turnout. A small number of dedicated voters can determine the outcome. Contact your county elections office for candidate filing requirements.',
+      },
+    ],
+    resources: [
+      { label: 'National School Boards Association', url: 'https://www.nsba.org' },
+      { label: 'NAESP — Understanding Your School Board', url: 'https://www.naesp.org' },
+    ],
+  },
+  'water-utilities': {
+    title: 'Water and Utilities',
+    description: 'Who controls your local water and utility services, how rates are regulated, and how to access water quality reports.',
+    intro: 'Water, sewer, and electricity services are provided by a mix of municipal utilities, private companies regulated by public utility commissions, and special districts. Understanding who runs yours is the first step to engaging with it.',
+    sections: [
+      {
+        heading: 'Who Controls Your Water',
+        body: 'Most Americans get drinking water from a community water system. This may be operated by your city, a regional water authority, or a private utility. Your water bill header or the EPA\'s Safe Drinking Water Information System (SDWIS) will identify your system.',
+      },
+      {
+        heading: 'How Rates Are Set',
+        body: 'Municipal utilities set rates through public hearings before the city council. Private utilities are regulated by your state\'s public utility commission (PUC), which holds its own rate case proceedings that are open to public comment.',
+      },
+      {
+        heading: 'Annual Water Quality Reports',
+        body: 'The Safe Drinking Water Act requires all community water systems to publish an annual Consumer Confidence Report (CCR) detailing the source of the water and any contaminants detected. These are mailed to customers and posted online.',
+      },
+      {
+        heading: 'Reporting Issues',
+        body: 'Water main breaks, pressure problems, and billing disputes are handled by your utility\'s customer service department. For unresolved complaints with private utilities, file a complaint with your state PUC. Contamination concerns can be reported to the EPA or your state environmental agency.',
+      },
+    ],
+    resources: [
+      { label: 'EPA Safe Drinking Water Information System', url: 'https://www.epa.gov/sdwis' },
+      { label: 'National Association of Water Companies', url: 'https://www.nawc.org' },
+    ],
+  },
+  'public-records': {
+    title: 'Public Records Requests',
+    description: 'A step-by-step guide to submitting FOIA and state public records requests to access government documents and data.',
+    intro: 'The Freedom of Information Act (federal) and state public records laws give you the right to request documents held by government agencies. These laws are powerful tools for accountability journalism, legal research, and civic engagement.',
+    sections: [
+      {
+        heading: 'Federal vs. State Requests',
+        body: 'FOIA applies to federal agencies. Each state has its own open records law — commonly called Sunshine Laws or Right to Know laws — covering state and local government. Requests to a city or county go through the state law, not FOIA.',
+      },
+      {
+        heading: 'How to Submit a Request',
+        body: 'Identify the agency that holds the records you want. Submit a written request describing the documents specifically enough that staff can locate them. Include your name and contact information. Many agencies have online request portals; otherwise send by email or certified mail.',
+      },
+      {
+        heading: 'Timelines and Fees',
+        body: 'Federal agencies must acknowledge your FOIA request within 20 business days. State deadlines vary from 3 to 30 business days. Agencies may charge fees for search time and copying — you can request a fee waiver if the information is in the public interest.',
+      },
+      {
+        heading: 'Appealing a Denial',
+        body: 'If your request is denied, you have the right to appeal. For federal requests, appeal to the agency\'s FOIA office, then to the Office of Government Information Services (OGIS) or federal court. For state requests, appeal processes vary — consult your state attorney general\'s guidance.',
+      },
+    ],
+    resources: [
+      { label: 'MuckRock — Public Records Request Portal', url: 'https://www.muckrock.com' },
+      { label: 'Reporters Committee — Open Government Guide', url: 'https://www.rcfp.org/open-government-guide' },
+      { label: 'DOJ — FOIA.gov', url: 'https://www.foia.gov' },
+    ],
+  },
+};
+
+// Graceful fallback for unknown topic slugs
+const meta: TopicMeta = topicMap[topic ?? ''] ?? {
+  title: topic ? topic.replace(/-/g, ' ').replace(/\b\w/g, c => c.toUpperCase()) : 'Local Government Guide',
+  description: 'A guide to understanding and participating in local government.',
+  intro: 'This topic is being developed. Check back soon for a full guide.',
+  sections: [],
+  resources: [],
+};
+---
+
+<BaseLayout title={meta.title} description={meta.description}>
+  <main class="flex-1">
+
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-3xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Local Guide', href: '/local-guide' },
+            { label: meta.title },
+          ]}
+        />
+        <h1 class="text-3xl md:text-4xl font-display font-bold leading-tight">
+          {meta.title}
+        </h1>
+      </div>
+    </section>
+
+    <!-- Content -->
+    <div class="max-w-3xl mx-auto px-4 py-10">
+
+      <!-- Intro -->
+      <p class="text-lg text-slate-700 leading-relaxed mb-10 border-l-4 border-civic-blue pl-5 bg-blue-50/40 py-3 pr-4 rounded-r-lg">
+        {meta.intro}
+      </p>
+
+      <!-- Sections -->
+      {meta.sections.length > 0 ? (
+        <div class="flex flex-col gap-10">
+          {meta.sections.map((section, i) => (
+            <section aria-labelledby={`section-${i}-heading`}>
+              <h2
+                id={`section-${i}-heading`}
+                class="text-xl font-display font-bold text-civic-navy mb-3"
+              >
+                {section.heading}
+              </h2>
+              <p class="text-slate-700 leading-relaxed text-sm">{section.body}</p>
+            </section>
+          ))}
+        </div>
+      ) : (
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-8 text-center">
+          <p class="text-slate-500 text-sm italic">
+            Content for this topic is coming soon.
+            <a href="/local-guide" class="ml-1 text-civic-blue hover:underline">
+              Browse all local guide topics &rarr;
+            </a>
+          </p>
+        </div>
+      )}
+
+      <!-- Resources -->
+      {meta.resources.length > 0 && (
+        <aside class="mt-12 rounded-xl border border-slate-200 bg-slate-50 p-6" aria-labelledby="resources-heading">
+          <h2 id="resources-heading" class="text-sm font-semibold uppercase tracking-widest text-civic-slate mb-4">
+            Additional Resources
+          </h2>
+          <ul class="flex flex-col gap-2" role="list">
+            {meta.resources.map(resource => (
+              <li>
+                <a
+                  href={resource.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-sm text-civic-blue hover:underline"
+                >
+                  {resource.label} &rarr;
+                </a>
+              </li>
+            ))}
+          </ul>
+        </aside>
+      )}
+
+      <!-- Back link -->
+      <div class="mt-10 pt-6 border-t border-slate-200">
+        <a
+          href="/local-guide"
+          class="inline-flex items-center gap-1.5 text-sm text-civic-slate hover:text-civic-blue transition-colors"
+        >
+          &larr; Back to all local guide topics
+        </a>
+      </div>
+
+    </div>
+  </main>
+</BaseLayout>

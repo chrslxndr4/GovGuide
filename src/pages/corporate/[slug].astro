@@ -1,0 +1,390 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import { supabase } from '../../lib/supabase';
+
+const { slug } = Astro.params;
+
+const { data: entity } = await supabase
+  .from('entities')
+  .select('*')
+  .eq('slug', slug)
+  .single();
+
+if (!entity) return Astro.redirect('/404');
+
+// Fetch influence data in parallel
+const [
+  { data: officialsFunded },
+  { data: billsLobbied },
+  { data: pacActivity },
+] = await Promise.all([
+  supabase
+    .from('campaign_contributions')
+    .select('recipient_entity_id, officials(name, slug, party, title), amount, cycle')
+    .eq('donor_entity_id', entity.id)
+    .order('amount', { ascending: false })
+    .limit(20),
+  supabase
+    .from('lobbying_disclosures')
+    .select('bill_id, bill_title, registrant_name, amount, cycle, issue_area')
+    .eq('client_entity_id', entity.id)
+    .order('amount', { ascending: false })
+    .limit(15),
+  supabase
+    .from('pac_filings')
+    .select('pac_name, cycle, total_raised, total_spent, independent_expenditures')
+    .eq('sponsor_entity_id', entity.id)
+    .order('cycle', { ascending: false })
+    .limit(10),
+]);
+
+function formatMoney(amount: number | null | undefined): string {
+  if (amount == null) return '—';
+  if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(1)}B`;
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
+  return `$${amount.toLocaleString()}`;
+}
+
+type PartyKey = 'D' | 'R' | 'I' | string;
+
+function partyBadge(party: PartyKey): string {
+  if (party === 'D') return 'bg-blue-100 text-blue-800 border-blue-200';
+  if (party === 'R') return 'bg-red-100 text-red-800 border-red-200';
+  return 'bg-slate-100 text-slate-700 border-slate-200';
+}
+
+// Influence score color
+function influenceColor(score: number | null | undefined): string {
+  if (score == null) return 'text-slate-400';
+  if (score >= 80) return 'text-red-600';
+  if (score >= 60) return 'text-orange-600';
+  if (score >= 40) return 'text-yellow-600';
+  return 'text-emerald-600';
+}
+
+// Total contribution amount across all funded officials
+const totalContributions = officialsFunded?.reduce((sum, row) => sum + (row.amount ?? 0), 0) ?? 0;
+
+const sections = [
+  { id: 'influence', label: 'Influence Score' },
+  { id: 'officials', label: 'Officials Funded' },
+  { id: 'bills', label: 'Bills Lobbied' },
+  { id: 'pac', label: 'PAC Activity' },
+  { id: 'money-graph', label: 'Money Graph' },
+];
+---
+
+<BaseLayout
+  title={entity.name}
+  description={`Corporate influence profile for ${entity.name} — officials funded, lobbying activity, PAC filings, and money graph.`}
+>
+  <main class="flex-1">
+
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-5xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Corporate Influence', href: '/corporate' },
+            { label: entity.name },
+          ]}
+        />
+
+        <div class="flex flex-col sm:flex-row items-start gap-6">
+          <div
+            class="shrink-0 w-20 h-20 rounded-lg bg-[#2a3f6a] border border-white/20
+                   flex items-center justify-center text-2xl font-display font-bold text-white/60"
+            aria-hidden="true"
+          >
+            {entity.name.charAt(0).toUpperCase()}
+          </div>
+
+          <div class="flex-1 min-w-0">
+            <h1 class="text-3xl md:text-4xl font-display font-bold mb-2 leading-tight">
+              {entity.name}
+            </h1>
+            <div class="flex flex-wrap items-center gap-3 text-sm text-slate-300">
+              {entity.industry && <span class="capitalize">{entity.industry.replace(/_/g, ' ')}</span>}
+              {entity.headquarters && (
+                <>
+                  <span class="text-slate-500" aria-hidden="true">·</span>
+                  <span>{entity.headquarters}</span>
+                </>
+              )}
+              {entity.ticker && (
+                <>
+                  <span class="text-slate-500" aria-hidden="true">·</span>
+                  <span class="font-mono text-civic-blue bg-white/10 px-1.5 py-0.5 rounded text-xs">
+                    {entity.ticker}
+                  </span>
+                </>
+              )}
+            </div>
+
+            {/* Total contributions pill */}
+            {totalContributions > 0 && (
+              <div class="mt-4 inline-flex items-center gap-2 bg-red-900/40 border border-red-500/30 rounded-full px-3 py-1 text-sm">
+                <span class="text-red-300 font-semibold">{formatMoney(totalContributions)}</span>
+                <span class="text-slate-400">in tracked contributions</span>
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sticky section nav -->
+    <nav
+      class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm overflow-x-auto"
+      aria-label="Corporate influence sections"
+    >
+      <div class="max-w-5xl mx-auto px-4">
+        <ol class="flex items-center gap-0 text-sm font-medium whitespace-nowrap">
+          {sections.map(s => (
+            <li>
+              <a
+                href={`#${s.id}`}
+                class="block px-4 py-3 text-civic-slate hover:text-civic-blue border-b-2 border-transparent hover:border-civic-blue transition-colors"
+              >
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </nav>
+
+    <div class="max-w-5xl mx-auto px-4 py-10 flex flex-col gap-16">
+
+      <!-- ── Influence Score ────────────────────────────────────── -->
+      <section id="influence" aria-labelledby="influence-heading">
+        <h2 id="influence-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Influence Score
+        </h2>
+
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+          {[
+            {
+              label: 'Influence Score',
+              value: entity.influence_score != null ? `${entity.influence_score}/100` : null,
+              color: influenceColor(entity.influence_score),
+              description: 'Composite score based on contributions, lobbying spend, and PAC activity',
+            },
+            {
+              label: 'Total Contributions',
+              value: formatMoney(totalContributions) !== '—' ? formatMoney(totalContributions) : null,
+              color: 'text-civic-navy',
+              description: 'Campaign contributions to federal and state candidates',
+            },
+            {
+              label: 'Lobbying Spend',
+              value: formatMoney(entity.total_lobbying_spend),
+              color: 'text-civic-navy',
+              description: 'Total lobbying expenditures on record',
+            },
+            {
+              label: 'Officials Reached',
+              value: officialsFunded ? `${officialsFunded.length}+` : null,
+              color: 'text-civic-navy',
+              description: 'Number of unique officials who received contributions',
+            },
+          ].map(card => (
+            <div class="rounded-lg border border-slate-200 bg-white p-4">
+              <div class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-1">
+                {card.label}
+              </div>
+              <div class={`text-2xl font-display font-bold mb-1 ${card.color}`}>
+                {card.value ?? <span class="text-slate-300 text-base font-normal italic">N/A</span>}
+              </div>
+              <div class="text-xs text-slate-400 leading-snug">{card.description}</div>
+            </div>
+          ))}
+        </div>
+
+        {entity.description && (
+          <div class="mt-6 p-4 rounded-lg bg-slate-50 border border-slate-200">
+            <p class="text-sm text-slate-700 leading-relaxed">{entity.description}</p>
+          </div>
+        )}
+      </section>
+
+      <!-- ── Officials Funded ───────────────────────────────────── -->
+      <section id="officials" aria-labelledby="officials-funded-heading">
+        <h2 id="officials-funded-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Officials Funded
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Federal and state candidates and officeholders who received contributions from {entity.name} or its affiliated PACs.
+        </p>
+
+        {officialsFunded && officialsFunded.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">Official</th>
+                  <th class="px-4 py-3 text-left">Title</th>
+                  <th class="px-4 py-3 text-left">Party</th>
+                  <th class="px-4 py-3 text-right">Amount</th>
+                  <th class="px-4 py-3 text-right">Cycle</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {officialsFunded.map((row, i) => {
+                  const official = Array.isArray(row.officials) ? row.officials[0] : row.officials;
+                  return (
+                    <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                      <td class="px-4 py-3">
+                        {official?.slug ? (
+                          <a href={`/officials/${official.slug}`} class="font-medium text-civic-blue hover:underline">
+                            {official?.name ?? '—'}
+                          </a>
+                        ) : (
+                          <span class="font-medium text-slate-800">{official?.name ?? '—'}</span>
+                        )}
+                      </td>
+                      <td class="px-4 py-3 text-civic-slate">{official?.title ?? '—'}</td>
+                      <td class="px-4 py-3">
+                        {official?.party ? (
+                          <span class={`inline-flex px-2 py-0.5 rounded text-xs font-semibold border ${partyBadge(official.party)}`}>
+                            {official.party}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td class="px-4 py-3 text-right font-mono font-medium text-slate-800">
+                        {formatMoney(row.amount)}
+                      </td>
+                      <td class="px-4 py-3 text-right text-slate-500">{row.cycle ?? '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No contribution records on file for this entity.</p>
+        )}
+      </section>
+
+      <!-- ── Bills Lobbied ─────────────────────────────────────── -->
+      <section id="bills" aria-labelledby="bills-heading">
+        <h2 id="bills-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Bills Lobbied
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Legislation that {entity.name} has actively lobbied on through registered lobbyists.
+        </p>
+
+        {billsLobbied && billsLobbied.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">Bill</th>
+                  <th class="px-4 py-3 text-left">Issue Area</th>
+                  <th class="px-4 py-3 text-left">Registrant</th>
+                  <th class="px-4 py-3 text-right">Amount</th>
+                  <th class="px-4 py-3 text-right">Cycle</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {billsLobbied.map((row, i) => (
+                  <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <td class="px-4 py-3">
+                      {row.bill_id ? (
+                        <a href={`/bills/${row.bill_id}`} class="font-medium text-civic-blue hover:underline">
+                          {row.bill_id}
+                        </a>
+                      ) : (
+                        <span class="text-slate-400">—</span>
+                      )}
+                      {row.bill_title && (
+                        <div class="text-xs text-slate-500 mt-0.5 max-w-xs truncate" title={row.bill_title}>
+                          {row.bill_title}
+                        </div>
+                      )}
+                    </td>
+                    <td class="px-4 py-3 text-civic-slate capitalize">{row.issue_area?.replace(/_/g, ' ') ?? '—'}</td>
+                    <td class="px-4 py-3 text-slate-700">{row.registrant_name ?? '—'}</td>
+                    <td class="px-4 py-3 text-right font-mono text-slate-800">{formatMoney(row.amount)}</td>
+                    <td class="px-4 py-3 text-right text-slate-500">{row.cycle ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No lobbying activity on record for this entity.</p>
+        )}
+      </section>
+
+      <!-- ── PAC Activity ──────────────────────────────────────── -->
+      <section id="pac" aria-labelledby="pac-heading">
+        <h2 id="pac-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          PAC Activity
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Political Action Committees sponsored by or affiliated with {entity.name}.
+        </p>
+
+        {pacActivity && pacActivity.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">PAC Name</th>
+                  <th class="px-4 py-3 text-right">Cycle</th>
+                  <th class="px-4 py-3 text-right">Raised</th>
+                  <th class="px-4 py-3 text-right">Spent</th>
+                  <th class="px-4 py-3 text-right">Indep. Exp.</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {pacActivity.map((row, i) => (
+                  <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <td class="px-4 py-3 font-medium text-slate-800">{row.pac_name ?? '—'}</td>
+                    <td class="px-4 py-3 text-right text-slate-500">{row.cycle ?? '—'}</td>
+                    <td class="px-4 py-3 text-right font-mono text-emerald-700">{formatMoney(row.total_raised)}</td>
+                    <td class="px-4 py-3 text-right font-mono text-red-600">{formatMoney(row.total_spent)}</td>
+                    <td class="px-4 py-3 text-right font-mono text-orange-700">{formatMoney(row.independent_expenditures)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No PAC filings on record for this entity.</p>
+        )}
+      </section>
+
+      <!-- ── Money Graph link ──────────────────────────────────── -->
+      <section id="money-graph" aria-labelledby="money-graph-heading">
+        <h2 id="money-graph-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Money Graph
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Explore the full network of financial relationships for this entity — contributions, lobbying contracts, and PAC flows.
+        </p>
+
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-8 flex flex-col items-center text-center gap-4">
+          <p class="text-slate-600 text-sm max-w-md">
+            Use the interactive Money Graph Explorer to visualize {entity.name}'s full financial network up to multiple hops.
+          </p>
+          {entity.id && (
+            <a
+              href={`/money-graph?entity=${entity.id}`}
+              class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-civic-blue text-white font-semibold text-sm hover:bg-civic-navy transition-colors"
+            >
+              Open in Money Graph &rarr;
+            </a>
+          )}
+        </div>
+      </section>
+
+    </div>
+  </main>
+</BaseLayout>

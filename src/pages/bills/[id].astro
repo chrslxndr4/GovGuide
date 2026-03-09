@@ -1,0 +1,526 @@
+---
+export const prerender = false;
+
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import { supabase } from '../../lib/supabase';
+
+const { id } = Astro.params;
+
+const { data: bill } = await supabase
+  .from('bills')
+  .select('*')
+  .eq('id', id)
+  .single();
+
+if (!bill) return Astro.redirect('/404');
+
+// Fetch related bill data in parallel
+const [
+  { data: sponsors },
+  { data: votes },
+  { data: lobbyingOnBill },
+] = await Promise.all([
+  supabase
+    .from('bill_sponsors')
+    .select('official_entity_id, sponsorship_type, officials(name, slug, party, title, state)')
+    .eq('bill_id', bill.id)
+    .order('sponsorship_type', { ascending: true }),
+  supabase
+    .from('votes')
+    .select('official_entity_id, position, vote_date, donor_aligned, officials(name, slug, party, title, state)')
+    .eq('bill_id', bill.id)
+    .order('position', { ascending: true }),
+  supabase
+    .from('lobbying_disclosures')
+    .select('client_name, registrant_name, issue_area, amount, cycle, position')
+    .eq('bill_id', bill.id)
+    .order('amount', { ascending: false })
+    .limit(15),
+]);
+
+function formatMoney(amount: number | null | undefined): string {
+  if (amount == null) return '—';
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
+  return `$${amount.toLocaleString()}`;
+}
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+type PartyKey = 'D' | 'R' | 'I' | string;
+
+function partyBadge(party: PartyKey): string {
+  if (party === 'D') return 'bg-blue-100 text-blue-800 border-blue-200';
+  if (party === 'R') return 'bg-red-100 text-red-800 border-red-200';
+  return 'bg-slate-100 text-slate-700 border-slate-200';
+}
+
+// Tally vote positions
+const yeas = votes?.filter(v => v.position === 'yea' || v.position === 'yes').length ?? 0;
+const nays = votes?.filter(v => v.position === 'nay' || v.position === 'no').length ?? 0;
+const abstentions = votes?.filter(v => v.position === 'abstain' || v.position === 'present').length ?? 0;
+const totalVotes = yeas + nays + abstentions;
+
+const donorAlignedCount = votes?.filter(v => v.donor_aligned === true).length ?? 0;
+
+// Lead sponsor vs cosponsors
+const leadSponsor = sponsors?.find(s => s.sponsorship_type === 'primary') ?? null;
+const cosponsors = sponsors?.filter(s => s.sponsorship_type !== 'primary') ?? [];
+
+const sections = [
+  { id: 'summary', label: 'Summary' },
+  { id: 'sponsors', label: 'Sponsors' },
+  { id: 'votes', label: 'Vote Breakdown' },
+  { id: 'lobbying', label: 'Lobbying' },
+  { id: 'donor-alignment', label: 'Donor Alignment' },
+];
+---
+
+<BaseLayout
+  title={`${bill.bill_number ?? bill.id} — ${bill.title ?? 'Bill'}`}
+  description={`Bill profile for ${bill.bill_number ?? bill.id}: sponsors, vote breakdown, lobbying activity, and donor alignment analysis.`}
+>
+  <main class="flex-1">
+
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-5xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Bills', href: '/bills' },
+            { label: bill.bill_number ?? String(bill.id) },
+          ]}
+        />
+
+        <div class="flex flex-col gap-3">
+          <div class="flex flex-wrap items-center gap-2">
+            {bill.bill_number && (
+              <span class="font-mono text-civic-blue bg-white/10 border border-white/20 px-2.5 py-0.5 rounded text-sm font-semibold">
+                {bill.bill_number}
+              </span>
+            )}
+            {bill.session && (
+              <span class="text-xs text-slate-400">{bill.session} Congress</span>
+            )}
+            {bill.status && (
+              <span class={`text-xs font-semibold px-2 py-0.5 rounded capitalize ${
+                bill.status === 'enacted'
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  : bill.status === 'passed'
+                  ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                  : bill.status === 'failed'
+                  ? 'bg-red-500/20 text-red-300 border border-red-500/30'
+                  : 'bg-white/10 text-slate-300 border border-white/20'
+              }`}>
+                {bill.status}
+              </span>
+            )}
+          </div>
+
+          <h1 class="text-2xl md:text-3xl font-display font-bold leading-tight">
+            {bill.title ?? 'Untitled Bill'}
+          </h1>
+
+          {bill.short_title && bill.short_title !== bill.title && (
+            <p class="text-slate-400 text-sm italic">"{bill.short_title}"</p>
+          )}
+
+          <div class="flex flex-wrap gap-4 text-sm text-slate-400 mt-1">
+            {bill.introduced_date && (
+              <span>Introduced {formatDate(bill.introduced_date)}</span>
+            )}
+            {bill.last_action_date && (
+              <span>Last action {formatDate(bill.last_action_date)}</span>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Sticky section nav -->
+    <nav
+      class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm overflow-x-auto"
+      aria-label="Bill sections"
+    >
+      <div class="max-w-5xl mx-auto px-4">
+        <ol class="flex items-center gap-0 text-sm font-medium whitespace-nowrap">
+          {sections.map(s => (
+            <li>
+              <a
+                href={`#${s.id}`}
+                class="block px-4 py-3 text-civic-slate hover:text-civic-blue border-b-2 border-transparent hover:border-civic-blue transition-colors"
+              >
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </nav>
+
+    <div class="max-w-5xl mx-auto px-4 py-10 flex flex-col gap-16">
+
+      <!-- ── Summary ────────────────────────────────────────────── -->
+      <section id="summary" aria-labelledby="summary-heading">
+        <h2 id="summary-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Bill Summary
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div class="md:col-span-2">
+            <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-2">Description</h3>
+            {bill.summary ? (
+              <p class="text-slate-700 leading-relaxed text-sm">{bill.summary}</p>
+            ) : bill.description ? (
+              <p class="text-slate-700 leading-relaxed text-sm">{bill.description}</p>
+            ) : (
+              <p class="text-slate-400 text-sm italic">No summary on record.</p>
+            )}
+
+            {bill.source_url && (
+              <a
+                href={bill.source_url}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="inline-block mt-3 text-sm text-civic-blue hover:underline"
+              >
+                Full text on Congress.gov &rarr;
+              </a>
+            )}
+          </div>
+
+          <div class="space-y-4">
+            <div>
+              <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-2">Details</h3>
+              <dl class="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
+                {bill.chamber && (
+                  <>
+                    <dt class="text-slate-500">Chamber</dt>
+                    <dd class="text-slate-800 font-medium capitalize">{bill.chamber}</dd>
+                  </>
+                )}
+                {bill.committee && (
+                  <>
+                    <dt class="text-slate-500">Committee</dt>
+                    <dd class="text-slate-800 font-medium">{bill.committee}</dd>
+                  </>
+                )}
+                {bill.policy_area && (
+                  <>
+                    <dt class="text-slate-500">Policy Area</dt>
+                    <dd class="text-slate-800 font-medium">{bill.policy_area}</dd>
+                  </>
+                )}
+                {bill.introduced_date && (
+                  <>
+                    <dt class="text-slate-500">Introduced</dt>
+                    <dd class="text-slate-800 font-medium">{formatDate(bill.introduced_date)}</dd>
+                  </>
+                )}
+              </dl>
+            </div>
+
+            {/* Subject tags */}
+            {bill.subjects && Array.isArray(bill.subjects) && bill.subjects.length > 0 && (
+              <div>
+                <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-2">Subjects</h3>
+                <div class="flex flex-wrap gap-1.5">
+                  {(bill.subjects as string[]).map((subj: string) => (
+                    <span class="text-xs px-2 py-0.5 rounded-full bg-civic-light border border-slate-200 text-civic-slate">
+                      {subj}
+                    </span>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      </section>
+
+      <!-- ── Sponsors & Cosponsors ─────────────────────────────── -->
+      <section id="sponsors" aria-labelledby="sponsors-heading">
+        <h2 id="sponsors-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Sponsors &amp; Cosponsors
+        </h2>
+
+        {/* Lead sponsor */}
+        {leadSponsor && (() => {
+          const official = Array.isArray(leadSponsor.officials) ? leadSponsor.officials[0] : leadSponsor.officials;
+          return (
+            <div class="mb-6 p-5 rounded-lg border border-civic-blue/30 bg-blue-50/40">
+              <div class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-2">Lead Sponsor</div>
+              <div class="flex items-center gap-4">
+                <div
+                  class="shrink-0 w-12 h-12 rounded-full bg-white border border-slate-200 flex items-center justify-center
+                         text-lg font-display font-bold text-civic-navy"
+                  aria-hidden="true"
+                >
+                  {official?.name?.charAt(0).toUpperCase() ?? '?'}
+                </div>
+                <div>
+                  {official?.slug ? (
+                    <a href={`/officials/${official.slug}`} class="font-bold text-lg text-civic-navy hover:text-civic-blue transition-colors">
+                      {official.name}
+                    </a>
+                  ) : (
+                    <span class="font-bold text-lg text-civic-navy">{official?.name ?? '—'}</span>
+                  )}
+                  <div class="flex items-center gap-2 mt-1">
+                    {official?.title && <span class="text-xs text-civic-slate">{official.title}</span>}
+                    {official?.state && <span class="text-xs text-slate-400">{official.state}</span>}
+                    {official?.party && (
+                      <span class={`inline-flex px-1.5 py-0.5 rounded text-xs font-semibold border ${partyBadge(official.party)}`}>
+                        {official.party}
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          );
+        })()}
+
+        {/* Cosponsors */}
+        {cosponsors.length > 0 ? (
+          <>
+            <h3 class="text-sm font-semibold text-civic-slate mb-3">
+              Cosponsors ({cosponsors.length})
+            </h3>
+            <div class="overflow-x-auto rounded-lg border border-slate-200">
+              <table class="min-w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                    <th class="px-4 py-3 text-left">Name</th>
+                    <th class="px-4 py-3 text-left">Title</th>
+                    <th class="px-4 py-3 text-left">State</th>
+                    <th class="px-4 py-3 text-left">Party</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  {cosponsors.map((entry, i) => {
+                    const official = Array.isArray(entry.officials) ? entry.officials[0] : entry.officials;
+                    return (
+                      <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                        <td class="px-4 py-3">
+                          {official?.slug ? (
+                            <a href={`/officials/${official.slug}`} class="font-medium text-civic-blue hover:underline">
+                              {official?.name ?? '—'}
+                            </a>
+                          ) : (
+                            <span class="font-medium text-slate-800">{official?.name ?? '—'}</span>
+                          )}
+                        </td>
+                        <td class="px-4 py-3 text-civic-slate">{official?.title ?? '—'}</td>
+                        <td class="px-4 py-3 text-slate-600">{official?.state ?? '—'}</td>
+                        <td class="px-4 py-3">
+                          {official?.party ? (
+                            <span class={`inline-flex px-2 py-0.5 rounded text-xs font-semibold border ${partyBadge(official.party)}`}>
+                              {official.party}
+                            </span>
+                          ) : '—'}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </>
+        ) : !leadSponsor ? (
+          <p class="text-slate-400 italic text-sm">No sponsor records on file for this bill.</p>
+        ) : null}
+      </section>
+
+      <!-- ── Vote Breakdown ────────────────────────────────────── -->
+      <section id="votes" aria-labelledby="votes-heading">
+        <h2 id="votes-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Vote Breakdown
+        </h2>
+
+        {totalVotes > 0 && (
+          <div class="mb-8 grid grid-cols-3 gap-4">
+            {[
+              { label: 'Yea', count: yeas, color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
+              { label: 'Nay', count: nays, color: 'text-red-600', bg: 'bg-red-50 border-red-200' },
+              { label: 'Abstain', count: abstentions, color: 'text-slate-500', bg: 'bg-slate-50 border-slate-200' },
+            ].map(tally => (
+              <div class={`rounded-lg border p-4 text-center ${tally.bg}`}>
+                <div class={`text-3xl font-display font-bold ${tally.color}`}>{tally.count}</div>
+                <div class="text-xs font-semibold uppercase tracking-widest text-civic-slate mt-1">{tally.label}</div>
+                <div class="text-xs text-slate-400 mt-0.5">
+                  {totalVotes > 0 ? `${Math.round((tally.count / totalVotes) * 100)}%` : '—'}
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {votes && votes.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">Official</th>
+                  <th class="px-4 py-3 text-left">State</th>
+                  <th class="px-4 py-3 text-left">Party</th>
+                  <th class="px-4 py-3 text-center">Position</th>
+                  <th class="px-4 py-3 text-center">Donor Aligned</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {votes.map((row, i) => {
+                  const official = Array.isArray(row.officials) ? row.officials[0] : row.officials;
+                  return (
+                    <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                      <td class="px-4 py-3">
+                        {official?.slug ? (
+                          <a href={`/officials/${official.slug}`} class="font-medium text-civic-blue hover:underline">
+                            {official?.name ?? '—'}
+                          </a>
+                        ) : (
+                          <span class="font-medium text-slate-800">{official?.name ?? '—'}</span>
+                        )}
+                      </td>
+                      <td class="px-4 py-3 text-slate-600">{official?.state ?? '—'}</td>
+                      <td class="px-4 py-3">
+                        {official?.party ? (
+                          <span class={`inline-flex px-2 py-0.5 rounded text-xs font-semibold border ${partyBadge(official.party)}`}>
+                            {official.party}
+                          </span>
+                        ) : '—'}
+                      </td>
+                      <td class="px-4 py-3 text-center">
+                        <span class={`inline-flex px-2 py-0.5 rounded text-xs font-semibold ${
+                          row.position === 'yea' || row.position === 'yes'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : row.position === 'nay' || row.position === 'no'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {row.position ?? '—'}
+                        </span>
+                      </td>
+                      <td class="px-4 py-3 text-center">
+                        {row.donor_aligned === true ? (
+                          <span class="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 border border-amber-200 px-2 py-0.5 rounded">
+                            <span aria-hidden="true">&#9888;</span> Aligned
+                          </span>
+                        ) : row.donor_aligned === false ? (
+                          <span class="text-xs text-slate-400">No</span>
+                        ) : (
+                          <span class="text-xs text-slate-300">—</span>
+                        )}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No vote records on file for this bill.</p>
+        )}
+      </section>
+
+      <!-- ── Lobbying on This Bill ─────────────────────────────── -->
+      <section id="lobbying" aria-labelledby="lobbying-heading">
+        <h2 id="lobbying-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Lobbying on This Bill
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Registered lobbying activity citing this legislation, sourced from Senate SOPR and House LD-2 disclosures.
+        </p>
+
+        {lobbyingOnBill && lobbyingOnBill.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">Client</th>
+                  <th class="px-4 py-3 text-left">Registrant</th>
+                  <th class="px-4 py-3 text-left">Position</th>
+                  <th class="px-4 py-3 text-right">Amount</th>
+                  <th class="px-4 py-3 text-right">Cycle</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {lobbyingOnBill.map((row, i) => (
+                  <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <td class="px-4 py-3 font-medium text-slate-800">{row.client_name ?? '—'}</td>
+                    <td class="px-4 py-3 text-civic-slate">{row.registrant_name ?? '—'}</td>
+                    <td class="px-4 py-3">
+                      {row.position ? (
+                        <span class={`inline-flex px-2 py-0.5 rounded text-xs font-semibold capitalize ${
+                          row.position === 'support'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : row.position === 'oppose'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}>
+                          {row.position}
+                        </span>
+                      ) : '—'}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono text-slate-800">{formatMoney(row.amount)}</td>
+                    <td class="px-4 py-3 text-right text-slate-500">{row.cycle ?? '—'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No lobbying disclosures citing this bill.</p>
+        )}
+      </section>
+
+      <!-- ── Donor Alignment Analysis ──────────────────────────── -->
+      <section id="donor-alignment" aria-labelledby="donor-alignment-heading">
+        <h2 id="donor-alignment-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Donor Alignment Analysis
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Analysis of whether legislators' votes on this bill aligned with the positions of their top donor industries.
+        </p>
+
+        {totalVotes > 0 ? (
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-amber-200 bg-amber-50 p-5">
+              <div class="text-xs font-semibold uppercase tracking-widest text-amber-700 mb-1">Donor-Aligned Votes</div>
+              <div class="text-3xl font-display font-bold text-amber-700 mb-1">
+                {donorAlignedCount}
+                <span class="text-lg font-normal text-amber-500 ml-1">
+                  / {totalVotes}
+                </span>
+              </div>
+              <div class="text-sm text-amber-800">
+                {totalVotes > 0
+                  ? `${Math.round((donorAlignedCount / totalVotes) * 100)}% of recorded votes matched donor industry positions`
+                  : 'Insufficient data'}
+              </div>
+            </div>
+
+            <div class="rounded-lg border border-slate-200 bg-white p-5">
+              <div class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-1">Methodology</div>
+              <p class="text-sm text-slate-600 leading-relaxed">
+                Donor alignment is calculated by cross-referencing each legislator's vote with the disclosed lobbying
+                position of their top campaign donor industries. A vote is flagged as aligned when it matches the
+                industry's stated position on the same bill.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">Insufficient vote data for donor alignment analysis.</p>
+        )}
+      </section>
+
+    </div>
+  </main>
+</BaseLayout>

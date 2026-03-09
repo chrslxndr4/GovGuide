@@ -1,0 +1,414 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import JudgeSearch from '../../components/judicial/JudgeSearch';
+
+const circuitCourts = [
+  { circuit: '1st', jurisdiction: 'ME, MA, NH, RI, PR', seats: 6 },
+  { circuit: '2nd', jurisdiction: 'CT, NY, VT', seats: 13 },
+  { circuit: '3rd', jurisdiction: 'DE, NJ, PA, VI', seats: 14 },
+  { circuit: '4th', jurisdiction: 'MD, NC, SC, VA, WV', seats: 15 },
+  { circuit: '5th', jurisdiction: 'LA, MS, TX', seats: 17 },
+  { circuit: '6th', jurisdiction: 'KY, MI, OH, TN', seats: 16 },
+  { circuit: '7th', jurisdiction: 'IL, IN, WI', seats: 11 },
+  { circuit: '8th', jurisdiction: 'AR, IA, MN, MO, NE, ND, SD', seats: 11 },
+  { circuit: '9th', jurisdiction: 'AK, AZ, CA, HI, ID, MT, NV, OR, WA, GU, CNMI', seats: 29 },
+  { circuit: '10th', jurisdiction: 'CO, KS, NM, OK, UT, WY', seats: 12 },
+  { circuit: '11th', jurisdiction: 'AL, FL, GA', seats: 12 },
+  { circuit: 'D.C.', jurisdiction: 'District of Columbia', seats: 11 },
+  { circuit: 'Fed.', jurisdiction: 'Nationwide (patents, trade, federal claims)', seats: 12 },
+];
+---
+
+<BaseLayout
+  title="Judicial Transparency"
+  description="Track federal judicial conflicts of interest, financial disclosures, and the political chain of appointments across the Supreme Court, Circuit Courts, and District Courts."
+>
+  <main class="flex-1">
+
+    <!-- Hero -->
+    <section class="bg-[#2d2d4e] text-white py-12 px-4">
+      <div class="max-w-5xl mx-auto">
+        <Breadcrumb
+          items={[{ label: 'Judicial Transparency' }]}
+        />
+        <div class="max-w-3xl mb-8">
+          <h1 class="text-4xl md:text-5xl font-display font-bold mb-4 leading-tight">
+            Judicial Transparency
+          </h1>
+          <p class="text-lg text-slate-300 leading-relaxed">
+            Federal judges serve life tenure with enormous power over constitutional rights, yet face
+            weaker disclosure rules than legislators. GovGuide maps financial holdings, recusal
+            histories, and the full political chain — who appointed each judge, who confirmed them,
+            and who funds the appointers.
+          </p>
+        </div>
+
+        <!-- Why it matters callout -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-10">
+          <div class="bg-white/5 border border-white/10 rounded-xl px-5 py-4">
+            <p class="text-2xl font-display font-bold text-white mb-1">Life tenure</p>
+            <p class="text-sm text-slate-400">No re-election accountability. A single appointment shapes law for decades.</p>
+          </div>
+          <div class="bg-white/5 border border-white/10 rounded-xl px-5 py-4">
+            <p class="text-2xl font-display font-bold text-white mb-1">Voluntary recusal</p>
+            <p class="text-sm text-slate-400">Judges police their own conflicts. No external enforcement mechanism exists.</p>
+          </div>
+          <div class="bg-white/5 border border-white/10 rounded-xl px-5 py-4">
+            <p class="text-2xl font-display font-bold text-white mb-1">Delayed disclosure</p>
+            <p class="text-sm text-slate-400">Financial reports are filed annually, months after the reporting period ends.</p>
+          </div>
+        </div>
+
+        <!-- Search -->
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-3">
+            Search Judges
+          </p>
+          <JudgeSearch client:load />
+        </div>
+      </div>
+    </section>
+
+    <!-- Court Structure -->
+    <section class="max-w-5xl mx-auto px-4 py-14">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">Court Structure</h2>
+      <p class="text-civic-slate text-sm mb-10">
+        Three tiers of Article III courts established by the Constitution and Congress.
+      </p>
+
+      <div class="flex flex-col gap-10">
+
+        <!-- Supreme Court -->
+        <div>
+          <div class="flex items-center gap-3 mb-4">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-[#2d2d4e]" aria-hidden="true"></span>
+            <h3 class="text-lg font-display text-civic-navy">Supreme Court of the United States</h3>
+            <span class="text-xs font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded border border-slate-200">
+              9 justices
+            </span>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div class="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+              <div class="px-6 py-5">
+                <h4 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-3">Composition</h4>
+                <dl class="space-y-2 text-sm">
+                  <div class="flex justify-between">
+                    <dt class="text-slate-500">Chief Justice</dt>
+                    <dd class="font-medium text-slate-800">1</dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-slate-500">Associate Justices</dt>
+                    <dd class="font-medium text-slate-800">8</dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-slate-500">Term</dt>
+                    <dd class="font-medium text-slate-800">Life tenure (Art. III)</dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-slate-500">Quorum</dt>
+                    <dd class="font-medium text-slate-800">6 justices</dd>
+                  </div>
+                </dl>
+              </div>
+              <div class="px-6 py-5">
+                <h4 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-3">Caseload</h4>
+                <dl class="space-y-2 text-sm">
+                  <div class="flex justify-between">
+                    <dt class="text-slate-500">Petitions received / term</dt>
+                    <dd class="font-medium text-slate-800">~7,000</dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-slate-500">Cases heard / term</dt>
+                    <dd class="font-medium text-slate-800">~60 – 80</dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-slate-500">Rule of Four</dt>
+                    <dd class="font-medium text-slate-800">4 votes to grant cert.</dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-slate-500">Disclosure standard</dt>
+                    <dd class="font-medium text-slate-800">Ethics in Government Act</dd>
+                  </div>
+                </dl>
+              </div>
+            </div>
+
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100 flex flex-wrap gap-3">
+              <a href="/judicial/judges?court=supreme-court" class="text-xs font-medium text-civic-blue hover:underline">
+                View Justices &rarr;
+              </a>
+              <span class="text-slate-300 text-xs">|</span>
+              <a href="/judicial/supreme-court" class="text-xs font-medium text-civic-blue hover:underline">
+                Supreme Court overview &rarr;
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- Circuit Courts -->
+        <div>
+          <div class="flex items-center gap-3 mb-4">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-civic-blue" aria-hidden="true"></span>
+            <h3 class="text-lg font-display text-civic-navy">U.S. Courts of Appeals</h3>
+            <span class="text-xs font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded border border-slate-200">
+              13 circuits
+            </span>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <p class="px-6 pt-5 pb-3 text-sm text-slate-600 leading-relaxed">
+              The intermediate appellate courts review decisions from the district courts and federal agencies.
+              Their rulings bind all lower courts within the circuit and are second only to the Supreme Court.
+              Most federal cases end here — the Supreme Court hears fewer than 1% of appeals petitioned.
+            </p>
+
+            <div class="overflow-x-auto">
+              <table class="min-w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate border-t border-slate-200">
+                    <th class="px-5 py-3 text-left">Circuit</th>
+                    <th class="px-5 py-3 text-left">States / Jurisdiction</th>
+                    <th class="px-5 py-3 text-right">Active Seats</th>
+                    <th class="px-5 py-3 text-right">Profile</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  {circuitCourts.map((row, i) => (
+                    <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/40'}>
+                      <td class="px-5 py-3 font-display font-bold text-[#2d2d4e] whitespace-nowrap">
+                        {row.circuit} Circuit
+                      </td>
+                      <td class="px-5 py-3 text-civic-slate">{row.jurisdiction}</td>
+                      <td class="px-5 py-3 text-right font-mono text-slate-700">{row.seats}</td>
+                      <td class="px-5 py-3 text-right">
+                        <a
+                          href={`/judicial/judges?circuit=${row.circuit.toLowerCase().replace('.', '')}`}
+                          class="text-xs text-civic-blue hover:underline"
+                        >
+                          Judges &rarr;
+                        </a>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100">
+              <a href="/judicial/judges?level=circuit" class="text-xs font-medium text-civic-blue hover:underline">
+                Browse all circuit judges &rarr;
+              </a>
+            </div>
+          </div>
+        </div>
+
+        <!-- District Courts -->
+        <div>
+          <div class="flex items-center gap-3 mb-4">
+            <span class="inline-block w-2.5 h-2.5 rounded-full bg-slate-400" aria-hidden="true"></span>
+            <h3 class="text-lg font-display text-civic-navy">U.S. District Courts</h3>
+            <span class="text-xs font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded border border-slate-200">
+              94 districts
+            </span>
+          </div>
+
+          <div class="bg-white rounded-xl border border-slate-200 overflow-hidden">
+            <div class="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x divide-slate-100">
+              <div class="px-6 py-5">
+                <h4 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-3">Structure</h4>
+                <dl class="space-y-2 text-sm">
+                  <div class="flex justify-between">
+                    <dt class="text-slate-500">Total districts</dt>
+                    <dd class="font-medium text-slate-800">94</dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-slate-500">Coverage</dt>
+                    <dd class="font-medium text-slate-800">All 50 states + D.C., territories</dd>
+                  </div>
+                  <div class="flex justify-between">
+                    <dt class="text-slate-500">Active judges</dt>
+                    <dd class="font-medium text-slate-800">~670</dd>
+                  </div>
+                </dl>
+              </div>
+              <div class="px-6 py-5">
+                <h4 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-3">Jurisdiction</h4>
+                <ul class="space-y-1.5 text-xs text-civic-slate">
+                  <li>Federal criminal prosecutions</li>
+                  <li>Civil cases under federal law</li>
+                  <li>Constitutional challenges</li>
+                  <li>Diversity jurisdiction (&gt;$75K)</li>
+                  <li>Bankruptcy courts (attached)</li>
+                </ul>
+              </div>
+              <div class="px-6 py-5">
+                <h4 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-3">Notable districts</h4>
+                <ul class="space-y-1.5 text-xs text-civic-slate">
+                  <li>S.D.N.Y. — financial &amp; securities</li>
+                  <li>D.D.C. — federal agency review</li>
+                  <li>N.D. Cal. — tech &amp; antitrust</li>
+                  <li>E.D. Tex. — patent litigation</li>
+                  <li>W.D. Wash. — immigration appeals</li>
+                </ul>
+              </div>
+            </div>
+
+            <div class="px-6 py-4 bg-slate-50 border-t border-slate-100">
+              <a href="/judicial/judges?level=district" class="text-xs font-medium text-civic-blue hover:underline">
+                Browse all district judges &rarr;
+              </a>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </section>
+
+    <!-- Recent Conflict Alerts -->
+    <section class="bg-white border-y border-slate-200 py-14 px-4">
+      <div class="max-w-5xl mx-auto">
+        <div class="flex items-baseline justify-between mb-2">
+          <h2 class="text-2xl font-display text-civic-navy">Recent Judicial Conflict Alerts</h2>
+          <a href="/judicial/conflicts" class="text-sm text-civic-blue hover:underline">
+            All alerts &rarr;
+          </a>
+        </div>
+        <p class="text-civic-slate text-sm mb-8">
+          Flags generated when a judge's disclosed financial holdings intersect with cases on their docket,
+          or when recusal obligations may have been overlooked.
+        </p>
+
+        <ul class="flex flex-col gap-3" role="list">
+
+          <!-- Undisclosed holding -->
+          <li
+            class="flex items-start gap-4 p-4 rounded-xl border-l-4 border-red-400 bg-red-50"
+            role="listitem"
+          >
+            <div class="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-red-400" aria-hidden="true"></div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-slate-800">
+                Undisclosed holding — live data coming soon
+              </p>
+              <p class="text-xs text-civic-slate mt-0.5">
+                Flags for judges presiding over cases involving companies in which they hold undisclosed
+                or late-disclosed financial interests will appear here once the financial disclosure
+                pipeline is live.
+              </p>
+            </div>
+            <span class="shrink-0 text-xs font-mono bg-red-100 text-red-700 px-2 py-0.5 rounded border border-red-200">
+              critical
+            </span>
+          </li>
+
+          <!-- Recusal gap -->
+          <li
+            class="flex items-start gap-4 p-4 rounded-xl border-l-4 border-amber-400 bg-amber-50"
+            role="listitem"
+          >
+            <div class="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-amber-400" aria-hidden="true"></div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-slate-800">
+                Recusal gap — live data coming soon
+              </p>
+              <p class="text-xs text-civic-slate mt-0.5">
+                Cases where a judge participated without recusing despite prior employment or investment
+                ties to a party will surface here after cross-referencing disclosure filings.
+              </p>
+            </div>
+            <span class="shrink-0 text-xs font-mono bg-amber-100 text-amber-700 px-2 py-0.5 rounded border border-amber-200">
+              high
+            </span>
+          </li>
+
+          <!-- Political chain flag -->
+          <li
+            class="flex items-start gap-4 p-4 rounded-xl border-l-4 border-slate-300 bg-slate-50"
+            role="listitem"
+          >
+            <div class="mt-1.5 shrink-0 w-2 h-2 rounded-full bg-slate-300" aria-hidden="true"></div>
+            <div class="flex-1 min-w-0">
+              <p class="text-sm font-semibold text-slate-800">
+                Political chain cross-reference — live data coming soon
+              </p>
+              <p class="text-xs text-civic-slate mt-0.5">
+                Alerts correlating a judge's ruling patterns with their appointing president's donor
+                industries will populate here once the voting and donation datasets are connected.
+              </p>
+            </div>
+            <span class="shrink-0 text-xs font-mono bg-slate-100 text-slate-500 px-2 py-0.5 rounded border border-slate-200">
+              pending
+            </span>
+          </li>
+
+        </ul>
+      </div>
+    </section>
+
+    <!-- How appointments work -->
+    <section class="max-w-5xl mx-auto px-4 py-14">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">The Appointment Chain</h2>
+      <p class="text-civic-slate text-sm mb-8">
+        Every Article III judge traces back through a chain of democratic accountability.
+        GovGuide makes that chain navigable.
+      </p>
+
+      <ol class="relative border-l-2 border-slate-200 pl-8 space-y-8" aria-label="Appointment process steps">
+
+        <li class="relative">
+          <span
+            class="absolute -left-[1.35rem] mt-1 w-4 h-4 rounded-full bg-[#2d2d4e] border-2 border-white shadow"
+            aria-hidden="true"
+          ></span>
+          <h3 class="font-display text-base text-civic-navy">President nominates</h3>
+          <p class="text-sm text-civic-slate mt-1">
+            The sitting president selects nominees, typically from lists compiled by the Federalist Society,
+            American Constitution Society, or the White House Counsel's office. Donors and political allies
+            often influence the selection process.
+          </p>
+        </li>
+
+        <li class="relative">
+          <span
+            class="absolute -left-[1.35rem] mt-1 w-4 h-4 rounded-full bg-civic-blue border-2 border-white shadow"
+            aria-hidden="true"
+          ></span>
+          <h3 class="font-display text-base text-civic-navy">Senate Judiciary Committee reviews</h3>
+          <p class="text-sm text-civic-slate mt-1">
+            The committee holds public hearings, questions the nominee, and votes whether to send the nomination
+            to the full Senate. Committee members' donors and affiliations are tracked here.
+          </p>
+        </li>
+
+        <li class="relative">
+          <span
+            class="absolute -left-[1.35rem] mt-1 w-4 h-4 rounded-full bg-civic-blue border-2 border-white shadow"
+            aria-hidden="true"
+          ></span>
+          <h3 class="font-display text-base text-civic-navy">Full Senate confirms</h3>
+          <p class="text-sm text-civic-slate mt-1">
+            A simple majority of the Senate (51 votes since the 2017 nuclear option change) is required.
+            Each judge's profile includes the confirmation vote tally and individual senator votes.
+          </p>
+        </li>
+
+        <li class="relative">
+          <span
+            class="absolute -left-[1.35rem] mt-1 w-4 h-4 rounded-full bg-slate-400 border-2 border-white shadow"
+            aria-hidden="true"
+          ></span>
+          <h3 class="font-display text-base text-civic-navy">Judge serves — with disclosure obligations</h3>
+          <p class="text-sm text-civic-slate mt-1">
+            Federal judges file annual financial disclosures under the Ethics in Government Act. Since 2023,
+            the Ethics in Government Act requires online publication. GovGuide indexes these filings and
+            cross-references them with case assignments.
+          </p>
+        </li>
+
+      </ol>
+    </section>
+
+  </main>
+</BaseLayout>

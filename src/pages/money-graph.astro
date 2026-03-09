@@ -1,0 +1,20 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import MoneyGraphExplorer from '../components/graph/MoneyGraphExplorer';
+---
+
+<BaseLayout
+  title="Money Graph Explorer"
+  description="Interactive visualization of political money flows between officials, organizations, and donors."
+>
+  <main class="flex-1 bg-civic-light">
+    <div class="max-w-7xl mx-auto px-4 py-6">
+      <h1 class="text-3xl font-display text-civic-navy mb-4">Money Graph Explorer</h1>
+      <p class="text-civic-slate mb-6">Search for any entity to explore their financial relationships.</p>
+    </div>
+    <div class="max-w-[1400px] mx-auto px-4 pb-8">
+      <!-- React island handles all interactivity -->
+      <MoneyGraphExplorer client:load />
+    </div>
+  </main>
+</BaseLayout>

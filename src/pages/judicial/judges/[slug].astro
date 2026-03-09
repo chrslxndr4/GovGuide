@@ -1,0 +1,689 @@
+---
+export const prerender = false;
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../../components/Breadcrumb.astro';
+import { supabase } from '../../../lib/supabase';
+
+const { slug } = Astro.params;
+const { data: judge } = await supabase
+  .from('judges')
+  .select('*, courts(*)')
+  .eq('slug', slug)
+  .single();
+
+if (!judge) return Astro.redirect('/404');
+
+const court = judge.courts ?? {};
+const courtName: string = court.name ?? judge.court_name ?? '';
+const courtLevel: string = court.level ?? '';
+
+// ── ABA rating helpers ───────────────────────────────────────────────────────
+
+type AbaRating = 'Well Qualified' | 'Qualified' | 'Not Qualified' | string;
+
+function abaRatingStyle(rating: AbaRating | null | undefined): string {
+  if (!rating) return 'bg-slate-100 text-slate-500 border-slate-200';
+  if (rating === 'Well Qualified') return 'bg-emerald-100 text-emerald-800 border-emerald-300';
+  if (rating === 'Qualified') return 'bg-lime-100 text-lime-800 border-lime-300';
+  if (rating === 'Not Qualified') return 'bg-red-100 text-red-800 border-red-300';
+  return 'bg-slate-100 text-slate-600 border-slate-200';
+}
+
+// ── Conflict severity helpers ────────────────────────────────────────────────
+
+type Severity = 'critical' | 'high' | 'medium' | 'low';
+
+const SEVERITY_CARD: Record<Severity, string> = {
+  critical: 'border-red-400 bg-red-50',
+  high: 'border-orange-400 bg-orange-50',
+  medium: 'border-yellow-400 bg-yellow-50',
+  low: 'border-slate-300 bg-white',
+};
+
+const SEVERITY_BADGE: Record<Severity, string> = {
+  critical: 'bg-red-100 text-red-800',
+  high: 'bg-orange-100 text-orange-800',
+  medium: 'bg-yellow-100 text-yellow-800',
+  low: 'bg-slate-100 text-slate-600',
+};
+
+function severityCard(s: string | null | undefined): string {
+  return SEVERITY_CARD[(s as Severity) ?? 'low'] ?? SEVERITY_CARD.low;
+}
+
+function severityBadge(s: string | null | undefined): string {
+  return SEVERITY_BADGE[(s as Severity) ?? 'low'] ?? SEVERITY_BADGE.low;
+}
+
+// ── Format helpers ───────────────────────────────────────────────────────────
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatMoney(amount: number | null | undefined): string {
+  if (amount == null) return '—';
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
+  return `$${amount.toLocaleString()}`;
+}
+
+function formatVoteCount(yea: number | null, nay: number | null): string {
+  if (yea == null && nay == null) return '—';
+  const yeaStr = yea != null ? `${yea}` : '?';
+  const nayStr = nay != null ? `${nay}` : '?';
+  return `${yeaStr} – ${nayStr}`;
+}
+
+// ── Parallel data fetches ────────────────────────────────────────────────────
+// Table schemas are generated via Supabase CLI — type assertions are safe at runtime.
+
+const [
+  { data: disclosures },
+  { data: decisions },
+  { data: conflicts },
+] = await Promise.all([
+  supabase
+    .from('judicial_financial_disclosures')
+    .select('year, asset_name, asset_type, value_min, value_max, income_min, income_max, description')
+    .eq('judge_id', judge.id)
+    .order('year', { ascending: false })
+    .limit(25),
+  supabase
+    .from('judicial_decisions')
+    .select('case_name, case_number, decision_date, outcome, description, opinion_url, notable')
+    .eq('judge_id', judge.id)
+    .order('decision_date', { ascending: false })
+    .limit(20),
+  supabase
+    .from('conflict_alerts')
+    .select('alert_type, description, severity, created_at, source_url')
+    .eq('judge_entity_id', judge.entity_id)
+    .eq('status', 'active')
+    .order('created_at', { ascending: false }),
+]);
+
+const sections = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'disclosures', label: 'Financial Disclosures' },
+  { id: 'decisions', label: 'Notable Decisions' },
+  { id: 'conflicts', label: 'Conflict Flags' },
+  { id: 'political-chain', label: 'Political Chain' },
+];
+---
+
+<BaseLayout
+  title={judge.name}
+  description={`Judicial transparency profile for ${judge.name} — financial disclosures, notable decisions, conflict flags, and appointment history.`}
+>
+  <main class="flex-1">
+
+    <!-- Hero -->
+    <section class="bg-[#2d2d4e] text-white py-10 px-4">
+      <div class="max-w-5xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Judicial Transparency', href: '/judicial' },
+            { label: judge.name },
+          ]}
+        />
+
+        <div class="flex flex-col sm:flex-row items-start gap-6">
+
+          <!-- Avatar -->
+          <div
+            class="shrink-0 w-24 h-24 rounded-full bg-white/10 border-2 border-white/20
+                   flex items-center justify-center text-3xl font-display font-bold text-white/60"
+            aria-hidden="true"
+          >
+            {judge.name.charAt(0).toUpperCase()}
+          </div>
+
+          <!-- Identity -->
+          <div class="flex-1 min-w-0">
+            <h1 class="text-3xl md:text-4xl font-display font-bold mb-2 leading-tight">
+              {judge.name}
+            </h1>
+
+            <div class="flex flex-wrap items-center gap-2 text-sm mb-4">
+              {courtName && (
+                <span class="text-slate-300">{courtName}</span>
+              )}
+              {courtLevel && (
+                <>
+                  <span class="text-slate-500" aria-hidden="true">·</span>
+                  <span class="text-xs font-mono bg-white/10 text-slate-300 px-2 py-0.5 rounded">
+                    {courtLevel}
+                  </span>
+                </>
+              )}
+              {judge.senior_status && (
+                <>
+                  <span class="text-slate-500" aria-hidden="true">·</span>
+                  <span class="text-xs font-mono bg-amber-500/20 text-amber-300 px-2 py-0.5 rounded">
+                    Senior Status
+                  </span>
+                </>
+              )}
+            </div>
+
+            <!-- ABA rating + confirmation vote summary -->
+            <div class="flex flex-wrap items-center gap-4">
+              {judge.aba_rating && (
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    ABA Rating
+                  </span>
+                  <span
+                    class={`inline-flex items-center px-2.5 py-0.5 rounded-full border text-xs font-semibold ${abaRatingStyle(judge.aba_rating)}`}
+                  >
+                    {judge.aba_rating}
+                  </span>
+                </div>
+              )}
+              {(judge.confirmation_yea != null || judge.confirmation_nay != null) && (
+                <div class="flex items-center gap-2">
+                  <span class="text-xs font-semibold uppercase tracking-widest text-slate-400">
+                    Confirmed
+                  </span>
+                  <span class="text-sm font-mono text-white">
+                    {formatVoteCount(judge.confirmation_yea, judge.confirmation_nay)}
+                  </span>
+                  <span class="text-xs text-slate-500">(yea – nay)</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Sticky section nav -->
+    <nav
+      class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm overflow-x-auto"
+      aria-label="Profile sections"
+    >
+      <div class="max-w-5xl mx-auto px-4">
+        <ol class="flex items-center gap-0 text-sm font-medium whitespace-nowrap">
+          {sections.map(s => (
+            <li>
+              <a
+                href={`#${s.id}`}
+                class="block px-4 py-3 text-civic-slate hover:text-civic-blue border-b-2 border-transparent hover:border-civic-blue transition-colors"
+              >
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </nav>
+
+    <div class="max-w-5xl mx-auto px-4 py-10 flex flex-col gap-16">
+
+      <!-- ── Overview ────────────────────────────────────────────── -->
+      <section id="overview" aria-labelledby="overview-heading">
+        <h2
+          id="overview-heading"
+          class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200"
+        >
+          Overview
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+          <!-- Bio -->
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-2">Biography</h3>
+            {judge.bio ? (
+              <p class="text-slate-700 leading-relaxed text-sm">{judge.bio}</p>
+            ) : (
+              <p class="text-slate-400 text-sm italic">No biography on record.</p>
+            )}
+          </div>
+
+          <!-- Appointment details -->
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-2">Appointment</h3>
+            <dl class="grid grid-cols-2 gap-x-4 gap-y-1.5 text-sm">
+              <dt class="text-slate-500">Appointed by</dt>
+              <dd class="text-slate-800 font-medium">{judge.appointed_by ?? '—'}</dd>
+
+              <dt class="text-slate-500">Nomination date</dt>
+              <dd class="text-slate-800 font-medium">{formatDate(judge.nomination_date)}</dd>
+
+              <dt class="text-slate-500">Confirmation date</dt>
+              <dd class="text-slate-800 font-medium">{formatDate(judge.confirmation_date)}</dd>
+
+              <dt class="text-slate-500">Commission date</dt>
+              <dd class="text-slate-800 font-medium">{formatDate(judge.commission_date)}</dd>
+
+              <dt class="text-slate-500">ABA rating</dt>
+              <dd>
+                {judge.aba_rating ? (
+                  <span
+                    class={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-semibold ${abaRatingStyle(judge.aba_rating)}`}
+                  >
+                    {judge.aba_rating}
+                  </span>
+                ) : (
+                  <span class="text-slate-400">—</span>
+                )}
+              </dd>
+
+              {judge.law_school && (
+                <>
+                  <dt class="text-slate-500">Law school</dt>
+                  <dd class="text-slate-800 font-medium">{judge.law_school}</dd>
+                </>
+              )}
+            </dl>
+          </div>
+
+        </div>
+
+        <!-- Confirmation vote detail card -->
+        {(judge.confirmation_yea != null || judge.confirmation_nay != null) && (
+          <div class="mt-8 bg-slate-50 rounded-xl border border-slate-200 p-5">
+            <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-4">
+              Senate Confirmation Vote
+            </h3>
+            <div class="flex flex-wrap gap-6">
+              {judge.confirmation_yea != null && (
+                <div class="text-center">
+                  <p class="text-3xl font-display font-bold text-emerald-700">{judge.confirmation_yea}</p>
+                  <p class="text-xs text-slate-500 mt-1 uppercase tracking-wider">Yea</p>
+                </div>
+              )}
+              {judge.confirmation_nay != null && (
+                <div class="text-center">
+                  <p class="text-3xl font-display font-bold text-red-600">{judge.confirmation_nay}</p>
+                  <p class="text-xs text-slate-500 mt-1 uppercase tracking-wider">Nay</p>
+                </div>
+              )}
+              {judge.confirmation_not_voting != null && (
+                <div class="text-center">
+                  <p class="text-3xl font-display font-bold text-slate-400">{judge.confirmation_not_voting}</p>
+                  <p class="text-xs text-slate-500 mt-1 uppercase tracking-wider">Not voting</p>
+                </div>
+              )}
+            </div>
+            {judge.confirmation_date && (
+              <p class="text-xs text-slate-500 mt-4">
+                Confirmed {formatDate(judge.confirmation_date)}
+              </p>
+            )}
+          </div>
+        )}
+      </section>
+
+      <!-- ── Financial Disclosures ────────────────────────────────── -->
+      <section id="disclosures" aria-labelledby="disclosures-heading">
+        <h2
+          id="disclosures-heading"
+          class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200"
+        >
+          Financial Disclosures
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Annual financial disclosure reports filed under the Ethics in Government Act.
+          Investments in companies with active cases before this judge are flagged in the Conflict Flags section.
+        </p>
+
+        {disclosures && disclosures.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">Year</th>
+                  <th class="px-4 py-3 text-left">Asset</th>
+                  <th class="px-4 py-3 text-left">Type</th>
+                  <th class="px-4 py-3 text-right">Value (range)</th>
+                  <th class="px-4 py-3 text-right">Income (range)</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {disclosures.map((row, i) => (
+                  <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <td class="px-4 py-3 font-mono text-slate-600 whitespace-nowrap">{row.year ?? '—'}</td>
+                    <td class="px-4 py-3 font-medium text-slate-800 max-w-[200px]">
+                      <span class="block truncate" title={row.asset_name ?? undefined}>
+                        {row.asset_name ?? '—'}
+                      </span>
+                      {row.description && (
+                        <span class="block text-xs text-slate-400 mt-0.5 truncate" title={row.description}>
+                          {row.description}
+                        </span>
+                      )}
+                    </td>
+                    <td class="px-4 py-3 text-civic-slate capitalize">{row.asset_type ?? '—'}</td>
+                    <td class="px-4 py-3 text-right font-mono text-slate-700">
+                      {row.value_min != null && row.value_max != null
+                        ? `${formatMoney(row.value_min)} – ${formatMoney(row.value_max)}`
+                        : formatMoney(row.value_min ?? row.value_max)}
+                    </td>
+                    <td class="px-4 py-3 text-right font-mono text-slate-700">
+                      {row.income_min != null && row.income_max != null
+                        ? `${formatMoney(row.income_min)} – ${formatMoney(row.income_max)}`
+                        : formatMoney(row.income_min ?? row.income_max)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No financial disclosures on record.</p>
+        )}
+      </section>
+
+      <!-- ── Notable Decisions ────────────────────────────────────── -->
+      <section id="decisions" aria-labelledby="decisions-heading">
+        <h2
+          id="decisions-heading"
+          class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200"
+        >
+          Notable Decisions
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Significant rulings authored or joined by this judge, including cases with noted
+          financial or political conflicts.
+        </p>
+
+        {decisions && decisions.length > 0 ? (
+          <div class="flex flex-col gap-4">
+            {decisions.map(decision => (
+              <div
+                class={`rounded-lg border p-4 ${
+                  decision.notable
+                    ? 'border-civic-blue/30 bg-civic-blue/5'
+                    : 'border-slate-200 bg-white'
+                }`}
+              >
+                <div class="flex flex-wrap items-start justify-between gap-2 mb-2">
+                  <div class="flex-1 min-w-0">
+                    <div class="flex flex-wrap items-center gap-2">
+                      <span class="font-semibold text-sm text-slate-900">{decision.case_name ?? '—'}</span>
+                      {decision.notable && (
+                        <span class="text-xs font-semibold bg-civic-blue/10 text-civic-blue px-1.5 py-0.5 rounded">
+                          Notable
+                        </span>
+                      )}
+                    </div>
+                    {decision.case_number && (
+                      <span class="text-xs font-mono text-slate-500 mt-0.5 block">
+                        {decision.case_number}
+                      </span>
+                    )}
+                  </div>
+                  <div class="flex items-center gap-2 shrink-0">
+                    {decision.outcome && (
+                      <span
+                        class={`text-xs font-semibold px-2 py-0.5 rounded capitalize ${
+                          decision.outcome === 'affirmed'
+                            ? 'bg-emerald-100 text-emerald-700'
+                            : decision.outcome === 'reversed'
+                            ? 'bg-red-100 text-red-700'
+                            : 'bg-slate-100 text-slate-600'
+                        }`}
+                      >
+                        {decision.outcome}
+                      </span>
+                    )}
+                    <span class="text-xs text-slate-400 whitespace-nowrap">
+                      {formatDate(decision.decision_date)}
+                    </span>
+                  </div>
+                </div>
+
+                {decision.description && (
+                  <p class="text-sm text-slate-700 leading-relaxed">{decision.description}</p>
+                )}
+
+                {decision.opinion_url && (
+                  <a
+                    href={decision.opinion_url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="inline-block mt-2 text-xs text-civic-blue hover:underline"
+                  >
+                    Read opinion &rarr;
+                  </a>
+                )}
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No decisions on record.</p>
+        )}
+      </section>
+
+      <!-- ── Conflict Flags ────────────────────────────────────────── -->
+      <section id="conflicts" aria-labelledby="conflicts-heading">
+        <h2
+          id="conflicts-heading"
+          class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200"
+        >
+          Conflict Flags
+        </h2>
+
+        {conflicts && conflicts.length > 0 ? (
+          <ul class="flex flex-col gap-4" role="list">
+            {conflicts.map(alert => {
+              const severity: string = alert.severity ?? 'low';
+              return (
+                <li
+                  class={`rounded-lg border-l-4 p-4 ${severityCard(severity)}`}
+                  role="listitem"
+                >
+                  <div class="flex flex-wrap items-start justify-between gap-2 mb-1.5">
+                    <span class="font-semibold text-sm text-slate-800 capitalize">
+                      {(alert.alert_type ?? 'Alert').replace(/_/g, ' ')}
+                    </span>
+                    <div class="flex items-center gap-2">
+                      <span
+                        class={`text-xs font-semibold uppercase px-2 py-0.5 rounded ${severityBadge(severity)}`}
+                      >
+                        {severity}
+                      </span>
+                      <span class="text-xs text-slate-400">{formatDate(alert.created_at)}</span>
+                    </div>
+                  </div>
+                  <p class="text-sm text-slate-700 leading-relaxed">{alert.description}</p>
+                  {alert.source_url && (
+                    <a
+                      href={alert.source_url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="inline-block mt-2 text-xs text-civic-blue hover:underline"
+                    >
+                      Source &rarr;
+                    </a>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No active conflict flags for this judge.</p>
+        )}
+      </section>
+
+      <!-- ── Political Chain ──────────────────────────────────────── -->
+      <section id="political-chain" aria-labelledby="political-chain-heading">
+        <h2
+          id="political-chain-heading"
+          class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200"
+        >
+          Political Chain
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Every Article III judge traces back through an unbroken chain of democratic accountability.
+          This section surfaces the full path and relevant financial connections at each link.
+        </p>
+
+        <ol
+          class="relative border-l-2 border-slate-200 pl-8 space-y-8"
+          aria-label="Appointment chain"
+        >
+
+          <!-- Link 1: Appointing President -->
+          <li class="relative">
+            <span
+              class="absolute -left-[1.35rem] mt-1 w-4 h-4 rounded-full bg-[#2d2d4e] border-2 border-white shadow"
+              aria-hidden="true"
+            ></span>
+            <div class="bg-white rounded-xl border border-slate-200 p-5">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <span class="text-xs font-semibold uppercase tracking-widest text-civic-slate">
+                  Nominated by
+                </span>
+                <span class="text-xs font-mono bg-slate-100 text-slate-500 px-2 py-0.5 rounded">
+                  President
+                </span>
+              </div>
+              <p class="font-display text-lg text-civic-navy font-bold">
+                {judge.appointed_by ?? 'Unknown'}
+              </p>
+              {judge.appointed_by_party && (
+                <p class="text-sm text-civic-slate mt-1">{judge.appointed_by_party}</p>
+              )}
+              {judge.nomination_date && (
+                <p class="text-xs text-slate-400 mt-2">
+                  Nominated {formatDate(judge.nomination_date)}
+                </p>
+              )}
+              {judge.appointer_profile_slug && (
+                <a
+                  href={`/officials/${judge.appointer_profile_slug}`}
+                  class="inline-block mt-3 text-xs text-civic-blue hover:underline"
+                >
+                  View president profile (donors, conflicts) &rarr;
+                </a>
+              )}
+            </div>
+          </li>
+
+          <!-- Link 2: Senate Confirmation -->
+          <li class="relative">
+            <span
+              class="absolute -left-[1.35rem] mt-1 w-4 h-4 rounded-full bg-civic-blue border-2 border-white shadow"
+              aria-hidden="true"
+            ></span>
+            <div class="bg-white rounded-xl border border-slate-200 p-5">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <span class="text-xs font-semibold uppercase tracking-widest text-civic-slate">
+                  Confirmed by
+                </span>
+                <span class="text-xs font-mono bg-slate-100 text-slate-500 px-2 py-0.5 rounded">
+                  U.S. Senate
+                </span>
+              </div>
+              <p class="font-display text-lg text-civic-navy font-bold">
+                {judge.confirmation_date
+                  ? `Confirmed ${formatDate(judge.confirmation_date)}`
+                  : 'Confirmation date unavailable'}
+              </p>
+              {(judge.confirmation_yea != null || judge.confirmation_nay != null) && (
+                <div class="flex gap-4 mt-3">
+                  {judge.confirmation_yea != null && (
+                    <div class="text-center">
+                      <p class="text-xl font-display font-bold text-emerald-700">{judge.confirmation_yea}</p>
+                      <p class="text-xs text-slate-500 mt-0.5 uppercase tracking-wider">Yea</p>
+                    </div>
+                  )}
+                  {judge.confirmation_nay != null && (
+                    <div class="text-center">
+                      <p class="text-xl font-display font-bold text-red-600">{judge.confirmation_nay}</p>
+                      <p class="text-xs text-slate-500 mt-0.5 uppercase tracking-wider">Nay</p>
+                    </div>
+                  )}
+                  {judge.confirmation_not_voting != null && (
+                    <div class="text-center">
+                      <p class="text-xl font-display font-bold text-slate-400">{judge.confirmation_not_voting}</p>
+                      <p class="text-xs text-slate-500 mt-0.5 uppercase tracking-wider">Not voting</p>
+                    </div>
+                  )}
+                </div>
+              )}
+              <a
+                href={`/officials?branch=legislative&chamber=senate&vote=judge:${slug}`}
+                class="inline-block mt-3 text-xs text-civic-blue hover:underline"
+              >
+                View individual senator votes &rarr;
+              </a>
+            </div>
+          </li>
+
+          <!-- Link 3: Judiciary Committee -->
+          <li class="relative">
+            <span
+              class="absolute -left-[1.35rem] mt-1 w-4 h-4 rounded-full bg-civic-blue border-2 border-white shadow"
+              aria-hidden="true"
+            ></span>
+            <div class="bg-white rounded-xl border border-slate-200 p-5">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <span class="text-xs font-semibold uppercase tracking-widest text-civic-slate">
+                  Reviewed by
+                </span>
+                <span class="text-xs font-mono bg-slate-100 text-slate-500 px-2 py-0.5 rounded">
+                  Senate Judiciary Committee
+                </span>
+              </div>
+              <p class="font-display text-lg text-civic-navy font-bold">
+                Senate Judiciary Committee
+              </p>
+              <p class="text-sm text-civic-slate mt-1">
+                Held public hearings and voted to advance the nomination to the full Senate.
+              </p>
+              <a
+                href="/officials?committee=senate-judiciary"
+                class="inline-block mt-3 text-xs text-civic-blue hover:underline"
+              >
+                View committee members &amp; donor profiles &rarr;
+              </a>
+            </div>
+          </li>
+
+          <!-- Link 4: The Judge -->
+          <li class="relative">
+            <span
+              class="absolute -left-[1.35rem] mt-1 w-4 h-4 rounded-full bg-[#2d2d4e] border-2 border-white shadow ring-2 ring-[#2d2d4e]/20"
+              aria-hidden="true"
+            ></span>
+            <div class="bg-[#2d2d4e]/5 rounded-xl border border-[#2d2d4e]/20 p-5">
+              <div class="flex flex-wrap items-center justify-between gap-2 mb-3">
+                <span class="text-xs font-semibold uppercase tracking-widest text-civic-slate">
+                  Judge
+                </span>
+                {courtName && (
+                  <span class="text-xs font-mono bg-white text-slate-600 px-2 py-0.5 rounded border border-slate-200">
+                    {courtName}
+                  </span>
+                )}
+              </div>
+              <p class="font-display text-lg text-civic-navy font-bold">{judge.name}</p>
+              <p class="text-sm text-civic-slate mt-1">
+                Serving under Article III life tenure.
+                {judge.aba_rating && ` ABA Rating: ${judge.aba_rating}.`}
+              </p>
+              {judge.commission_date && (
+                <p class="text-xs text-slate-400 mt-2">
+                  Commission issued {formatDate(judge.commission_date)}
+                </p>
+              )}
+            </div>
+          </li>
+
+        </ol>
+      </section>
+
+    </div>
+  </main>
+</BaseLayout>

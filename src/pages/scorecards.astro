@@ -1,0 +1,388 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout
+  title="Transparency Scorecards"
+  description="Transparency scorecards for every member of Congress — ranked by chamber, state, and party with A-F grades based on financial disclosure compliance and voting record."
+>
+  <main class="flex-1">
+
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-16 px-4">
+      <div class="max-w-5xl mx-auto">
+        <div class="max-w-2xl">
+          <div class="inline-flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-civic-blue bg-white/10 border border-white/20 px-3 py-1 rounded-full mb-4">
+            Transparency Scorecards
+          </div>
+          <h1 class="text-4xl md:text-5xl font-display font-bold mb-4 leading-tight">
+            How transparent is your representative?
+          </h1>
+          <p class="text-lg text-slate-300 leading-relaxed mb-8">
+            Every member of Congress receives a transparency score based on financial disclosure
+            compliance, stock trade timeliness, voting record consistency, and conflict-of-interest alerts.
+          </p>
+
+          <!-- Methodology summary cards -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'Disclosure Compliance', weight: '30%' },
+              { label: 'STOCK Act Timeliness', weight: '25%' },
+              { label: 'Donor Vote Alignment', weight: '30%' },
+              { label: 'Conflict Alerts', weight: '15%' },
+            ].map(item => (
+              <div class="rounded-lg bg-white/10 border border-white/20 p-3 text-center">
+                <div class="text-xl font-display font-bold text-civic-blue">{item.weight}</div>
+                <div class="text-xs text-slate-300 mt-0.5 leading-tight">{item.label}</div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Grade scale legend -->
+    <section class="bg-white border-b border-slate-200 py-6 px-4" aria-label="Grade scale">
+      <div class="max-w-5xl mx-auto">
+        <div class="flex flex-wrap items-center gap-2">
+          <span class="text-xs font-semibold uppercase tracking-widest text-civic-slate mr-2">Grade Scale</span>
+          {[
+            { grade: 'A', range: '90–100', color: 'bg-emerald-100 text-emerald-800 border-emerald-300' },
+            { grade: 'B', range: '80–89', color: 'bg-lime-100 text-lime-800 border-lime-300' },
+            { grade: 'C', range: '70–79', color: 'bg-yellow-100 text-yellow-800 border-yellow-300' },
+            { grade: 'D', range: '60–69', color: 'bg-orange-100 text-orange-800 border-orange-300' },
+            { grade: 'F', range: 'Below 60', color: 'bg-red-100 text-red-800 border-red-300' },
+          ].map(g => (
+            <div class="flex items-center gap-1.5">
+              <span class={`inline-flex items-center justify-center w-7 h-7 rounded-full border-2 font-display font-bold text-sm ${g.color}`}>
+                {g.grade}
+              </span>
+              <span class="text-xs text-slate-500">{g.range}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+
+    <div class="max-w-5xl mx-auto px-4 py-10 flex flex-col gap-14">
+
+      <!-- Leaderboard tabs / filters (client-side JS will power these) -->
+      <section aria-labelledby="leaderboards-heading">
+        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6 pb-2 border-b border-slate-200">
+          <h2 id="leaderboards-heading" class="text-xl font-display text-civic-navy">
+            Ranked Leaderboards
+          </h2>
+
+          <!-- Filter tabs -->
+          <div
+            class="flex gap-1 bg-slate-100 rounded-lg p-1 text-sm font-medium"
+            role="tablist"
+            aria-label="Leaderboard filters"
+            id="leaderboard-tabs"
+          >
+            {['All', 'Senate', 'House', 'Democrat', 'Republican'].map((tab, i) => (
+              <button
+                type="button"
+                role="tab"
+                data-tab={tab.toLowerCase()}
+                aria-selected={i === 0}
+                class={`px-3 py-1.5 rounded-md transition-colors ${
+                  i === 0
+                    ? 'bg-white shadow-sm text-civic-navy'
+                    : 'text-civic-slate hover:text-civic-navy'
+                }`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <!-- Loading state / placeholder — replaced by client JS -->
+        <div id="leaderboard-container" aria-live="polite">
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4" id="leaderboard-grid">
+
+            <!-- Skeleton cards shown before JS loads -->
+            {Array.from({ length: 9 }).map((_, i) => (
+              <div class="rounded-lg border border-slate-200 bg-white p-4 animate-pulse">
+                <div class="flex items-center gap-3 mb-3">
+                  <div class="w-10 h-10 rounded-full bg-slate-200 shrink-0"></div>
+                  <div class="flex-1 space-y-2">
+                    <div class="h-3 bg-slate-200 rounded w-3/4"></div>
+                    <div class="h-2.5 bg-slate-100 rounded w-1/2"></div>
+                  </div>
+                  <div class="w-9 h-9 rounded-full bg-slate-200 shrink-0"></div>
+                </div>
+                <div class="h-2 bg-slate-100 rounded w-full"></div>
+              </div>
+            ))}
+          </div>
+
+          <p class="text-center text-xs text-slate-400 mt-4" id="leaderboard-status">
+            Loading scores&hellip;
+          </p>
+        </div>
+      </section>
+
+      <!-- By State section -->
+      <section aria-labelledby="by-state-heading">
+        <h2 id="by-state-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
+          Average Score by State
+        </h2>
+        <p class="text-xs text-civic-slate mb-6">
+          Average transparency score across all congressional delegates for each state.
+        </p>
+
+        <div id="state-scores-container" aria-live="polite">
+          <!-- Populated by client-side JS -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-6 gap-2" id="state-scores-grid">
+            {Array.from({ length: 50 }).map(() => (
+              <div class="rounded-lg border border-slate-100 bg-slate-50 p-3 text-center animate-pulse">
+                <div class="h-3 bg-slate-200 rounded w-8 mx-auto mb-2"></div>
+                <div class="h-5 bg-slate-200 rounded w-10 mx-auto"></div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      <!-- Methodology detail -->
+      <section aria-labelledby="methodology-heading">
+        <h2 id="methodology-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Scoring Methodology
+        </h2>
+
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {[
+            {
+              title: 'Financial Disclosure Compliance (30 pts)',
+              description:
+                'Annual financial disclosure reports are required by law. We check for timely filing, completeness, and accuracy against available cross-reference data from FEC filings and OpenSecrets.',
+            },
+            {
+              title: 'STOCK Act Timeliness (25 pts)',
+              description:
+                'The STOCK Act requires members of Congress to disclose stock trades within 45 days of the transaction. Points are deducted for each late disclosure or unreported trade identified via House and Senate disclosure databases.',
+            },
+            {
+              title: 'Donor Vote Alignment (30 pts)',
+              description:
+                'We cross-reference voting records with the known lobbying positions of each member\'s top donor industries. Higher alignment between donations received and votes cast results in a lower score.',
+            },
+            {
+              title: 'Active Conflict Alerts (15 pts)',
+              description:
+                'Active conflict-of-interest alerts — including undisclosed business relationships, family member lobbying, and regulatory decisions affecting personally held assets — reduce the score based on severity.',
+            },
+          ].map(item => (
+            <div class="rounded-lg border border-slate-200 bg-white p-5">
+              <h3 class="font-semibold text-civic-navy mb-2">{item.title}</h3>
+              <p class="text-sm text-slate-600 leading-relaxed">{item.description}</p>
+            </div>
+          ))}
+        </div>
+
+        <div class="mt-6 p-4 rounded-lg bg-slate-50 border border-slate-200">
+          <p class="text-xs text-slate-500 leading-relaxed">
+            <strong class="text-civic-slate">Data sources:</strong> FEC, Senate SOPR, House Clerk disclosures,
+            ProPublica Congress API, OpenSecrets, and GovGuide's own conflict detection pipeline.
+            Scores are recalculated weekly. Individual official profiles contain the full source citations
+            for each score component.
+          </p>
+        </div>
+      </section>
+
+    </div>
+  </main>
+</BaseLayout>
+
+<script>
+  // ── Grade helpers ──────────────────────────────────────────────────────────
+
+  type Grade = 'A' | 'B' | 'C' | 'D' | 'F';
+
+  function scoreToGrade(score: number): Grade {
+    if (score >= 90) return 'A';
+    if (score >= 80) return 'B';
+    if (score >= 70) return 'C';
+    if (score >= 60) return 'D';
+    return 'F';
+  }
+
+  const gradeColorMap: Record<Grade, string> = {
+    A: 'bg-emerald-100 text-emerald-800 border-emerald-300',
+    B: 'bg-lime-100 text-lime-800 border-lime-300',
+    C: 'bg-yellow-100 text-yellow-800 border-yellow-300',
+    D: 'bg-orange-100 text-orange-800 border-orange-300',
+    F: 'bg-red-100 text-red-800 border-red-300',
+  };
+
+  function partyColor(party: string): string {
+    if (party === 'D') return 'bg-blue-100 text-blue-800 border-blue-200';
+    if (party === 'R') return 'bg-red-100 text-red-800 border-red-200';
+    return 'bg-slate-100 text-slate-700 border-slate-200';
+  }
+
+  // ── Types ──────────────────────────────────────────────────────────────────
+
+  interface OfficialScore {
+    id: string;
+    name: string;
+    slug: string;
+    party: string;
+    title: string;
+    state: string;
+    chamber: string;
+    transparency_score: number;
+  }
+
+  // ── Render a score card ────────────────────────────────────────────────────
+
+  function renderCard(official: OfficialScore, rank: number): string {
+    const grade = scoreToGrade(official.transparency_score);
+    const gradeColors = gradeColorMap[grade];
+    const party = partyColor(official.party);
+
+    return `
+      <a
+        href="/officials/${official.slug}"
+        class="flex items-center gap-3 p-4 rounded-lg border border-slate-200 bg-white hover:border-civic-blue hover:shadow-sm transition-all"
+      >
+        <div class="shrink-0 w-6 text-center text-xs font-mono font-semibold text-slate-400">${rank}</div>
+        <div class="shrink-0 w-10 h-10 rounded-full bg-slate-100 flex items-center justify-center
+                    text-sm font-display font-bold text-slate-500">
+          ${official.name.charAt(0).toUpperCase()}
+        </div>
+        <div class="flex-1 min-w-0">
+          <div class="font-semibold text-slate-800 truncate">${official.name}</div>
+          <div class="flex items-center gap-1.5 mt-0.5">
+            <span class="text-xs text-slate-400">${official.state ?? ''}</span>
+            ${official.party ? `<span class="inline-flex px-1.5 py-0.5 rounded text-xs font-semibold border ${party}">${official.party}</span>` : ''}
+          </div>
+        </div>
+        <div class="shrink-0 flex items-center justify-center w-9 h-9 rounded-full border-2 font-display font-bold text-base ${gradeColors}">
+          ${grade}
+        </div>
+      </a>
+    `;
+  }
+
+  // ── Fetch and render leaderboard ───────────────────────────────────────────
+
+  const SUPABASE_URL = (import.meta as Record<string, Record<string, string>>).env?.PUBLIC_SUPABASE_URL ?? '';
+  const SUPABASE_ANON_KEY = (import.meta as Record<string, Record<string, string>>).env?.PUBLIC_SUPABASE_ANON_KEY ?? '';
+
+  let allOfficials: OfficialScore[] = [];
+
+  async function fetchScores(): Promise<void> {
+    try {
+      const params = new URLSearchParams({
+        select: 'id,name,slug,party,title,state,chamber,transparency_score',
+        order: 'transparency_score.desc',
+        limit: '100',
+        transparency_score: 'not.is.null',
+      });
+
+      const res = await fetch(
+        `${SUPABASE_URL}/rest/v1/officials?${params.toString()}`,
+        {
+          headers: {
+            apikey: SUPABASE_ANON_KEY,
+            Authorization: `Bearer ${SUPABASE_ANON_KEY}`,
+          },
+        }
+      );
+
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      allOfficials = (await res.json()) as OfficialScore[];
+      renderLeaderboard('all');
+      renderStateScores();
+    } catch {
+      const status = document.getElementById('leaderboard-status');
+      if (status) status.textContent = 'Scores unavailable — data is still being populated.';
+      const grid = document.getElementById('leaderboard-grid');
+      if (grid) grid.innerHTML = '';
+    }
+  }
+
+  function renderLeaderboard(filter: string): void {
+    const grid = document.getElementById('leaderboard-grid');
+    const status = document.getElementById('leaderboard-status');
+    if (!grid) return;
+
+    let filtered = allOfficials;
+    if (filter === 'senate') filtered = allOfficials.filter(o => o.chamber === 'senate');
+    else if (filter === 'house') filtered = allOfficials.filter(o => o.chamber === 'house');
+    else if (filter === 'democrat') filtered = allOfficials.filter(o => o.party === 'D');
+    else if (filter === 'republican') filtered = allOfficials.filter(o => o.party === 'R');
+
+    if (filtered.length === 0) {
+      grid.innerHTML = '';
+      if (status) status.textContent = 'No scores available for this filter.';
+      return;
+    }
+
+    grid.innerHTML = filtered.slice(0, 99).map((o, i) => renderCard(o, i + 1)).join('');
+    if (status) status.textContent = `Showing ${Math.min(filtered.length, 99)} of ${filtered.length} officials.`;
+  }
+
+  function renderStateScores(): void {
+    const container = document.getElementById('state-scores-grid');
+    if (!container || allOfficials.length === 0) return;
+
+    // Group by state and compute average
+    const stateMap = new Map<string, number[]>();
+    for (const o of allOfficials) {
+      if (!o.state) continue;
+      const existing = stateMap.get(o.state) ?? [];
+      existing.push(o.transparency_score);
+      stateMap.set(o.state, existing);
+    }
+
+    const entries = Array.from(stateMap.entries())
+      .map(([state, scores]) => ({
+        state,
+        avg: Math.round(scores.reduce((a, b) => a + b, 0) / scores.length),
+      }))
+      .sort((a, b) => b.avg - a.avg);
+
+    container.innerHTML = entries
+      .map(({ state, avg }) => {
+        const grade = scoreToGrade(avg);
+        const colors = gradeColorMap[grade];
+        return `
+          <div class="rounded-lg border border-slate-200 bg-white p-3 text-center">
+            <div class="text-xs font-mono font-semibold text-slate-500 mb-1">${state}</div>
+            <div class="inline-flex items-center justify-center w-8 h-8 rounded-full border-2 font-display font-bold text-sm ${colors}">
+              ${grade}
+            </div>
+            <div class="text-xs text-slate-400 mt-1">${avg}/100</div>
+          </div>
+        `;
+      })
+      .join('');
+  }
+
+  // ── Tab interaction ────────────────────────────────────────────────────────
+
+  document.getElementById('leaderboard-tabs')?.addEventListener('click', (e: Event) => {
+    const btn = (e.target as HTMLElement).closest('[data-tab]') as HTMLButtonElement | null;
+    if (!btn) return;
+
+    document.querySelectorAll('[role="tab"]').forEach(t => {
+      t.setAttribute('aria-selected', 'false');
+      t.classList.remove('bg-white', 'shadow-sm', 'text-civic-navy');
+      t.classList.add('text-civic-slate');
+    });
+
+    btn.setAttribute('aria-selected', 'true');
+    btn.classList.add('bg-white', 'shadow-sm', 'text-civic-navy');
+    btn.classList.remove('text-civic-slate');
+
+    renderLeaderboard(btn.dataset['tab'] ?? 'all');
+  });
+
+  // ── Init ───────────────────────────────────────────────────────────────────
+
+  fetchScores();
+</script>

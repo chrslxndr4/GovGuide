@@ -1,21 +1,169 @@
 ---
-const navItems = [
-  { label: 'Federal', href: '/federal' },
-  { label: 'States', href: '/states' },
-  { label: 'Elections', href: '/elections' },
-  { label: 'Laws', href: '/laws' },
-  { label: 'Officials', href: '/officials' },
+const pillars = [
+  {
+    label: 'Navigate',
+    items: [
+      { label: 'Federal', href: '/federal' },
+      { label: 'States', href: '/states' },
+      { label: 'Counties & Cities', href: '/counties-cities' },
+      { label: 'Officials', href: '/officials' },
+      { label: 'Elections', href: '/elections' },
+      { label: 'Agencies', href: '/agencies' },
+    ],
+  },
+  {
+    label: 'Follow the Money',
+    items: [
+      { label: 'Money Graph', href: '/money/graph' },
+      { label: 'Dark Money', href: '/money/dark-money' },
+      { label: 'Lobbying', href: '/money/lobbying' },
+      { label: 'Stock Tracker', href: '/money/stocks' },
+      { label: 'Corporate Influence', href: '/money/corporate' },
+    ],
+  },
+  {
+    label: 'Connect the Dots',
+    items: [
+      { label: 'Conflicts', href: '/connect/conflicts' },
+      { label: 'Judicial', href: '/connect/judicial' },
+      { label: 'Predictions', href: '/connect/predictions' },
+      { label: 'Scorecards', href: '/connect/scorecards' },
+      { label: 'Local Guide', href: '/connect/local' },
+    ],
+  },
 ];
 ---
-<header class="bg-civic-navy text-white">
+
+<header class="bg-civic-navy text-white relative z-50">
   <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-    <a href="/" class="font-display text-2xl font-bold tracking-tight">GovGuide</a>
-    <nav class="hidden md:flex gap-6">
-      {navItems.map(item => (
-        <a href={item.href} class="text-sm font-medium text-slate-300 hover:text-white transition-colors">
-          {item.label}
-        </a>
+
+    <!-- Wordmark -->
+    <a href="/" class="font-display text-2xl font-bold tracking-tight shrink-0">GovGuide</a>
+
+    <!-- Desktop nav -->
+    <nav class="hidden md:flex items-center gap-1" aria-label="Primary navigation">
+
+      <!-- Three-pillar dropdowns -->
+      {pillars.map(pillar => (
+        <div class="group relative">
+          <button
+            class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-slate-300 hover:text-white rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
+            aria-haspopup="true"
+            aria-expanded="false"
+          >
+            {pillar.label}
+            <!-- Chevron -->
+            <svg
+              class="w-3.5 h-3.5 mt-px opacity-60 transition-transform duration-200 group-hover:rotate-180"
+              viewBox="0 0 12 12"
+              fill="none"
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+            >
+              <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+          </button>
+
+          <!-- Dropdown panel -->
+          <div
+            class="absolute left-0 top-full mt-1 w-52 rounded-lg shadow-xl ring-1 ring-black/20
+                   bg-[#1B2A4A] border border-white/10
+                   opacity-0 invisible translate-y-1
+                   group-hover:opacity-100 group-hover:visible group-hover:translate-y-0
+                   transition-all duration-200 ease-out"
+            role="menu"
+          >
+            <ul class="py-1.5">
+              {pillar.items.map(item => (
+                <li role="none">
+                  <a
+                    href={item.href}
+                    role="menuitem"
+                    class="block px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
       ))}
+
+      <!-- Divider -->
+      <span class="mx-2 h-5 w-px bg-white/20" aria-hidden="true"></span>
+
+      <!-- My Government direct link -->
+      <a
+        href="/my-government"
+        class="px-3 py-2 text-sm font-medium text-slate-300 hover:text-white rounded transition-colors"
+      >
+        My Government
+      </a>
+
+      <!-- Search -->
+      <a
+        href="/search"
+        class="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-300 hover:text-white rounded transition-colors"
+        aria-label="Search"
+      >
+        <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/>
+          <path d="M10 10l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
+        </svg>
+        Search
+      </a>
+    </nav>
+
+    <!-- Mobile: hamburger toggle (CSS-only via checkbox hack) -->
+    <label
+      for="mobile-menu-toggle"
+      class="md:hidden flex flex-col justify-center items-center w-9 h-9 cursor-pointer gap-1.5"
+      aria-label="Toggle mobile menu"
+    >
+      <span class="block w-5 h-0.5 bg-slate-300 rounded transition-all"></span>
+      <span class="block w-5 h-0.5 bg-slate-300 rounded transition-all"></span>
+      <span class="block w-5 h-0.5 bg-slate-300 rounded transition-all"></span>
+    </label>
+    <input type="checkbox" id="mobile-menu-toggle" class="peer sr-only" aria-hidden="true" />
+
+  </div>
+
+  <!-- Mobile drawer — shown via peer-checked, hidden by default -->
+  <div
+    class="md:hidden max-h-0 overflow-hidden peer-checked:max-h-screen transition-all duration-300 ease-in-out border-t border-white/10"
+    id="mobile-menu"
+    aria-label="Mobile navigation"
+  >
+    <nav class="px-4 py-4 flex flex-col gap-4">
+
+      {pillars.map(pillar => (
+        <div>
+          <p class="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">{pillar.label}</p>
+          <ul class="flex flex-col gap-0.5">
+            {pillar.items.map(item => (
+              <li>
+                <a
+                  href={item.href}
+                  class="block py-1.5 text-sm text-slate-300 hover:text-white transition-colors"
+                >
+                  {item.label}
+                </a>
+              </li>
+            ))}
+          </ul>
+        </div>
+      ))}
+
+      <div class="border-t border-white/10 pt-4 flex flex-col gap-0.5">
+        <a href="/my-government" class="block py-1.5 text-sm font-medium text-slate-300 hover:text-white transition-colors">
+          My Government
+        </a>
+        <a href="/search" class="block py-1.5 text-sm font-medium text-slate-300 hover:text-white transition-colors">
+          Search
+        </a>
+      </div>
+
     </nav>
   </div>
 </header>
