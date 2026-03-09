@@ -1,16 +1,34 @@
 import { BasePipeline } from './base.js';
 import type { PipelineResult } from '../../src/lib/types/api-clients.js';
 
-// Pipeline registry — import and register pipelines as they're built
+import { FECCommitteesPipeline } from './pipelines/fec-committees.js';
+import { FECContributionsPipeline } from './pipelines/fec-contributions.js';
+import { FECIndependentExpendituresPipeline } from './pipelines/fec-independent-expenditures.js';
+import { CongressMembersPipeline } from './pipelines/congress-members.js';
+import { CongressBillsPipeline } from './pipelines/congress-bills.js';
+import { CongressVotesPipeline } from './pipelines/congress-votes.js';
+import { LobbyingPipeline } from './pipelines/lobbying.js';
+import { CourtListenerJudgesPipeline } from './pipelines/courtlistener-judges.js';
+import { StockTradesPipeline } from './pipelines/stock-trades.js';
+import { PredictionMarketsPipeline } from './pipelines/prediction-markets.js';
+import { PollingPipeline } from './pipelines/polling.js';
+import { FederalRegisterPipeline } from './pipelines/federal-register.js';
+import { USASpendingPipeline } from './pipelines/usaspending.js';
+
 const PIPELINES: Record<string, () => BasePipeline> = {
-  // Phase 3+: pipelines registered here as they're built
-  // 'fec-committees': () => new FECCommitteesPipeline(),
-  // 'fec-contributions': () => new FECContributionsPipeline(),
-  // 'congress-members': () => new CongressMembersPipeline(),
-  // 'congress-bills': () => new CongressBillsPipeline(),
-  // 'lobbying': () => new LobbyingPipeline(),
-  // 'courtlistener-judges': () => new CourtListenerJudgesPipeline(),
-  // 'prediction-markets': () => new PredictionMarketsPipeline(),
+  'fec-committees': () => new FECCommitteesPipeline(),
+  'fec-contributions': () => new FECContributionsPipeline(),
+  'fec-independent-expenditures': () => new FECIndependentExpendituresPipeline(),
+  'congress-members': () => new CongressMembersPipeline(),
+  'congress-bills': () => new CongressBillsPipeline(),
+  'congress-votes': () => new CongressVotesPipeline(),
+  'lobbying': () => new LobbyingPipeline(),
+  'courtlistener-judges': () => new CourtListenerJudgesPipeline(),
+  'stock-trades': () => new StockTradesPipeline(),
+  'prediction-markets': () => new PredictionMarketsPipeline(),
+  'polling': () => new PollingPipeline(),
+  'federal-register': () => new FederalRegisterPipeline(),
+  'usaspending': () => new USASpendingPipeline(),
 };
 
 async function main() {
