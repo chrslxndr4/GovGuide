@@ -16,7 +16,12 @@
     "import:congress": "npx tsx --env-file=.env scripts/import-congress-members.ts",
     "import:eos": "npx tsx --env-file=.env scripts/import-executive-orders.ts",
     "import:federal-laws": "npx tsx --env-file=.env scripts/import-federal-law-sources.ts",
-    "import:federal": "npm run import:agencies && npm run import:congress && npm run import:eos && npm run import:federal-laws"
+    "import:federal": "npm run import:agencies && npm run import:congress && npm run import:eos && npm run import:federal-laws",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "pipeline": "tsx scripts/pipeline/run.ts",
+    "pipeline:all": "tsx scripts/pipeline/run.ts --all",
+    "pipeline:list": "tsx scripts/pipeline/run.ts --list"
   },
   "dependencies": {
     "@astrojs/node": "^9.5.4",
@@ -24,17 +29,31 @@
     "@astrojs/tailwind": "^6.0.2",
     "@supabase/supabase-js": "^2.98.0",
     "astro": "^5.17.1",
+    "chart.js": "^4.5.1",
+    "cytoscape": "^3.33.1",
+    "d3": "^7.9.0",
+    "d3-sankey": "^0.12.3",
+    "graphology": "^0.26.0",
+    "graphology-layout-forceatlas2": "^0.10.1",
     "maplibre-gl": "^5.19.0",
     "pmtiles": "^4.4.0",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4"
+    "react-chartjs-2": "^5.3.1",
+    "react-dom": "^19.2.4",
+    "sigma": "^3.0.2"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@types/cytoscape": "^3.21.9",
+    "@types/d3": "^7.4.3",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "dotenv": "^17.3.1",
+    "jsdom": "^28.1.0",
     "tailwindcss": "^3.4.19",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vitest": "^4.0.18"
   }
 }
