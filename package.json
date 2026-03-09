@@ -6,7 +6,17 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "import:states": "npx tsx --env-file=.env scripts/import-states.ts",
+    "import:counties": "npx tsx --env-file=.env scripts/import-counties.ts",
+    "import:cities": "npx tsx --env-file=.env scripts/import-cities.ts",
+    "import:zips": "npx tsx --env-file=.env scripts/import-zip-crosswalk.ts",
+    "import:geo": "npm run import:states && npm run import:counties && npm run import:cities && npm run import:zips",
+    "import:agencies": "npx tsx --env-file=.env scripts/import-agencies.ts",
+    "import:congress": "npx tsx --env-file=.env scripts/import-congress-members.ts",
+    "import:eos": "npx tsx --env-file=.env scripts/import-executive-orders.ts",
+    "import:federal-laws": "npx tsx --env-file=.env scripts/import-federal-law-sources.ts",
+    "import:federal": "npm run import:agencies && npm run import:congress && npm run import:eos && npm run import:federal-laws"
   },
   "dependencies": {
     "@astrojs/node": "^9.5.4",
@@ -22,7 +32,9 @@
   "devDependencies": {
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
+    "dotenv": "^17.3.1",
     "tailwindcss": "^3.4.19",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }
