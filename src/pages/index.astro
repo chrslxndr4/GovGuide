@@ -1,11 +1,63 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
+import GovMap from '../components/map/GovMap';
+import ZipSearch from '../components/ZipSearch';
+import CategoryCard from '../components/CategoryCard.astro';
 ---
 <BaseLayout title="Home">
-  <main class="flex-1 flex items-center justify-center">
-    <div class="text-center">
-      <h1 class="text-5xl font-display text-civic-navy mb-4">GovGuide</h1>
-      <p class="text-xl text-civic-slate">Your complete guide to American government.</p>
-    </div>
+  <main class="flex-1">
+    <!-- Hero Section -->
+    <section class="bg-civic-navy text-white py-8 px-4">
+      <div class="max-w-7xl mx-auto text-center mb-6">
+        <h1 class="text-4xl md:text-5xl font-display font-bold mb-3">Know Your Government</h1>
+        <p class="text-lg text-slate-300 max-w-2xl mx-auto mb-6">
+          Every official, every agency, every law — from the White House to your city hall.
+        </p>
+        <ZipSearch client:load />
+      </div>
+    </section>
+
+    <!-- Map Section -->
+    <section class="max-w-7xl mx-auto px-4 -mt-4">
+      <GovMap client:load />
+    </section>
+
+    <!-- Category Grid -->
+    <section class="max-w-7xl mx-auto px-4 py-12">
+      <h2 class="text-2xl font-display text-civic-navy mb-6">Explore</h2>
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        <CategoryCard
+          title="Federal Government"
+          description="Three branches, cabinet departments, agencies, and officials"
+          href="/federal"
+        />
+        <CategoryCard
+          title="State Governments"
+          description="All 50 states — governors, legislators, agencies, and courts"
+          href="/states"
+          count={50}
+        />
+        <CategoryCard
+          title="Elections & Voting"
+          description="Register to vote, track your ballot, find your candidates"
+          href="/elections"
+        />
+        <CategoryCard
+          title="Follow the Money"
+          description="Campaign finance, lobbying, dark money, and donor networks"
+          href="/money"
+        />
+        <CategoryCard
+          title="Officials Directory"
+          description="Find your elected officials at every level of government"
+          href="/officials"
+        />
+        <CategoryCard
+          title="Connect the Dots"
+          description="Conflicts of interest, judicial transparency, and voting analysis"
+          href="/connections"
+        />
+      </div>
+    </section>
   </main>
 </BaseLayout>
