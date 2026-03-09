@@ -10,3 +10,23 @@
     @apply font-display font-bold tracking-tight;
   }
 }
+
+@layer utilities {
+  .high-contrast {
+    --civic-navy: #000000;
+    --civic-blue: #0000EE;
+    --civic-slate: #333333;
+    --civic-light: #FFFFFF;
+  }
+  .high-contrast * {
+    border-color: currentColor !important;
+  }
+  .high-contrast .bg-civic-navy {
+    @apply bg-black;
+  }
+  .high-contrast .text-slate-300,
+  .high-contrast .text-slate-400,
+  .high-contrast .text-slate-500 {
+    @apply text-gray-800;
+  }
+}
