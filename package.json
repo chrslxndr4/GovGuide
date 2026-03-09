@@ -16,7 +16,10 @@
     "import:congress": "npx tsx --env-file=.env scripts/import-congress-members.ts",
     "import:eos": "npx tsx --env-file=.env scripts/import-executive-orders.ts",
     "import:federal-laws": "npx tsx --env-file=.env scripts/import-federal-law-sources.ts",
-    "import:federal": "npm run import:agencies && npm run import:congress && npm run import:eos && npm run import:federal-laws"
+    "import:federal": "npm run import:agencies && npm run import:congress && npm run import:eos && npm run import:federal-laws",
+    "import:state-officials": "npx tsx --env-file=.env scripts/import-state-officials.ts",
+    "import:election-services": "npx tsx --env-file=.env scripts/import-election-services.ts",
+    "import:state-laws": "npx tsx --env-file=.env scripts/import-state-law-sources.ts"
   },
   "dependencies": {
     "@astrojs/node": "^9.5.4",
