@@ -1,0 +1,340 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import { supabase } from '../../lib/supabase';
+
+interface Office {
+  id: string;
+  title: string;
+  branch: string;
+  chamber: string | null;
+  district: string | null;
+}
+
+interface Official {
+  id: string;
+  full_name: string;
+  slug: string;
+  party: string | null;
+  offices: Office;
+}
+
+type PartyKey = 'democratic' | 'republican' | 'independent' | 'libertarian' | 'green' | 'other';
+
+interface PartyBreakdown {
+  democratic: number;
+  republican: number;
+  independent: number;
+  libertarian: number;
+  green: number;
+  other: number;
+}
+
+// Fetch federal jurisdiction
+const { data: jurisdiction } = await supabase
+  .from('jurisdictions')
+  .select('id')
+  .eq('slug', 'usa')
+  .single();
+
+const federalId = jurisdiction?.id ?? null;
+
+// Fetch Senate offices
+const { data: senateOfficeRows } = await supabase
+  .from('offices')
+  .select('id, title, branch, chamber, district')
+  .eq('jurisdiction_id', federalId ?? '')
+  .eq('chamber', 'senate');
+
+const senateOfficeIds = senateOfficeRows?.map((o) => o.id) ?? [];
+
+// Fetch House offices
+const { data: houseOfficeRows } = await supabase
+  .from('offices')
+  .select('id, title, branch, chamber, district')
+  .eq('jurisdiction_id', federalId ?? '')
+  .eq('chamber', 'house');
+
+const houseOfficeIds = houseOfficeRows?.map((o) => o.id) ?? [];
+
+// Fetch senators
+const { data: senatorData } = await supabase
+  .from('officials')
+  .select('id, full_name, slug, party, offices(id, title, branch, chamber, district)')
+  .in('office_id', senateOfficeIds.length > 0 ? senateOfficeIds : [''])
+  .eq('is_current', true)
+  .order('last_name');
+
+// Fetch representatives
+const { data: representativeData } = await supabase
+  .from('officials')
+  .select('id, full_name, slug, party, offices(id, title, branch, chamber, district)')
+  .in('office_id', houseOfficeIds.length > 0 ? houseOfficeIds : [''])
+  .eq('is_current', true)
+  .order('last_name');
+
+const senators = (senatorData ?? []) as unknown as Official[];
+const representatives = (representativeData ?? []) as unknown as Official[];
+
+function buildPartyBreakdown(officials: Official[]): PartyBreakdown {
+  const breakdown: PartyBreakdown = {
+    democratic: 0,
+    republican: 0,
+    independent: 0,
+    libertarian: 0,
+    green: 0,
+    other: 0,
+  };
+  for (const official of officials) {
+    const key = (official.party ?? 'other') as PartyKey;
+    if (key in breakdown) {
+      breakdown[key]++;
+    } else {
+      breakdown.other++;
+    }
+  }
+  return breakdown;
+}
+
+const senateBreakdown = buildPartyBreakdown(senators);
+const houseBreakdown = buildPartyBreakdown(representatives);
+
+function formatParty(party: string | null): string {
+  if (!party) return 'Unknown';
+  return party.charAt(0).toUpperCase() + party.slice(1);
+}
+
+function partyColor(party: string | null): string {
+  switch (party) {
+    case 'democratic':
+      return 'text-blue-700 bg-blue-50';
+    case 'republican':
+      return 'text-red-700 bg-red-50';
+    case 'independent':
+      return 'text-purple-700 bg-purple-50';
+    default:
+      return 'text-slate-700 bg-slate-100';
+  }
+}
+
+// Group senators by state (district field holds state abbreviation for senators)
+const senatorsByState = senators.reduce<Record<string, Official[]>>((acc, senator) => {
+  const state = senator.offices?.district ?? 'Unknown';
+  if (!acc[state]) acc[state] = [];
+  acc[state].push(senator);
+  return acc;
+}, {});
+
+const sortedStates = Object.keys(senatorsByState).sort();
+---
+
+<BaseLayout
+  title="Legislative Branch"
+  description="The United States Congress — the Senate and House of Representatives that write and pass federal law."
+>
+  <main class="flex-1">
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-7xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Federal', href: '/federal' },
+            { label: 'Legislative Branch' },
+          ]}
+        />
+        <h1 class="text-4xl md:text-5xl font-display font-bold mb-3">
+          Legislative Branch
+        </h1>
+        <p class="text-lg text-slate-300 max-w-2xl">
+          The United States Congress is the legislative branch of the federal
+          government, composed of two chambers: the Senate (100 members) and the
+          House of Representatives (435 voting members).
+        </p>
+      </div>
+    </section>
+
+    <!-- Party breakdown summary -->
+    <section class="max-w-7xl mx-auto px-4 py-8">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <!-- Senate breakdown -->
+        <div class="bg-white rounded-lg border border-slate-200 p-5">
+          <h2 class="font-display text-lg text-civic-navy mb-3">
+            Senate Composition
+          </h2>
+          <p class="text-xs text-civic-slate mb-3">
+            {senators.length} current senator{senators.length !== 1 ? 's' : ''} on record
+          </p>
+          {senators.length > 0 ? (
+            <div class="flex flex-wrap gap-2">
+              {senateBreakdown.democratic > 0 && (
+                <span class="text-sm font-mono px-3 py-1 rounded bg-blue-50 text-blue-700">
+                  Dem {senateBreakdown.democratic}
+                </span>
+              )}
+              {senateBreakdown.republican > 0 && (
+                <span class="text-sm font-mono px-3 py-1 rounded bg-red-50 text-red-700">
+                  Rep {senateBreakdown.republican}
+                </span>
+              )}
+              {senateBreakdown.independent > 0 && (
+                <span class="text-sm font-mono px-3 py-1 rounded bg-purple-50 text-purple-700">
+                  Ind {senateBreakdown.independent}
+                </span>
+              )}
+              {senateBreakdown.other > 0 && (
+                <span class="text-sm font-mono px-3 py-1 rounded bg-slate-100 text-civic-slate">
+                  Other {senateBreakdown.other}
+                </span>
+              )}
+            </div>
+          ) : (
+            <p class="text-sm text-civic-slate">No data yet.</p>
+          )}
+        </div>
+
+        <!-- House breakdown -->
+        <div class="bg-white rounded-lg border border-slate-200 p-5">
+          <h2 class="font-display text-lg text-civic-navy mb-3">
+            House Composition
+          </h2>
+          <p class="text-xs text-civic-slate mb-3">
+            {representatives.length} current representative{representatives.length !== 1 ? 's' : ''} on record
+          </p>
+          {representatives.length > 0 ? (
+            <div class="flex flex-wrap gap-2">
+              {houseBreakdown.democratic > 0 && (
+                <span class="text-sm font-mono px-3 py-1 rounded bg-blue-50 text-blue-700">
+                  Dem {houseBreakdown.democratic}
+                </span>
+              )}
+              {houseBreakdown.republican > 0 && (
+                <span class="text-sm font-mono px-3 py-1 rounded bg-red-50 text-red-700">
+                  Rep {houseBreakdown.republican}
+                </span>
+              )}
+              {houseBreakdown.independent > 0 && (
+                <span class="text-sm font-mono px-3 py-1 rounded bg-purple-50 text-purple-700">
+                  Ind {houseBreakdown.independent}
+                </span>
+              )}
+              {houseBreakdown.other > 0 && (
+                <span class="text-sm font-mono px-3 py-1 rounded bg-slate-100 text-civic-slate">
+                  Other {houseBreakdown.other}
+                </span>
+              )}
+            </div>
+          ) : (
+            <p class="text-sm text-civic-slate">No data yet.</p>
+          )}
+        </div>
+      </div>
+    </section>
+
+    <!-- Senate -->
+    <section class="max-w-7xl mx-auto px-4 pb-10">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">
+        United States Senate
+      </h2>
+      <p class="text-civic-slate text-sm mb-6">
+        100 senators — two from each state — serve six-year terms. The Senate
+        confirms presidential appointments and ratifies treaties.
+      </p>
+
+      {senators.length > 0 ? (
+        <div class="space-y-4">
+          {sortedStates.map((state) => (
+            <div class="bg-white rounded-lg border border-slate-200 overflow-hidden">
+              <div class="px-5 py-2 bg-slate-50 border-b border-slate-200">
+                <h3 class="font-mono text-sm font-medium text-civic-slate uppercase tracking-wider">
+                  {state}
+                </h3>
+              </div>
+              <div class="divide-y divide-slate-100">
+                {senatorsByState[state].map((senator) => (
+                  <a
+                    href={`/officials/${senator.slug}`}
+                    class="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors group"
+                  >
+                    <span class="font-medium text-civic-navy group-hover:text-civic-blue transition-colors">
+                      {senator.full_name}
+                    </span>
+                    {senator.party && (
+                      <span class={`text-xs font-mono px-2 py-0.5 rounded ${partyColor(senator.party)}`}>
+                        {formatParty(senator.party)}
+                      </span>
+                    )}
+                  </a>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      ) : (
+        <div class="bg-white border border-slate-200 rounded-lg p-6 text-center text-civic-slate text-sm">
+          Senate member data is not yet available. Visit{' '}
+          <a
+            href="https://www.senate.gov/senators/"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-civic-blue hover:underline"
+          >
+            senate.gov
+          </a>{' '}
+          for current membership information.
+        </div>
+      )}
+    </section>
+
+    <!-- House of Representatives -->
+    <section class="max-w-7xl mx-auto px-4 pb-12">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">
+        House of Representatives
+      </h2>
+      <p class="text-civic-slate text-sm mb-6">
+        435 voting representatives serve two-year terms in districts
+        apportioned by state population. The House originates all revenue bills
+        and has the sole power of impeachment.
+      </p>
+
+      {representatives.length > 0 ? (
+        <div class="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
+          {representatives.map((rep) => (
+            <a
+              href={`/officials/${rep.slug}`}
+              class="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors group"
+            >
+              <div class="flex items-center gap-3 min-w-0">
+                <span class="font-medium text-civic-navy group-hover:text-civic-blue transition-colors truncate">
+                  {rep.full_name}
+                </span>
+                {rep.offices?.district && (
+                  <span class="text-xs text-civic-slate flex-shrink-0">
+                    District {rep.offices.district}
+                  </span>
+                )}
+              </div>
+              {rep.party && (
+                <span class={`text-xs font-mono px-2 py-0.5 rounded flex-shrink-0 ${partyColor(rep.party)}`}>
+                  {formatParty(rep.party)}
+                </span>
+              )}
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div class="bg-white border border-slate-200 rounded-lg p-6 text-center text-civic-slate text-sm">
+          House member data is not yet available. Visit{' '}
+          <a
+            href="https://www.house.gov/representatives"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="text-civic-blue hover:underline"
+          >
+            house.gov
+          </a>{' '}
+          for current membership information.
+        </div>
+      )}
+    </section>
+  </main>
+</BaseLayout>

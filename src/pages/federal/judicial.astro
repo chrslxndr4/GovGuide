@@ -1,0 +1,314 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import InfoBlock from '../../components/InfoBlock.astro';
+import { supabase } from '../../lib/supabase';
+
+interface Office {
+  id: string;
+  title: string;
+  branch: string;
+}
+
+interface Official {
+  id: string;
+  full_name: string;
+  slug: string;
+  party: string | null;
+  term_start: string | null;
+  offices: Office;
+}
+
+// Fetch federal jurisdiction
+const { data: jurisdiction } = await supabase
+  .from('jurisdictions')
+  .select('id')
+  .eq('slug', 'usa')
+  .single();
+
+const federalId = jurisdiction?.id ?? null;
+
+// Fetch judicial branch offices
+const { data: judicialOffices } = await supabase
+  .from('offices')
+  .select('id, title, branch')
+  .eq('jurisdiction_id', federalId ?? '')
+  .eq('branch', 'judicial');
+
+const judicialOfficeIds = judicialOffices?.map((o) => o.id) ?? [];
+
+// Fetch judicial branch officials (Supreme Court justices, etc.)
+const { data: judicialOfficials } = await supabase
+  .from('officials')
+  .select('id, full_name, slug, party, term_start, offices(id, title, branch)')
+  .in('office_id', judicialOfficeIds.length > 0 ? judicialOfficeIds : [''])
+  .eq('is_current', true)
+  .order('term_start');
+
+const justices = (judicialOfficials ?? []) as unknown as Official[];
+
+const supremeCourtJustices = justices.filter((j) =>
+  j.offices?.title?.toLowerCase().includes('supreme court') ||
+  j.offices?.title?.toLowerCase().includes('chief justice') ||
+  j.offices?.title?.toLowerCase().includes('associate justice')
+);
+
+const otherJudges = justices.filter(
+  (j) => !supremeCourtJustices.some((sc) => sc.id === j.id)
+);
+
+function formatYear(dateStr: string | null): string {
+  if (!dateStr) return 'Unknown';
+  return new Date(dateStr).getFullYear().toString();
+}
+
+interface CourtLevel {
+  name: string;
+  description: string;
+  count: string;
+  url: string;
+}
+
+const federalCourtLevels: CourtLevel[] = [
+  {
+    name: 'Supreme Court of the United States',
+    description:
+      'The highest court in the federal judiciary, with nine justices including the Chief Justice. It has appellate jurisdiction over all federal and state courts on matters of federal law.',
+    count: '9 justices',
+    url: 'https://www.supremecourt.gov',
+  },
+  {
+    name: 'United States Courts of Appeals',
+    description:
+      'Thirteen intermediate appellate courts organized into 12 regional circuits plus the Federal Circuit. They review decisions from district courts and federal agencies.',
+    count: '13 circuits',
+    url: 'https://www.uscourts.gov/about-federal-courts/court-role-and-structure/about-us-courts-appeals',
+  },
+  {
+    name: 'United States District Courts',
+    description:
+      'The general trial courts of the federal judiciary. There are 94 district courts across all 50 states, the District of Columbia, and U.S. territories.',
+    count: '94 districts',
+    url: 'https://www.uscourts.gov/about-federal-courts/court-role-and-structure/about-us-district-courts',
+  },
+  {
+    name: 'Specialized Federal Courts',
+    description:
+      'Courts with jurisdiction over specific subject matters, including the U.S. Bankruptcy Courts, U.S. Tax Court, U.S. Court of International Trade, and others.',
+    count: 'Various',
+    url: 'https://www.uscourts.gov/about-federal-courts/court-role-and-structure',
+  },
+];
+
+interface ExternalResource {
+  label: string;
+  url: string;
+  description: string;
+}
+
+const externalResources: ExternalResource[] = [
+  {
+    label: 'supremecourt.gov',
+    url: 'https://www.supremecourt.gov',
+    description: 'Official website of the Supreme Court of the United States — opinions, oral arguments, and docket.',
+  },
+  {
+    label: 'uscourts.gov',
+    url: 'https://www.uscourts.gov',
+    description: 'The federal court system — case search, court locator, and judicial statistics.',
+  },
+  {
+    label: 'PACER',
+    url: 'https://pacer.uscourts.gov',
+    description: 'Public Access to Court Electronic Records — search federal court case files.',
+  },
+  {
+    label: 'CourtListener',
+    url: 'https://www.courtlistener.com',
+    description: 'Free, open-source database of federal and state court opinions from the Free Law Project.',
+  },
+];
+---
+
+<BaseLayout
+  title="Judicial Branch"
+  description="The Judicial Branch of the United States federal government — the Supreme Court and the federal court system."
+>
+  <main class="flex-1">
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-7xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Federal', href: '/federal' },
+            { label: 'Judicial Branch' },
+          ]}
+        />
+        <h1 class="text-4xl md:text-5xl font-display font-bold mb-3">
+          Judicial Branch
+        </h1>
+        <p class="text-lg text-slate-300 max-w-2xl">
+          The federal judiciary interprets the Constitution and federal law.
+          Article III establishes the Supreme Court and authorizes Congress to
+          create lower federal courts. Federal judges serve lifetime
+          appointments, subject to good behavior.
+        </p>
+      </div>
+    </section>
+
+    <!-- Supreme Court -->
+    <section class="max-w-7xl mx-auto px-4 py-10">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">
+        Supreme Court of the United States
+      </h2>
+      <p class="text-civic-slate text-sm mb-6">
+        Nine justices — one Chief Justice and eight Associate Justices —
+        nominated by the President and confirmed by the Senate.
+      </p>
+
+      {supremeCourtJustices.length > 0 ? (
+        <div class="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
+          {supremeCourtJustices.map((justice) => (
+            <a
+              href={`/officials/${justice.slug}`}
+              class="flex items-center justify-between px-5 py-4 hover:bg-slate-50 transition-colors group"
+            >
+              <div>
+                <span class="font-medium text-civic-navy group-hover:text-civic-blue transition-colors block">
+                  {justice.full_name}
+                </span>
+                {justice.offices?.title && (
+                  <span class="text-xs text-civic-slate mt-0.5 block">
+                    {justice.offices.title}
+                  </span>
+                )}
+              </div>
+              {justice.term_start && (
+                <span class="text-xs font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded">
+                  Since {formatYear(justice.term_start)}
+                </span>
+              )}
+            </a>
+          ))}
+        </div>
+      ) : (
+        <div class="bg-white border border-slate-200 rounded-lg p-6">
+          <p class="text-civic-slate text-sm mb-4">
+            Supreme Court justice data is not yet loaded. The current court
+            consists of nine justices. Visit the official court website for
+            current membership.
+          </p>
+          <dl class="divide-y divide-slate-100">
+            <InfoBlock
+              label="Official Website"
+              value="supremecourt.gov"
+              href="https://www.supremecourt.gov/about/biographies.aspx"
+            />
+            <InfoBlock label="Justices" value="9 (1 Chief Justice + 8 Associate Justices)" />
+            <InfoBlock label="Appointment" value="Nominated by the President, confirmed by the Senate" />
+            <InfoBlock label="Term" value="Life tenure (subject to good behavior)" />
+          </dl>
+        </div>
+      )}
+
+      {otherJudges.length > 0 && (
+        <div class="mt-6">
+          <h3 class="font-display text-lg text-civic-navy mb-4">
+            Other Federal Judges
+          </h3>
+          <div class="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
+            {otherJudges.map((judge) => (
+              <a
+                href={`/officials/${judge.slug}`}
+                class="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors group"
+              >
+                <div>
+                  <span class="font-medium text-civic-navy group-hover:text-civic-blue transition-colors block">
+                    {judge.full_name}
+                  </span>
+                  {judge.offices?.title && (
+                    <span class="text-xs text-civic-slate">{judge.offices.title}</span>
+                  )}
+                </div>
+                {judge.term_start && (
+                  <span class="text-xs font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded">
+                    Since {formatYear(judge.term_start)}
+                  </span>
+                )}
+              </a>
+            ))}
+          </div>
+        </div>
+      )}
+    </section>
+
+    <!-- Federal Court System -->
+    <section class="max-w-7xl mx-auto px-4 pb-10">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">
+        The Federal Court System
+      </h2>
+      <p class="text-civic-slate text-sm mb-6">
+        The federal judiciary is organized into three main tiers, with
+        specialized courts handling specific subject areas.
+      </p>
+      <div class="space-y-4">
+        {federalCourtLevels.map((level, index) => (
+          <div class="bg-white rounded-lg border border-slate-200 p-5">
+            <div class="flex items-start justify-between gap-4">
+              <div class="flex items-start gap-4 min-w-0">
+                <span class="flex-shrink-0 w-7 h-7 rounded-full bg-civic-navy text-white text-xs font-mono flex items-center justify-center mt-0.5">
+                  {index + 1}
+                </span>
+                <div class="min-w-0">
+                  <h3 class="font-display text-base text-civic-navy mb-1">
+                    {level.name}
+                  </h3>
+                  <p class="text-sm text-civic-slate">{level.description}</p>
+                </div>
+              </div>
+              <div class="flex-shrink-0 text-right">
+                <span class="text-xs font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded block mb-2">
+                  {level.count}
+                </span>
+                <a
+                  href={level.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  class="text-xs text-civic-blue hover:underline whitespace-nowrap"
+                >
+                  Official site &rarr;
+                </a>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- External Resources -->
+    <section class="max-w-7xl mx-auto px-4 pb-12">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">
+        Court Resources
+      </h2>
+      <p class="text-civic-slate text-sm mb-6">
+        Official and public-interest resources for researching federal courts
+        and case law.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {externalResources.map((resource) => (
+          <a
+            href={resource.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="block p-5 bg-white rounded-lg border border-slate-200 hover:border-civic-blue hover:shadow-md transition-all group"
+          >
+            <h3 class="font-display text-base text-civic-navy group-hover:text-civic-blue transition-colors mb-1">
+              {resource.label}
+            </h3>
+            <p class="text-sm text-civic-slate">{resource.description}</p>
+          </a>
+        ))}
+      </div>
+    </section>
+  </main>
+</BaseLayout>

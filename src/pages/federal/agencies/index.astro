@@ -1,0 +1,194 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../../components/Breadcrumb.astro';
+import CategoryCard from '../../../components/CategoryCard.astro';
+import { supabase } from '../../../lib/supabase';
+
+interface Agency {
+  id: string;
+  name: string;
+  slug: string;
+  abbreviation: string | null;
+  agency_type: string;
+  description: string | null;
+  website: string | null;
+}
+
+type AgencyTypeKey =
+  | 'cabinet_department'
+  | 'independent_agency'
+  | 'executive_office'
+  | 'regulatory_commission'
+  | 'government_corporation'
+  | 'quasi_official'
+  | 'state_agency'
+  | 'county_agency'
+  | 'city_agency';
+
+const AGENCY_TYPE_LABELS: Record<AgencyTypeKey, string> = {
+  cabinet_department: 'Cabinet Departments',
+  independent_agency: 'Independent Agencies',
+  executive_office: 'Executive Office of the President',
+  regulatory_commission: 'Regulatory Commissions',
+  government_corporation: 'Government Corporations',
+  quasi_official: 'Quasi-Official Agencies',
+  state_agency: 'State Agencies',
+  county_agency: 'County Agencies',
+  city_agency: 'City Agencies',
+};
+
+const AGENCY_TYPE_DESCRIPTIONS: Record<AgencyTypeKey, string> = {
+  cabinet_department: 'The 15 executive departments led by Senate-confirmed Secretaries who report directly to the President.',
+  independent_agency: 'Agencies that operate outside the direct control of the Cabinet, with varying degrees of presidential oversight.',
+  executive_office: 'Offices within the Executive Office of the President that directly support White House operations.',
+  regulatory_commission: 'Independent commissions with regulatory authority over specific industries or activities.',
+  government_corporation: 'Federal entities that operate like businesses while serving public purposes.',
+  quasi_official: 'Entities with mixed public and private characteristics that receive federal support.',
+  state_agency: 'State-level government agencies.',
+  county_agency: 'County-level government agencies.',
+  city_agency: 'City-level government agencies.',
+};
+
+// Fetch federal jurisdiction
+const { data: jurisdiction } = await supabase
+  .from('jurisdictions')
+  .select('id')
+  .eq('slug', 'usa')
+  .single();
+
+const federalId = jurisdiction?.id ?? null;
+
+// Fetch all federal agencies
+const { data: agencyData } = await supabase
+  .from('agencies')
+  .select('id, name, slug, abbreviation, agency_type, description, website')
+  .eq('jurisdiction_id', federalId ?? '')
+  .order('name');
+
+const agencies = (agencyData ?? []) as Agency[];
+
+// Group by agency_type, only include federal-relevant types
+const federalTypes: AgencyTypeKey[] = [
+  'cabinet_department',
+  'executive_office',
+  'independent_agency',
+  'regulatory_commission',
+  'government_corporation',
+  'quasi_official',
+];
+
+type GroupedAgencies = Record<AgencyTypeKey, Agency[]>;
+
+const grouped = agencies.reduce<GroupedAgencies>((acc, agency) => {
+  const key = agency.agency_type as AgencyTypeKey;
+  if (!acc[key]) acc[key] = [];
+  acc[key].push(agency);
+  return acc;
+}, {} as GroupedAgencies);
+
+// Only show types that have agencies or are relevant federal types
+const typesWithAgencies = federalTypes.filter(
+  (type) => grouped[type]?.length > 0
+);
+const totalCount = agencies.length;
+---
+
+<BaseLayout
+  title="Federal Agencies"
+  description="Directory of all United States federal agencies — cabinet departments, independent agencies, regulatory commissions, and more."
+>
+  <main class="flex-1">
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-7xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Federal', href: '/federal' },
+            { label: 'Agencies' },
+          ]}
+        />
+        <h1 class="text-4xl md:text-5xl font-display font-bold mb-3">
+          Federal Agencies
+        </h1>
+        <p class="text-lg text-slate-300 max-w-2xl">
+          The executive branch of the federal government operates through
+          hundreds of departments, agencies, commissions, and corporations —
+          each with distinct missions and authorities.
+        </p>
+      </div>
+    </section>
+
+    <!-- Summary bar -->
+    <div class="bg-white border-b border-slate-200">
+      <div class="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center gap-4 text-sm text-civic-slate">
+        <span class="font-mono font-medium text-civic-navy">{totalCount} agencies</span>
+        {typesWithAgencies.map((type) => (
+          <a
+            href={`#${type}`}
+            class="hover:text-civic-blue transition-colors"
+          >
+            {AGENCY_TYPE_LABELS[type]} ({grouped[type]?.length ?? 0})
+          </a>
+        ))}
+        {typesWithAgencies.length === 0 && (
+          <span>Data loading in progress</span>
+        )}
+      </div>
+    </div>
+
+    <!-- Agency groups -->
+    <div class="max-w-7xl mx-auto px-4 py-10 space-y-12">
+      {typesWithAgencies.length > 0 ? (
+        typesWithAgencies.map((type) => (
+          <section id={type}>
+            <div class="flex items-baseline justify-between mb-2">
+              <h2 class="text-2xl font-display text-civic-navy">
+                {AGENCY_TYPE_LABELS[type]}
+              </h2>
+              <span class="text-xs font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded">
+                {grouped[type].length}
+              </span>
+            </div>
+            <p class="text-civic-slate text-sm mb-6">
+              {AGENCY_TYPE_DESCRIPTIONS[type]}
+            </p>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {grouped[type].map((agency) => (
+                <CategoryCard
+                  title={
+                    agency.abbreviation
+                      ? `${agency.name} (${agency.abbreviation})`
+                      : agency.name
+                  }
+                  description={
+                    agency.description ??
+                    `A federal ${AGENCY_TYPE_LABELS[type as AgencyTypeKey].toLowerCase().replace(/s$/, '')}.`
+                  }
+                  href={`/federal/agencies/${agency.slug}`}
+                />
+              ))}
+            </div>
+          </section>
+        ))
+      ) : (
+        <div class="bg-white border border-slate-200 rounded-lg p-8 text-center">
+          <p class="text-civic-slate text-sm mb-4">
+            Federal agency data is not yet available in the database.
+          </p>
+          <p class="text-civic-slate text-sm">
+            Visit{' '}
+            <a
+              href="https://www.usa.gov/federal-agencies"
+              target="_blank"
+              rel="noopener noreferrer"
+              class="text-civic-blue hover:underline"
+            >
+              usa.gov/federal-agencies
+            </a>{' '}
+            for a current listing of all federal agencies.
+          </p>
+        </div>
+      )}
+    </div>
+  </main>
+</BaseLayout>

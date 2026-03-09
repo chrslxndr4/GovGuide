@@ -1,0 +1,315 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import CategoryCard from '../../components/CategoryCard.astro';
+import InfoBlock from '../../components/InfoBlock.astro';
+import { supabase } from '../../lib/supabase';
+
+interface Office {
+  id: string;
+  title: string;
+  branch: string;
+  chamber: string | null;
+}
+
+interface Official {
+  id: string;
+  full_name: string;
+  slug: string;
+  party: string | null;
+  photo_url: string | null;
+  website: string | null;
+  offices: Office;
+}
+
+interface Agency {
+  id: string;
+  name: string;
+  slug: string;
+  abbreviation: string | null;
+  description: string | null;
+  website: string | null;
+}
+
+// Fetch federal jurisdiction
+const { data: jurisdiction } = await supabase
+  .from('jurisdictions')
+  .select('id')
+  .eq('slug', 'usa')
+  .single();
+
+const federalId = jurisdiction?.id ?? null;
+
+// Fetch executive branch officials (President, VP, Cabinet members)
+const { data: executiveOffices } = await supabase
+  .from('offices')
+  .select('id, title, branch, chamber')
+  .eq('jurisdiction_id', federalId ?? '')
+  .eq('branch', 'executive');
+
+const executiveOfficeIds = executiveOffices?.map((o) => o.id) ?? [];
+
+const { data: executiveOfficials } = await supabase
+  .from('officials')
+  .select('id, full_name, slug, party, photo_url, website, offices(id, title, branch, chamber)')
+  .in('office_id', executiveOfficeIds.length > 0 ? executiveOfficeIds : [''])
+  .eq('is_current', true)
+  .order('last_name');
+
+const officials = (executiveOfficials ?? []) as unknown as Official[];
+
+// Separate President and VP from the rest
+const president = officials.find((o) =>
+  o.offices?.title?.toLowerCase().includes('president') &&
+  !o.offices?.title?.toLowerCase().includes('vice')
+);
+const vicePresident = officials.find((o) =>
+  o.offices?.title?.toLowerCase().includes('vice president')
+);
+const cabinetOfficials = officials.filter(
+  (o) =>
+    o.id !== president?.id &&
+    o.id !== vicePresident?.id
+);
+
+// Fetch cabinet departments
+const { data: cabinetAgencies } = await supabase
+  .from('agencies')
+  .select('id, name, slug, abbreviation, description, website')
+  .eq('jurisdiction_id', federalId ?? '')
+  .eq('agency_type', 'cabinet_department')
+  .order('name');
+
+const departments = (cabinetAgencies ?? []) as Agency[];
+
+// Fetch executive office agencies
+const { data: executiveOfficeAgencies } = await supabase
+  .from('agencies')
+  .select('id, name, slug, abbreviation, description, website')
+  .eq('jurisdiction_id', federalId ?? '')
+  .eq('agency_type', 'executive_office')
+  .order('name');
+
+const executiveOfficesOfPresident = (executiveOfficeAgencies ?? []) as Agency[];
+
+function formatParty(party: string | null): string {
+  if (!party) return 'Unknown';
+  return party.charAt(0).toUpperCase() + party.slice(1);
+}
+---
+
+<BaseLayout
+  title="Executive Branch"
+  description="The Executive Branch of the United States federal government — the President, Vice President, Cabinet, and federal agencies."
+>
+  <main class="flex-1">
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-7xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Federal', href: '/federal' },
+            { label: 'Executive Branch' },
+          ]}
+        />
+        <h1 class="text-4xl md:text-5xl font-display font-bold mb-3">
+          Executive Branch
+        </h1>
+        <p class="text-lg text-slate-300 max-w-2xl">
+          Led by the President of the United States, the Executive Branch
+          enforces and implements federal law, commands the armed forces, and
+          conducts foreign policy through the Cabinet and federal agencies.
+        </p>
+      </div>
+    </section>
+
+    <!-- President & VP -->
+    <section class="max-w-7xl mx-auto px-4 py-10">
+      <h2 class="text-2xl font-display text-civic-navy mb-6">
+        President &amp; Vice President
+      </h2>
+      {president || vicePresident ? (
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {president && (
+            <div class="bg-white rounded-lg border border-slate-200 p-6">
+              <p class="text-xs font-medium text-civic-slate uppercase tracking-wider mb-1">
+                President
+              </p>
+              <h3 class="font-display text-xl text-civic-navy mb-3">
+                {president.full_name}
+              </h3>
+              <dl>
+                <InfoBlock label="Party" value={formatParty(president.party)} />
+                {president.website && (
+                  <InfoBlock
+                    label="Official Website"
+                    value={president.website}
+                    href={president.website}
+                  />
+                )}
+              </dl>
+              <a
+                href={`/officials/${president.slug}`}
+                class="inline-block mt-4 text-sm text-civic-blue hover:underline font-medium"
+              >
+                View full profile &rarr;
+              </a>
+            </div>
+          )}
+          {!president && (
+            <div class="bg-white rounded-lg border border-slate-200 p-6 flex items-center justify-center text-civic-slate text-sm">
+              President data not yet available.
+            </div>
+          )}
+          {vicePresident && (
+            <div class="bg-white rounded-lg border border-slate-200 p-6">
+              <p class="text-xs font-medium text-civic-slate uppercase tracking-wider mb-1">
+                Vice President
+              </p>
+              <h3 class="font-display text-xl text-civic-navy mb-3">
+                {vicePresident.full_name}
+              </h3>
+              <dl>
+                <InfoBlock
+                  label="Party"
+                  value={formatParty(vicePresident.party)}
+                />
+                {vicePresident.website && (
+                  <InfoBlock
+                    label="Official Website"
+                    value={vicePresident.website}
+                    href={vicePresident.website}
+                  />
+                )}
+              </dl>
+              <a
+                href={`/officials/${vicePresident.slug}`}
+                class="inline-block mt-4 text-sm text-civic-blue hover:underline font-medium"
+              >
+                View full profile &rarr;
+              </a>
+            </div>
+          )}
+          {!vicePresident && (
+            <div class="bg-white rounded-lg border border-slate-200 p-6 flex items-center justify-center text-civic-slate text-sm">
+              Vice President data not yet available.
+            </div>
+          )}
+        </div>
+      ) : (
+        <p class="text-civic-slate text-sm bg-white border border-slate-200 rounded-lg p-6">
+          Executive officials data is not yet available. Check back soon.
+        </p>
+      )}
+    </section>
+
+    <!-- Cabinet Departments -->
+    <section class="max-w-7xl mx-auto px-4 pb-10">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">
+        Cabinet Departments
+      </h2>
+      <p class="text-civic-slate text-sm mb-6">
+        The {departments.length > 0 ? departments.length : 15} executive
+        departments make up the Cabinet, each led by a Secretary confirmed by
+        the Senate.
+      </p>
+      {departments.length > 0 ? (
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {departments.map((dept) => (
+            <CategoryCard
+              title={dept.abbreviation ? `${dept.name} (${dept.abbreviation})` : dept.name}
+              description={dept.description ?? 'A Cabinet-level executive department of the United States government.'}
+              href={`/federal/agencies/${dept.slug}`}
+            />
+          ))}
+        </div>
+      ) : (
+        <div class="bg-white border border-slate-200 rounded-lg p-6">
+          <p class="text-civic-slate text-sm mb-4">
+            Cabinet department data is not yet loaded. The 15 executive
+            departments include:
+          </p>
+          <ul class="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm text-slate-700">
+            {[
+              'Department of State',
+              'Department of the Treasury',
+              'Department of Defense',
+              'Department of Justice',
+              'Department of the Interior',
+              'Department of Agriculture',
+              'Department of Commerce',
+              'Department of Labor',
+              'Department of Health and Human Services',
+              'Department of Housing and Urban Development',
+              'Department of Transportation',
+              'Department of Energy',
+              'Department of Education',
+              'Department of Veterans Affairs',
+              'Department of Homeland Security',
+            ].map((name) => (
+              <li class="flex items-center gap-2">
+                <span class="w-1.5 h-1.5 rounded-full bg-civic-blue flex-shrink-0"></span>
+                {name}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </section>
+
+    <!-- Executive Office of the President -->
+    {executiveOfficesOfPresident.length > 0 && (
+      <section class="max-w-7xl mx-auto px-4 pb-12">
+        <h2 class="text-2xl font-display text-civic-navy mb-2">
+          Executive Office of the President
+        </h2>
+        <p class="text-civic-slate text-sm mb-6">
+          Offices within the Executive Office that directly support the
+          President.
+        </p>
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+          {executiveOfficesOfPresident.map((office) => (
+            <CategoryCard
+              title={office.name}
+              description={office.description ?? 'An office within the Executive Office of the President.'}
+              href={`/federal/agencies/${office.slug}`}
+            />
+          ))}
+        </div>
+      </section>
+    )}
+
+    <!-- Cabinet Officials (non-President/VP) -->
+    {cabinetOfficials.length > 0 && (
+      <section class="max-w-7xl mx-auto px-4 pb-12">
+        <h2 class="text-2xl font-display text-civic-navy mb-6">
+          Cabinet Officials
+        </h2>
+        <div class="bg-white rounded-lg border border-slate-200 divide-y divide-slate-100">
+          {cabinetOfficials.map((official) => (
+            <a
+              href={`/officials/${official.slug}`}
+              class="flex items-center justify-between px-5 py-3 hover:bg-slate-50 transition-colors group"
+            >
+              <div>
+                <span class="font-medium text-civic-navy group-hover:text-civic-blue transition-colors">
+                  {official.full_name}
+                </span>
+                {official.offices?.title && (
+                  <span class="ml-2 text-sm text-civic-slate">
+                    {official.offices.title}
+                  </span>
+                )}
+              </div>
+              {official.party && (
+                <span class="text-xs font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded">
+                  {formatParty(official.party)}
+                </span>
+              )}
+            </a>
+          ))}
+        </div>
+      </section>
+    )}
+  </main>
+</BaseLayout>

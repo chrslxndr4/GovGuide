@@ -1,0 +1,264 @@
+---
+import BaseLayout from '../../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../../components/Breadcrumb.astro';
+import CategoryCard from '../../../components/CategoryCard.astro';
+import InfoBlock from '../../../components/InfoBlock.astro';
+import { supabase } from '../../../lib/supabase';
+
+interface Agency {
+  id: string;
+  name: string;
+  slug: string;
+  abbreviation: string | null;
+  agency_type: string;
+  description: string | null;
+  website: string | null;
+  established_year: number | null;
+  parent_agency_id: string | null;
+}
+
+interface SubAgency {
+  id: string;
+  name: string;
+  slug: string;
+  abbreviation: string | null;
+  agency_type: string;
+  description: string | null;
+}
+
+type AgencyTypeKey =
+  | 'cabinet_department'
+  | 'independent_agency'
+  | 'executive_office'
+  | 'regulatory_commission'
+  | 'government_corporation'
+  | 'quasi_official'
+  | 'state_agency'
+  | 'county_agency'
+  | 'city_agency';
+
+const AGENCY_TYPE_LABELS: Record<AgencyTypeKey, string> = {
+  cabinet_department: 'Cabinet Department',
+  independent_agency: 'Independent Agency',
+  executive_office: 'Executive Office',
+  regulatory_commission: 'Regulatory Commission',
+  government_corporation: 'Government Corporation',
+  quasi_official: 'Quasi-Official Agency',
+  state_agency: 'State Agency',
+  county_agency: 'County Agency',
+  city_agency: 'City Agency',
+};
+
+export async function getStaticPaths() {
+  // Fetch the federal jurisdiction id
+  const { data: jurisdiction } = await supabase
+    .from('jurisdictions')
+    .select('id')
+    .eq('slug', 'usa')
+    .single();
+
+  const federalId = jurisdiction?.id ?? null;
+
+  if (!federalId) return [];
+
+  const { data: agencies } = await supabase
+    .from('agencies')
+    .select(
+      'id, name, slug, abbreviation, agency_type, description, website, established_year, parent_agency_id'
+    )
+    .eq('jurisdiction_id', federalId);
+
+  return (
+    (agencies as Agency[] | null)?.map((agency) => ({
+      params: { slug: agency.slug },
+      props: { agency },
+    })) ?? []
+  );
+}
+
+interface Props {
+  agency: Agency;
+}
+
+const { agency } = Astro.props;
+
+// Fetch parent agency name if this is a sub-agency
+let parentAgency: { name: string; slug: string } | null = null;
+if (agency.parent_agency_id) {
+  const { data: parentData } = await supabase
+    .from('agencies')
+    .select('name, slug')
+    .eq('id', agency.parent_agency_id)
+    .single();
+  parentAgency = parentData ?? null;
+}
+
+// Fetch sub-agencies (agencies whose parent_agency_id matches this agency)
+const { data: subAgencyData } = await supabase
+  .from('agencies')
+  .select('id, name, slug, abbreviation, agency_type, description')
+  .eq('parent_agency_id', agency.id)
+  .order('name');
+
+const subAgencies = (subAgencyData ?? []) as SubAgency[];
+
+const agencyTypeLabel =
+  AGENCY_TYPE_LABELS[agency.agency_type as AgencyTypeKey] ?? agency.agency_type;
+
+const displayName = agency.abbreviation
+  ? `${agency.name} (${agency.abbreviation})`
+  : agency.name;
+---
+
+<BaseLayout
+  title={displayName}
+  description={agency.description ?? `${displayName} — a ${agencyTypeLabel} of the United States federal government.`}
+>
+  <main class="flex-1">
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-7xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'Federal', href: '/federal' },
+            { label: 'Agencies', href: '/federal/agencies' },
+            { label: agency.name },
+          ]}
+        />
+        <div class="flex items-start justify-between gap-4">
+          <div>
+            <p class="text-xs font-mono text-slate-400 uppercase tracking-wider mb-2">
+              {agencyTypeLabel}
+            </p>
+            <h1 class="text-3xl md:text-4xl font-display font-bold mb-1">
+              {agency.name}
+            </h1>
+            {agency.abbreviation && (
+              <p class="text-lg text-slate-400 font-mono">{agency.abbreviation}</p>
+            )}
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <div class="max-w-7xl mx-auto px-4 py-10">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <!-- Main content -->
+        <div class="lg:col-span-2 space-y-8">
+          <!-- Description -->
+          {agency.description && (
+            <section>
+              <h2 class="text-xl font-display text-civic-navy mb-3">About</h2>
+              <p class="text-slate-700 leading-relaxed">{agency.description}</p>
+            </section>
+          )}
+
+          {!agency.description && (
+            <section>
+              <h2 class="text-xl font-display text-civic-navy mb-3">About</h2>
+              <p class="text-civic-slate text-sm">
+                Detailed description for {agency.name} is not yet available.
+                {agency.website && (
+                  <>
+                    {' '}Visit the{' '}
+                    <a
+                      href={agency.website}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      class="text-civic-blue hover:underline"
+                    >
+                      official website
+                    </a>{' '}
+                    for more information.
+                  </>
+                )}
+              </p>
+            </section>
+          )}
+
+          <!-- Sub-agencies -->
+          {subAgencies.length > 0 && (
+            <section>
+              <div class="flex items-baseline justify-between mb-4">
+                <h2 class="text-xl font-display text-civic-navy">
+                  Sub-agencies &amp; Components
+                </h2>
+                <span class="text-xs font-mono bg-slate-100 text-civic-slate px-2 py-0.5 rounded">
+                  {subAgencies.length}
+                </span>
+              </div>
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {subAgencies.map((sub) => (
+                  <CategoryCard
+                    title={
+                      sub.abbreviation
+                        ? `${sub.name} (${sub.abbreviation})`
+                        : sub.name
+                    }
+                    description={
+                      sub.description ??
+                      `A component of ${agency.name}.`
+                    }
+                    href={`/federal/agencies/${sub.slug}`}
+                  />
+                ))}
+              </div>
+            </section>
+          )}
+        </div>
+
+        <!-- Sidebar: agency details -->
+        <aside>
+          <div class="bg-white rounded-lg border border-slate-200 p-5 sticky top-4">
+            <h2 class="font-display text-base text-civic-navy mb-4">
+              Agency Details
+            </h2>
+            <dl>
+              <InfoBlock label="Type" value={agencyTypeLabel} />
+              {agency.abbreviation && (
+                <InfoBlock label="Abbreviation" value={agency.abbreviation} />
+              )}
+              {agency.established_year && (
+                <InfoBlock
+                  label="Established"
+                  value={agency.established_year.toString()}
+                />
+              )}
+              {parentAgency && (
+                <InfoBlock
+                  label="Parent Agency"
+                  value={parentAgency.name}
+                  href={`/federal/agencies/${parentAgency.slug}`}
+                />
+              )}
+              {agency.website && (
+                <InfoBlock
+                  label="Official Website"
+                  value={new URL(agency.website).hostname}
+                  href={agency.website}
+                />
+              )}
+              {subAgencies.length > 0 && (
+                <InfoBlock
+                  label="Sub-agencies"
+                  value={subAgencies.length.toString()}
+                />
+              )}
+            </dl>
+
+            {agency.website && (
+              <a
+                href={agency.website}
+                target="_blank"
+                rel="noopener noreferrer"
+                class="mt-5 block w-full text-center py-2 px-4 bg-civic-navy text-white text-sm font-medium rounded hover:bg-civic-blue transition-colors"
+              >
+                Visit Official Website
+              </a>
+            )}
+          </div>
+        </aside>
+      </div>
+    </div>
+  </main>
+</BaseLayout>

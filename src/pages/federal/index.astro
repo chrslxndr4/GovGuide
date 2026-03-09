@@ -1,0 +1,138 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import CategoryCard from '../../components/CategoryCard.astro';
+import { supabase } from '../../lib/supabase';
+
+// Fetch the federal jurisdiction ID
+const { data: jurisdiction } = await supabase
+  .from('jurisdictions')
+  .select('id')
+  .eq('slug', 'usa')
+  .single();
+
+const federalId = jurisdiction?.id ?? null;
+
+// Fetch agency count for federal jurisdiction
+const { count: agencyCount } = await supabase
+  .from('agencies')
+  .select('*', { count: 'exact', head: true })
+  .eq('jurisdiction_id', federalId ?? '');
+
+// Fetch official count for federal jurisdiction (via offices)
+const { data: federalOffices } = await supabase
+  .from('offices')
+  .select('id')
+  .eq('jurisdiction_id', federalId ?? '');
+
+const officeIds = federalOffices?.map((o) => o.id) ?? [];
+
+const { count: officialCount } = await supabase
+  .from('officials')
+  .select('*', { count: 'exact', head: true })
+  .in('office_id', officeIds.length > 0 ? officeIds : [''])
+  .eq('is_current', true);
+
+// Fetch senate and house counts for branch cards
+const { data: senateOffices } = await supabase
+  .from('offices')
+  .select('id')
+  .eq('jurisdiction_id', federalId ?? '')
+  .eq('chamber', 'senate');
+
+const senateOfficeIds = senateOffices?.map((o) => o.id) ?? [];
+
+const { count: senatorCount } = await supabase
+  .from('officials')
+  .select('*', { count: 'exact', head: true })
+  .in('office_id', senateOfficeIds.length > 0 ? senateOfficeIds : [''])
+  .eq('is_current', true);
+
+const { data: houseOffices } = await supabase
+  .from('offices')
+  .select('id')
+  .eq('jurisdiction_id', federalId ?? '')
+  .eq('chamber', 'house');
+
+const houseOfficeIds = houseOffices?.map((o) => o.id) ?? [];
+
+const { count: representativeCount } = await supabase
+  .from('officials')
+  .select('*', { count: 'exact', head: true })
+  .in('office_id', houseOfficeIds.length > 0 ? houseOfficeIds : [''])
+  .eq('is_current', true);
+
+const legislativeCount =
+  (senatorCount ?? 0) + (representativeCount ?? 0) || undefined;
+---
+
+<BaseLayout
+  title="Federal Government"
+  description="Explore the three branches of the United States federal government — Executive, Legislative, and Judicial — along with federal agencies and laws."
+>
+  <main class="flex-1">
+    <!-- Hero -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-7xl mx-auto">
+        <Breadcrumb items={[{ label: 'Federal Government' }]} />
+        <h1 class="text-4xl md:text-5xl font-display font-bold mb-3">
+          Federal Government
+        </h1>
+        <p class="text-lg text-slate-300 max-w-2xl">
+          The United States federal government is divided into three branches —
+          each with distinct powers and responsibilities designed to balance
+          authority and protect individual rights.
+        </p>
+      </div>
+    </section>
+
+    <!-- Three Branches -->
+    <section class="max-w-7xl mx-auto px-4 py-10">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">Three Branches</h2>
+      <p class="text-civic-slate text-sm mb-6">
+        The separation of powers divides government authority among three
+        independent branches.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+        <CategoryCard
+          title="Executive Branch"
+          description="The President, Vice President, Cabinet, and federal agencies that carry out federal law."
+          href="/federal/executive"
+          count={agencyCount ?? undefined}
+        />
+        <CategoryCard
+          title="Legislative Branch"
+          description="The Senate and House of Representatives that write and pass federal law."
+          href="/federal/legislative"
+          count={legislativeCount}
+        />
+        <CategoryCard
+          title="Judicial Branch"
+          description="The Supreme Court and lower federal courts that interpret federal law and the Constitution."
+          href="/federal/judicial"
+        />
+      </div>
+    </section>
+
+    <!-- Additional Sections -->
+    <section class="max-w-7xl mx-auto px-4 pb-12">
+      <h2 class="text-2xl font-display text-civic-navy mb-2">Explore More</h2>
+      <p class="text-civic-slate text-sm mb-6">
+        Dive deeper into federal agencies, departments, and legislation.
+      </p>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <CategoryCard
+          title="Federal Agencies"
+          description="Browse all federal departments, independent agencies, regulatory commissions, and government corporations."
+          href="/federal/agencies"
+          count={agencyCount ?? undefined}
+        />
+        <CategoryCard
+          title="Federal Laws"
+          description="Search the United States Code, recent legislation, and regulatory rules."
+          href="/laws/federal"
+        />
+      </div>
+    </section>
+  </main>
+</BaseLayout>
