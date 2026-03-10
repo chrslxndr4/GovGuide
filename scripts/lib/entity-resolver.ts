@@ -140,7 +140,7 @@ export async function findDeterministicMatches(): Promise<EntityMatch[]> {
       existing.push(row.entity_id);
       tickerMap.set(row.ticker!, existing);
     }
-    for (const [ticker, ids] of tickerMap) {
+    for (const [ticker, ids] of Array.from(tickerMap)) {
       if (ids.length > 1) {
         for (let i = 1; i < ids.length; i++) {
           matches.push({
@@ -180,7 +180,7 @@ export async function findFuzzyMatches(
     byType.set(e.entity_type, group);
   }
 
-  for (const [, group] of byType) {
+  for (const [, group] of Array.from(byType)) {
     for (let i = 0; i < group.length; i++) {
       for (let j = i + 1; j < group.length; j++) {
         if (group[i].normalized === group[j].normalized) {
@@ -262,13 +262,11 @@ export async function mergeEntities(
     .single();
 
   if (keepEntity && mergeEntity) {
-    const mergedAliases = [
-      ...new Set([
-        ...(keepEntity.aliases ?? []),
-        ...(mergeEntity.aliases ?? []),
-        mergeEntity.name,
-      ]),
-    ];
+    const mergedAliases = Array.from(new Set([
+      ...(keepEntity.aliases ?? []),
+      ...(mergeEntity.aliases ?? []),
+      mergeEntity.name,
+    ]));
 
     const mergedExtIds = {
       ...(mergeEntity.external_ids as Record<string, unknown> ?? {}),
