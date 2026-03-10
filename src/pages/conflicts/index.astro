@@ -3,6 +3,7 @@ import BaseLayout from '../../layouts/BaseLayout.astro';
 import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import ConflictFeed from '../../components/alerts/ConflictFeed';
+import DisclaimerBanner from '../../components/conflicts/DisclaimerBanner';
 import { supabase } from '../../lib/supabase';
 
 export const prerender = false;
@@ -116,6 +117,10 @@ const { data: initialAlerts } = await supabase
         initialAlerts={initialAlerts ?? []}
         apiEndpoint="/api/conflicts"
       />
+
+      <div class="mt-8">
+        <DisclaimerBanner client:load />
+      </div>
 
     </section>
   </main>
