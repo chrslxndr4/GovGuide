@@ -1,12 +1,13 @@
 /**
  * Import congressional stock trades (STOCK Act / PTR disclosures) from
- * FREE official government sources — no third-party API required.
+ * FREE public sources — no third-party API key required.
  *
  * Data sources:
- *   House PTRs: https://disclosures-clerk.house.gov/FinancialDisclosure
- *     Annual ZIP archives containing XML files for each Periodic Transaction
- *     Report.  URL pattern:
- *       https://disclosures-clerk.house.gov/public_disc/PTR-pdfs/{YEAR}FD.ZIP
+ *   House PTRs: house-stock-watcher community mirror
+ *     https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json
+ *     This is a publicly maintained JSON mirror of House Clerk PTR (Periodic
+ *     Transaction Report) filings.  It provides clean, structured trade data
+ *     without requiring ZIP download + per-filing PDF parsing.
  *
  *   Senate eFD: https://efdsearch.senate.gov
  *     The Senate publishes a CSV export of PTR filings via:
@@ -30,8 +31,8 @@
  * Run with:  npm run import:stock-trades
  *
  * What this script does:
- *   1. Downloads the House annual PTR ZIP, unzips it in-memory, and parses
- *      each XML filing into individual transaction rows.
+ *   1. Fetches all House PTR transactions from the house-stock-watcher JSON
+ *      feed and filters to the target year.
  *   2. Fetches Senate PTR records from the eFD search JSON API (paginated).
  *   3. Resolves each trade to an existing official via name matching
  *      (cache-warmed exact match → ILIKE fallback → Jaro-Winkler fuzzy match).
@@ -42,7 +43,6 @@
  */
 
 import * as crypto from 'node:crypto';
-import * as zlib from 'node:zlib';
 import { supabase } from './lib/supabase-admin.js';
 import { jaroWinkler } from './lib/entity-resolver.js';
 
@@ -65,12 +65,12 @@ const STOCK_ACT_DISCLOSURE_DAYS = 45; // referenced in JSDoc only — DB handles
 void STOCK_ACT_DISCLOSURE_DAYS;
 
 /**
- * House Clerk annual PTR ZIP URL.
- * Each year's ZIP contains one XML file per filing.
- * e.g. 2024FD.ZIP → entries named like "20240001.xml", "20240002.xml", etc.
+ * House Stock Watcher — community-maintained JSON mirror of House Clerk PTR
+ * filings.  Contains all transactions across all years in a single JSON array.
+ * Source: https://github.com/jbg/house-stock-watcher
  */
-const HOUSE_PTR_ZIP_BASE =
-  'https://disclosures-clerk.house.gov/public_disc/financial-pdfs';
+const HOUSE_STOCK_WATCHER_URL =
+  'https://house-stock-watcher-data.s3-us-west-2.amazonaws.com/data/all_transactions.json';
 
 /**
  * Senate eFD search API — returns JSON for PTR (Periodic Transaction Report)
@@ -184,6 +184,8 @@ function normaliseTradeType(
     lower === 'sale' ||
     lower === 'sell' ||
     lower === 's' ||
+    lower === 'sale_full' ||
+    lower === 'sale_partial' ||
     lower.startsWith('sale (') ||
     lower === 'sale (full)' ||
     lower === 'sale (partial)'
@@ -513,119 +515,6 @@ async function flushRelationships(
 }
 
 // ---------------------------------------------------------------------------
-// Minimal ZIP parser (pure Node.js — no npm dependency)
-// ---------------------------------------------------------------------------
-
-/**
- * A parsed entry from a ZIP archive's central directory.
- */
-interface ZipEntry {
-  fileName: string;
-  compressedData: Buffer;
-  compressionMethod: number;
-}
-
-/**
- * Parse a ZIP buffer and return all entries.
- *
- * We only implement the local file header format (method 0 = stored,
- * method 8 = deflated) which covers the House PTR ZIPs.
- *
- * ZIP local file header layout (little-endian):
- *   offset 0:  4B signature  0x04034b50
- *   offset 6:  2B compression method
- *   offset 18: 4B compressed size
- *   offset 22: 4B uncompressed size
- *   offset 26: 2B file name length
- *   offset 28: 2B extra field length
- *   offset 30: <file name length> bytes
- *   offset 30+fnLen+exLen: compressed data
- */
-function parseZip(buf: Buffer): ZipEntry[] {
-  const entries: ZipEntry[] = [];
-  let pos = 0;
-
-  while (pos < buf.length - 4) {
-    const sig = buf.readUInt32LE(pos);
-
-    // Local file header signature
-    if (sig !== 0x04034b50) {
-      // Not a local file header — could be central directory or end of archive.
-      break;
-    }
-
-    const compressionMethod = buf.readUInt16LE(pos + 6);
-    const compressedSize = buf.readUInt32LE(pos + 18);
-    const fileNameLength = buf.readUInt16LE(pos + 26);
-    const extraFieldLength = buf.readUInt16LE(pos + 28);
-
-    const headerEnd = pos + 30 + fileNameLength + extraFieldLength;
-    const fileName = buf.slice(pos + 30, pos + 30 + fileNameLength).toString('utf8');
-
-    const compressedData = buf.slice(headerEnd, headerEnd + compressedSize);
-
-    entries.push({ fileName, compressedData, compressionMethod });
-    pos = headerEnd + compressedSize;
-  }
-
-  return entries;
-}
-
-/**
- * Decompress a single ZIP entry to a string.
- * Handles method 0 (stored) and method 8 (deflate).
- */
-async function decompressEntry(entry: ZipEntry): Promise<string> {
-  if (entry.compressionMethod === 0) {
-    // Stored — no compression
-    return entry.compressedData.toString('utf8');
-  }
-
-  if (entry.compressionMethod === 8) {
-    // Deflate — wrap in a raw inflate (no zlib header)
-    const inflated = await new Promise<Buffer>((resolve, reject) => {
-      zlib.inflateRaw(entry.compressedData, (err, result) => {
-        if (err) reject(err);
-        else resolve(result);
-      });
-    });
-    return inflated.toString('utf8');
-  }
-
-  throw new Error(
-    `Unsupported ZIP compression method ${entry.compressionMethod} for ${entry.fileName}`,
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Lightweight XML helpers (regex-based, no DOM parser required)
-// Mirrors the pattern used in scripts/import-votes.ts
-// ---------------------------------------------------------------------------
-
-function xmlTagValue(xml: string, tag: string): string | null {
-  const match = xml.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)<\\/${tag}>`, 'i'));
-  return match ? match[1].trim() : null;
-}
-
-function xmlSplitElements(xml: string, tag: string): string[] {
-  const results: string[] = [];
-  const openTag = `<${tag}`;
-  const closeTag = `</${tag}>`;
-  let pos = 0;
-
-  while (pos < xml.length) {
-    const start = xml.indexOf(openTag, pos);
-    if (start === -1) break;
-    const end = xml.indexOf(closeTag, start);
-    if (end === -1) break;
-    results.push(xml.slice(start, end + closeTag.length));
-    pos = end + closeTag.length;
-  }
-
-  return results;
-}
-
-// ---------------------------------------------------------------------------
 // Parsed trade record (intermediate — both chambers map into this)
 // ---------------------------------------------------------------------------
 
@@ -647,209 +536,146 @@ interface ParsedTrade {
 }
 
 // ---------------------------------------------------------------------------
-// House PTR XML parser
+// House PTR — house-stock-watcher JSON feed
 // ---------------------------------------------------------------------------
 
 /**
- * House PTR XML structure (simplified):
+ * Shape of a single record from the house-stock-watcher all_transactions.json.
  *
- * <PTR>
- *   <FilingID>...</FilingID>
- *   <FirstName>...</FirstName>
- *   <LastName>...</LastName>
- *   <FilingDate>MM/DD/YYYY</FilingDate>
- *   <Transactions>
- *     <Transaction>
- *       <AssetName>...</AssetName>
- *       <AssetType>...</AssetType>
- *       <TransactionDate>MM/DD/YYYY</TransactionDate>
- *       <TransactionType>P</TransactionType>  <!-- P=Purchase S=Sale E=Exchange -->
- *       <Amount>$15,001 - $50,000</Amount>
- *       <Ticker>AAPL</Ticker>
- *       <Owner>SP</Owner>         <!-- SP=Spouse JT=Joint DC=Dependent ME=Self -->
- *       <Comment>...</Comment>
- *     </Transaction>
- *   </Transactions>
- * </PTR>
- *
- * Some older formats use slightly different tag names; we handle variants.
+ * Example:
+ * {
+ *   "disclosure_year": 2024,
+ *   "disclosure_date": "10/04/2024",
+ *   "transaction_date": "2024-09-19",
+ *   "owner": "joint",
+ *   "ticker": "MSFT",
+ *   "asset_description": "Microsoft Corp",
+ *   "type": "purchase",
+ *   "amount": "$1,001 - $15,000",
+ *   "representative": "Hon. Virginia Foxx",
+ *   "district": "NC05",
+ *   "ptr_link": "https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/2024/20043580.pdf",
+ *   "cap_gains_over_200_usd": false
+ * }
  */
-function parseHousePtrXml(xml: string, year: number): ParsedTrade[] {
-  const trades: ParsedTrade[] = [];
-
-  // Each XML file is a single PTR filing for one member.
-  const filingId =
-    xmlTagValue(xml, 'FilingID') ??
-    xmlTagValue(xml, 'DocumentID') ??
-    null;
-
-  const firstName =
-    xmlTagValue(xml, 'FirstName') ??
-    xmlTagValue(xml, 'First') ??
-    '';
-  const lastName =
-    xmlTagValue(xml, 'LastName') ??
-    xmlTagValue(xml, 'Last') ??
-    '';
-  const memberName = `${firstName} ${lastName}`.trim();
-
-  const rawFilingDate =
-    xmlTagValue(xml, 'FilingDate') ??
-    xmlTagValue(xml, 'ReportDate') ??
-    null;
-  const disclosureDate = parseIsoDate(rawFilingDate);
-
-  // Build the filing URL — House Clerk PDFs follow a predictable pattern.
-  const filingUrl = filingId
-    ? `https://disclosures-clerk.house.gov/public_disc/ptr-pdfs/${year}/${filingId}.pdf`
-    : null;
-
-  // Transactions live in <Transactions><Transaction>…</Transaction></Transactions>
-  const txBlocks = xmlSplitElements(xml, 'Transaction');
-
-  for (const txBlock of txBlocks) {
-    const assetName =
-      xmlTagValue(txBlock, 'AssetName') ??
-      xmlTagValue(txBlock, 'Description') ??
-      'Unknown Asset';
-
-    const assetType =
-      xmlTagValue(txBlock, 'AssetType') ??
-      xmlTagValue(txBlock, 'Type') ??
-      null;
-
-    const rawTxDate =
-      xmlTagValue(txBlock, 'TransactionDate') ??
-      xmlTagValue(txBlock, 'Date') ??
-      null;
-    const tradeDate = parseIsoDate(rawTxDate);
-
-    const rawTradeType =
-      xmlTagValue(txBlock, 'TransactionType') ??
-      xmlTagValue(txBlock, 'Type') ??
-      null;
-
-    const rawAmount =
-      xmlTagValue(txBlock, 'Amount') ??
-      xmlTagValue(txBlock, 'Value') ??
-      null;
-
-    const ticker =
-      xmlTagValue(txBlock, 'Ticker') ??
-      xmlTagValue(txBlock, 'TickerSymbol') ??
-      null;
-
-    const ownerRaw = xmlTagValue(txBlock, 'Owner') ?? null;
-    // Expand abbreviations: SP=Spouse, JT=Joint, DC=Dependent, ME=Self
-    const ownerMap: Record<string, string> = {
-      sp: 'Spouse', jt: 'Joint', dc: 'Dependent Child', me: 'Self',
-      self: 'Self', spouse: 'Spouse', joint: 'Joint',
-    };
-    const owner = ownerRaw
-      ? ownerMap[ownerRaw.toLowerCase()] ?? ownerRaw
-      : null;
-
-    const comment = xmlTagValue(txBlock, 'Comment') ?? null;
-
-    if (!memberName) continue;
-    if (!tradeDate && !disclosureDate) continue; // Unusable without any date
-
-    trades.push({
-      memberName,
-      docId: filingId,
-      ticker: ticker ? ticker.trim().toUpperCase() : null,
-      assetName: assetName.trim() || 'Unknown Asset',
-      assetType: assetType?.trim() || null,
-      rawTradeType: rawTradeType?.trim() || null,
-      rawAmount: rawAmount?.trim() || null,
-      tradeDate,
-      disclosureDate,
-      owner,
-      comment: comment?.trim() || null,
-      filingUrl,
-      chamber: 'house',
-    });
-  }
-
-  return trades;
+interface HouseStockWatcherRecord {
+  disclosure_year?: number;
+  disclosure_date?: string;
+  transaction_date?: string;
+  owner?: string;
+  ticker?: string;
+  asset_description?: string;
+  type?: string;
+  amount?: string;
+  representative?: string;
+  district?: string;
+  ptr_link?: string;
+  cap_gains_over_200_usd?: boolean;
 }
 
-// ---------------------------------------------------------------------------
-// House PTR — fetch and unpack annual ZIP
-// ---------------------------------------------------------------------------
-
-async function fetchHousePtrZip(year: number): Promise<Buffer | null> {
-  const url = `${HOUSE_PTR_ZIP_BASE}/${year}FD.zip`;
-  console.log(`  [house] Downloading ZIP: ${url}`);
+/**
+ * Fetch all House PTR transactions for a given year from the house-stock-watcher
+ * community JSON mirror.  The feed contains all years; we filter client-side.
+ */
+async function fetchAllHousePtrs(year: number): Promise<ParsedTrade[]> {
+  console.log(
+    `  [house] Fetching house-stock-watcher JSON feed (all years) ...`,
+  );
+  console.log(`  [house] URL: ${HOUSE_STOCK_WATCHER_URL}`);
 
   let res: Response;
   try {
-    res = await fetch(url, {
-      headers: { 'User-Agent': 'GovGuide-Importer/1.0 (public data; govguide.us)' },
+    res = await fetch(HOUSE_STOCK_WATCHER_URL, {
+      headers: {
+        'User-Agent': 'GovGuide-Importer/1.0 (public data; govguide.us)',
+      },
     });
   } catch (err) {
-    console.error(`  ERROR fetching House ZIP: ${(err as Error).message}`);
-    return null;
-  }
-
-  if (res.status === 404) {
-    console.warn(`  WARN: No House PTR ZIP found for year ${year} (404).`);
-    return null;
+    console.error(
+      `  ERROR fetching house-stock-watcher feed: ${(err as Error).message}`,
+    );
+    return [];
   }
 
   if (!res.ok) {
     console.error(
-      `  ERROR: House ZIP returned HTTP ${res.status} for year ${year}.`,
+      `  ERROR: house-stock-watcher returned HTTP ${res.status}.`,
     );
-    return null;
-  }
-
-  const arrayBuf = await res.arrayBuffer();
-  return Buffer.from(arrayBuf);
-}
-
-async function parseAllHousePtrs(year: number): Promise<ParsedTrade[]> {
-  const zipBuf = await fetchHousePtrZip(year);
-  if (!zipBuf) return [];
-
-  let entries: ZipEntry[];
-  try {
-    entries = parseZip(zipBuf);
-  } catch (err) {
-    console.error(`  ERROR parsing House ZIP: ${(err as Error).message}`);
     return [];
   }
 
-  // The ZIP also contains a CSV index file — filter to XML only.
-  const xmlEntries = entries.filter((e) =>
-    e.fileName.toLowerCase().endsWith('.xml'),
+  let records: HouseStockWatcherRecord[];
+  try {
+    records = (await res.json()) as HouseStockWatcherRecord[];
+  } catch (err) {
+    console.error(
+      `  ERROR parsing house-stock-watcher JSON: ${(err as Error).message}`,
+    );
+    return [];
+  }
+
+  if (!Array.isArray(records)) {
+    console.error(
+      `  ERROR: house-stock-watcher response is not an array.`,
+    );
+    return [];
+  }
+
+  console.log(
+    `  [house] Feed contains ${records.length} total transaction(s) (all years).`,
   );
 
-  console.log(`  [house] ZIP contains ${xmlEntries.length} XML filing(s).`);
-
   const allTrades: ParsedTrade[] = [];
-  let parseErrors = 0;
 
-  for (const entry of xmlEntries) {
-    try {
-      const xml = await decompressEntry(entry);
-      const trades = parseHousePtrXml(xml, year);
-      allTrades.push(...trades);
-    } catch (err) {
-      parseErrors++;
-      if (parseErrors <= 5) {
-        console.warn(
-          `  WARN: Failed to parse ${entry.fileName}: ${(err as Error).message}`,
-        );
-      }
-    }
+  for (const rec of records) {
+    // Filter to target year using disclosure_year or the trade date year.
+    const recYear =
+      rec.disclosure_year ??
+      (rec.transaction_date
+        ? Number(rec.transaction_date.slice(0, 4))
+        : null);
+
+    if (recYear !== year) continue;
+
+    const memberName = rec.representative?.trim() ?? '';
+    if (!memberName) continue;
+
+    const tradeDate = parseIsoDate(rec.transaction_date ?? null);
+    const disclosureDate = parseIsoDate(rec.disclosure_date ?? null);
+
+    // Require at least one usable date.
+    if (!tradeDate && !disclosureDate) continue;
+
+    // Derive a doc ID from the ptr_link for metadata purposes.
+    const ptrLink = rec.ptr_link?.trim() || null;
+    const docIdMatch = ptrLink?.match(/(\d+)\.pdf$/i);
+    const docId = docIdMatch ? docIdMatch[1] : null;
+
+    const ticker = rec.ticker?.trim().toUpperCase() || null;
+    // Exclude non-ticker placeholders like "N/A" or "--".
+    const cleanTicker =
+      ticker && ticker !== 'N/A' && ticker !== '--' ? ticker : null;
+
+    allTrades.push({
+      memberName,
+      docId,
+      ticker: cleanTicker,
+      assetName: rec.asset_description?.trim() || 'Unknown Asset',
+      assetType: null, // house-stock-watcher does not provide an asset type field
+      rawTradeType: rec.type?.trim() || null,
+      rawAmount: rec.amount?.trim() || null,
+      tradeDate,
+      disclosureDate,
+      owner: rec.owner?.trim() || null,
+      comment: null,
+      filingUrl: ptrLink,
+      chamber: 'house',
+    });
   }
 
-  if (parseErrors > 0) {
-    console.warn(`  WARN: ${parseErrors} XML files failed to parse.`);
-  }
-
-  console.log(`  [house] Extracted ${allTrades.length} trade record(s) from XML.`);
+  console.log(
+    `  [house] Extracted ${allTrades.length} trade record(s) for year ${year}.`,
+  );
   return allTrades;
 }
 
@@ -1241,9 +1067,9 @@ async function processTrades(
 // ---------------------------------------------------------------------------
 
 async function importStockTrades(): Promise<void> {
-  console.log('=== Import Congressional Stock Trades (Official Sources) ===\n');
+  console.log('=== Import Congressional Stock Trades ===\n');
   console.log('  Sources:');
-  console.log('    House: disclosures-clerk.house.gov PTR ZIP archives');
+  console.log('    House: house-stock-watcher JSON feed (community mirror of House Clerk PTRs)');
   console.log('    Senate: efdsearch.senate.gov PTR search API\n');
 
   const dryRun = process.env['DRY_RUN'] === '1';
@@ -1285,7 +1111,7 @@ async function importStockTrades(): Promise<void> {
     let trades: ParsedTrade[] = [];
 
     if (chamber === 'house') {
-      trades = await parseAllHousePtrs(filterYear);
+      trades = await fetchAllHousePtrs(filterYear);
     } else {
       trades = await fetchAllSenatePtrs(filterYear);
     }
