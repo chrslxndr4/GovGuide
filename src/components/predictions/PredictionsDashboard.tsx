@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 
 // ---------------------------------------------------------------------------
 // Types
@@ -41,6 +41,10 @@ interface PredictionMarket {
   change_24h: number; // percentage-point change in probability
   last_updated: string;
   divergence_alert: boolean; // true when market & polling diverge significantly
+  // Anomaly fields — populated when a contract has active prediction_anomalies
+  anomaly_type: string | null;
+  anomaly_severity: number | null;
+  anomaly_description: string | null;
 }
 
 interface ElectionsApiResponse {
@@ -196,6 +200,105 @@ function DivergenceAlert() {
   );
 }
 
+interface AnomalyBadgeProps {
+  anomalyType: string;
+  severity: number;
+  description: string;
+}
+
+function anomalyBadgeStyles(severity: number): { badge: string; label: string } {
+  if (severity >= 7) {
+    return {
+      badge: 'bg-red-100 text-red-800',
+      label: 'Anomaly Detected',
+    };
+  }
+  if (severity >= 4) {
+    return {
+      badge: 'bg-orange-100 text-orange-800',
+      label: 'Unusual Activity',
+    };
+  }
+  return {
+    badge: 'bg-yellow-100 text-yellow-800',
+    label: 'Monitor',
+  };
+}
+
+function AnomalyBadge({ anomalyType, severity, description }: AnomalyBadgeProps) {
+  const [expanded, setExpanded] = useState(false);
+  const expandId = useRef(`anomaly-desc-${Math.random().toString(36).slice(2)}`).current;
+  const { badge, label } = anomalyBadgeStyles(severity);
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        aria-expanded={expanded}
+        aria-controls={expandId}
+        onClick={() => setExpanded(prev => !prev)}
+        className={`inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full ${badge} cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1 focus-visible:ring-current`}
+      >
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className="w-3 h-3 shrink-0"
+          aria-hidden="true"
+        >
+          <path
+            fillRule="evenodd"
+            d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 5a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 5zm0 9a1 1 0 100-2 1 1 0 000 2z"
+            clipRule="evenodd"
+          />
+        </svg>
+        {label}: {anomalyType}
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          viewBox="0 0 20 20"
+          fill="currentColor"
+          className={`w-3 h-3 shrink-0 transition-transform ${expanded ? 'rotate-180' : ''}`}
+          aria-hidden="true"
+        >
+          <path
+            fillRule="evenodd"
+            d="M5.22 8.22a.75.75 0 0 1 1.06 0L10 11.94l3.72-3.72a.75.75 0 1 1 1.06 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0L5.22 9.28a.75.75 0 0 1 0-1.06z"
+            clipRule="evenodd"
+          />
+        </svg>
+      </button>
+
+      {expanded && (
+        <div
+          id={expandId}
+          className="mt-1.5 text-xs text-slate-700 bg-slate-50 border border-slate-200 rounded-md px-3 py-2 space-y-1"
+        >
+          <p>{description}</p>
+          <a
+            href="/conflicts?type=prediction_insider"
+            className="inline-flex items-center gap-0.5 text-xs font-medium text-civic-blue hover:underline"
+          >
+            View on /conflicts
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 20 20"
+              fill="currentColor"
+              className="w-3 h-3"
+              aria-hidden="true"
+            >
+              <path
+                fillRule="evenodd"
+                d="M3 10a.75.75 0 0 1 .75-.75h10.638L10.23 5.29a.75.75 0 1 1 1.04-1.08l5.5 5.25a.75.75 0 0 1 0 1.08l-5.5 5.25a.75.75 0 1 1-1.04-1.08l4.158-3.96H3.75A.75.75 0 0 1 3 10z"
+                clipRule="evenodd"
+              />
+            </svg>
+          </a>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function PollBar({ candidate, maxAvg }: { candidate: PollCandidate; maxAvg: number }) {
   const pct = maxAvg > 0 ? (candidate.poll_average / maxAvg) * 100 : 0;
   return (
@@ -320,6 +423,16 @@ function MarketCard({ market }: { market: PredictionMarket }) {
       <time dateTime={market.last_updated} className="block text-[10px] text-slate-400 font-mono mt-2">
         Updated {formatDate(market.last_updated)}
       </time>
+
+      {market.anomaly_type !== null &&
+        market.anomaly_severity !== null &&
+        market.anomaly_description !== null && (
+          <AnomalyBadge
+            anomalyType={market.anomaly_type}
+            severity={market.anomaly_severity}
+            description={market.anomaly_description}
+          />
+        )}
     </div>
   );
 }

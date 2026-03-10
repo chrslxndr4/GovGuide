@@ -42,9 +42,21 @@ export const GET: APIRoute = async ({ url }) => {
     const category = url.searchParams.get('category');
     const activeOnly = url.searchParams.get('active_only') === 'true';
 
+    // Select contract columns plus the highest-severity active anomaly per contract
+    // via a left join expressed as an embedded select on the related table.
     let query = supabase
       .from('prediction_contracts')
-      .select('*', { count: 'exact' })
+      .select(
+        `*,
+        prediction_anomalies!left(
+          anomaly_type,
+          severity_score,
+          description,
+          status
+        )`,
+        { count: 'exact' }
+      )
+      .eq('prediction_anomalies.status', 'active')
       .order('volume_total', { ascending: false, nullsFirst: false })
       .range(offset, offset + limit - 1);
 
@@ -56,7 +68,49 @@ export const GET: APIRoute = async ({ url }) => {
     if (error) {
       return new Response(JSON.stringify({ error: 'Query failed' }), { status: 500, headers: { 'Content-Type': 'application/json' } });
     }
-    return new Response(JSON.stringify({ data: data ?? [], total: count ?? 0, page }), { status: 200, headers: { 'Content-Type': 'application/json' } });
+
+    // Flatten: keep only the single highest-severity anomaly per contract
+    interface RawAnomaly {
+      anomaly_type: string;
+      severity_score: number;
+      description: string;
+      status: string;
+    }
+
+    interface RawContract {
+      prediction_anomalies: RawAnomaly[] | RawAnomaly | null;
+      [key: string]: unknown;
+    }
+
+    interface FlatContract {
+      anomaly_type: string | null;
+      anomaly_severity: number | null;
+      anomaly_description: string | null;
+      [key: string]: unknown;
+    }
+
+    const flattened: FlatContract[] = (data ?? []).map((row: RawContract) => {
+      const { prediction_anomalies, ...rest } = row;
+      const anomalies: RawAnomaly[] = Array.isArray(prediction_anomalies)
+        ? prediction_anomalies
+        : prediction_anomalies
+          ? [prediction_anomalies]
+          : [];
+
+      const top = anomalies.reduce<RawAnomaly | null>((best, a) => {
+        if (!best || a.severity_score > best.severity_score) return a;
+        return best;
+      }, null);
+
+      return {
+        ...rest,
+        anomaly_type: top?.anomaly_type ?? null,
+        anomaly_severity: top?.severity_score ?? null,
+        anomaly_description: top?.description ?? null,
+      };
+    });
+
+    return new Response(JSON.stringify({ data: flattened, total: count ?? 0, page }), { status: 200, headers: { 'Content-Type': 'application/json' } });
   }
 
   if (action === 'anomalies') {
