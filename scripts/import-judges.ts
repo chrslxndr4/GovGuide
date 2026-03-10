@@ -281,20 +281,20 @@ async function* streamFjcCsv(csvPath: string): AsyncGenerator<FjcRow> {
       middlename: raw['middle name'] ?? raw['middlename'] ?? '',
       lastname: raw['last name'] ?? raw['lastname'] ?? '',
       suffix: raw['suffix'] ?? '',
-      birthyear: raw['birth year'] ?? raw['year of birth'] ?? '',
-      deathyear: raw['death year'] ?? raw['year of death'] ?? '',
+      birthyear: raw['birth year'] ?? raw['birthyear'] ?? raw['year of birth'] ?? '',
+      deathyear: raw['death year'] ?? raw['deathyear'] ?? raw['year of death'] ?? '',
       gender: raw['gender'] ?? '',
       race: raw['race or ethnicity'] ?? raw['race'] ?? '',
       court_name: raw['court name (1)'] ?? raw['court name'] ?? '',
       court_type: raw['court type (1)'] ?? raw['court type'] ?? '',
       appointing_president: raw['appointing president (1)'] ?? raw['appointing president'] ?? '',
       party_of_appointing_president: raw['party of appointing president (1)'] ?? '',
-      confirmation_date: raw['senate vote date (1)'] ?? raw['confirmation date'] ?? '',
-      confirmation_vote: raw['senate vote (1)'] ?? raw['confirmation vote'] ?? '',
+      confirmation_date: raw['confirmation date (1)'] ?? raw['senate vote date (1)'] ?? raw['confirmation date'] ?? '',
+      confirmation_vote: raw['ayes/nays (1)'] ?? raw['senate vote (1)'] ?? raw['confirmation vote'] ?? '',
       aba_rating: raw['aba rating (1)'] ?? raw['aba rating'] ?? '',
       senior_status_date: raw['senior status date (1)'] ?? raw['senior status date'] ?? '',
       termination_date: raw['termination date (1)'] ?? raw['termination date'] ?? '',
-      termination_reason: raw['termination reason (1)'] ?? raw['termination reason'] ?? '',
+      termination_reason: raw['termination (1)'] ?? raw['termination reason (1)'] ?? raw['termination reason'] ?? '',
       _raw: raw,
     };
   }
@@ -373,8 +373,13 @@ async function getOrCreateCourt(insert: CourtInsert): Promise<string | null> {
 // ---------------------------------------------------------------------------
 
 /**
- * Upsert a batch of entity rows.  Returns a map from fjc_nid → entity UUID
- * for the successfully upserted rows.
+ * Upsert a batch of entity rows one at a time.
+ * We cannot use bulk upsert because external_ids is a GIN-indexed JSONB column
+ * (not a unique constraint), and the entities.name unique constraint means
+ * judges with the same name would collide.
+ *
+ * Strategy: look up by external_ids @> '{"fjc_nid": "..."}', then insert or
+ * update.  For name collisions, append the NID to disambiguate.
  */
 async function flushEntities(
   batch: Array<{ nid: string; insert: EntityInsert }>,
@@ -382,24 +387,57 @@ async function flushEntities(
   const result = new Map<string, string>();
   if (batch.length === 0) return result;
 
-  const { data, error } = await supabase
-    .from('entities')
-    .upsert(
-      batch.map((b) => b.insert),
-      { onConflict: 'external_ids' },
-    )
-    .select('id, external_ids');
+  for (const { nid, insert } of batch) {
+    // 1. Check if entity already exists by fjc_nid.
+    const { data: existing } = await supabase
+      .from('entities')
+      .select('id')
+      .contains('external_ids', { fjc_nid: nid })
+      .maybeSingle();
 
-  if (error || !data) {
-    console.error(`  ENTITY BATCH ERROR (${batch.length} records): ${error?.message}`);
-    return result;
+    if (existing) {
+      const id = (existing as { id: string }).id;
+      // Update metadata/name.
+      await supabase.from('entities').update({
+        name: insert.name,
+        metadata: insert.metadata,
+      }).eq('id', id);
+      result.set(nid, id);
+      continue;
+    }
+
+    // 2. Try to insert. If name collides, disambiguate with NID suffix.
+    let insertName = insert.name;
+    const { data: created, error } = await supabase
+      .from('entities')
+      .insert({ ...insert, name: insertName })
+      .select('id')
+      .single();
+
+    if (created) {
+      result.set(nid, (created as { id: string }).id);
+      continue;
+    }
+
+    // Name collision — append NID to make unique.
+    if (error && error.message.includes('uq_entities_name')) {
+      insertName = `${insert.name} (FJC ${nid})`;
+      const { data: created2, error: err2 } = await supabase
+        .from('entities')
+        .insert({ ...insert, name: insertName })
+        .select('id')
+        .single();
+
+      if (created2) {
+        result.set(nid, (created2 as { id: string }).id);
+      } else {
+        console.error(`  ENTITY INSERT ERROR nid=${nid}: ${err2?.message}`);
+      }
+    } else if (error) {
+      console.error(`  ENTITY INSERT ERROR nid=${nid}: ${error.message}`);
+    }
   }
 
-  // Match returned rows back to NIDs via the external_ids JSONB field.
-  for (const row of data as Array<{ id: string; external_ids: Record<string, string> }>) {
-    const nid = row.external_ids['fjc_nid'];
-    if (nid) result.set(nid, row.id);
-  }
   return result;
 }
 
