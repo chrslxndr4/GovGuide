@@ -23,6 +23,7 @@
     "import:predictions": "npx tsx --env-file=.env scripts/import-predictions.ts",
     "import:voteview": "npx tsx --env-file=.env scripts/import-voteview.ts",
     "import:irs990": "npx tsx --env-file=.env scripts/import-irs990.ts",
+    "import:tickers": "npx tsx --env-file=.env scripts/import-ticker-metadata.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "pipeline": "tsx scripts/pipeline/run.ts",
