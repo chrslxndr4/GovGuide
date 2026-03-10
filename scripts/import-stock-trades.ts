@@ -185,10 +185,10 @@ function parseAmountRange(
  */
 function normaliseTradeType(
   raw: string | null | undefined,
-): 'buy' | 'sell' | 'exchange' | 'receive' | null {
+): 'purchase' | 'sale' | 'exchange' | null {
   if (!raw) return null;
   const lower = raw.toLowerCase().trim();
-  if (lower === 'purchase' || lower === 'buy' || lower === 'p') return 'buy';
+  if (lower === 'purchase' || lower === 'buy' || lower === 'p') return 'purchase';
   if (
     lower === 'sale' ||
     lower === 'sell' ||
@@ -197,11 +197,11 @@ function normaliseTradeType(
     lower === 'sale_partial' ||
     lower.startsWith('sale (') ||
     lower === 'sale (full)' ||
-    lower === 'sale (partial)'
+    lower === 'sale (partial)' ||
+    lower === 'receive' || lower === 'received'
   )
-    return 'sell';
+    return 'sale';
   if (lower === 'exchange' || lower === 'e') return 'exchange';
-  if (lower === 'receive' || lower === 'received') return 'receive';
   return null;
 }
 
@@ -1060,16 +1060,12 @@ async function processTrades(
       official_id: officialId,
       ticker: trade.ticker,
       asset_name: trade.assetName,
-      asset_type: trade.assetType,
       trade_type: tradeType,
       amount_range_low: amountLow,
       amount_range_high: amountHigh,
       trade_date: trade.tradeDate,
       disclosure_date: trade.disclosureDate,
       filing_url: trade.filingUrl,
-      owner: trade.owner,
-      comment: trade.comment,
-      entity_id: corpEntityId,
       metadata: {
         chamber,
         raw_name: trade.memberName,
