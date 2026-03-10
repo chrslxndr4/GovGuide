@@ -2,160 +2,69 @@
 import BaseLayout from '../../../layouts/BaseLayout.astro';
 import Header from '../../../components/Header.astro';
 import Footer from '../../../components/Footer.astro';
+import StockTracker from '../../../components/stock/StockTracker';
 import { supabase } from '../../../lib/supabase';
 
 export const prerender = false;
 
-const ticker = Astro.url.searchParams.get('ticker') ?? '';
-const party = Astro.url.searchParams.get('party') ?? '';
-const suspiciousOnly = Astro.url.searchParams.get('suspicious') === 'true';
-const page = Math.max(1, parseInt(Astro.url.searchParams.get('page') ?? '1', 10) || 1);
-const limit = 25;
-const offset = (page - 1) * limit;
-
-let query = supabase
-  .from('stock_trades')
-  .select(`
-    id,
-    ticker,
-    asset_name,
-    trade_type,
-    amount_range_low,
-    amount_range_high,
-    trade_date,
-    disclosure_date,
-    days_late,
-    filing_url,
-    official:official_id(id, full_name, party, state)
-  `, { count: 'exact' })
-  .order('trade_date', { ascending: false })
-  .range(offset, offset + limit - 1);
-
-if (ticker) query = query.ilike('ticker', `%${ticker}%`);
-if (suspiciousOnly) query = query.gt('days_late', 0);
-
-const { data: trades, count: totalCount } = await query;
-
+// Hero stats sourced from mv_trade_conflicts so flagged count is accurate.
 const { count: totalTrades } = await supabase
-  .from('stock_trades')
+  .from('mv_trade_conflicts')
   .select('*', { count: 'exact', head: true });
 
 const { count: lateCount } = await supabase
-  .from('stock_trades')
+  .from('mv_trade_conflicts')
   .select('*', { count: 'exact', head: true })
   .gt('days_late', 0);
 
-const totalPages = Math.ceil((totalCount ?? 0) / limit);
-
-function formatAmount(low?: number | null, high?: number | null): string {
-  if (!low && !high) return '—';
-  const fmt = (n: number) => n >= 1e6 ? `$${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `$${(n / 1e3).toFixed(0)}K` : `$${n}`;
-  if (low && high) return `${fmt(low)} – ${fmt(high)}`;
-  return fmt(low ?? high ?? 0);
-}
+const { count: flaggedCount } = await supabase
+  .from('mv_trade_conflicts')
+  .select('*', { count: 'exact', head: true })
+  .gt('conflict_severity', 0);
 ---
-<BaseLayout title="Congressional Stock Tracker">
+<BaseLayout title="Congressional Stock Tracker — GovGuide">
   <Header />
   <main id="main-content" class="flex-1">
+
+    <!-- Hero -->
     <section class="bg-civic-navy text-white py-12 px-4">
-      <div class="max-w-7xl mx-auto text-center">
-        <h1 class="text-4xl font-display font-bold mb-4">Congressional Stock Tracker</h1>
-        <p class="text-lg text-slate-300 max-w-2xl mx-auto">
-          Track stock trades by members of Congress. The STOCK Act requires disclosure within 45 days.
-        </p>
+      <div class="max-w-7xl mx-auto">
+        <div class="mb-6 text-center">
+          <h1 class="text-4xl font-display font-bold mb-3">Congressional Stock Tracker</h1>
+          <p class="text-lg text-slate-300 max-w-2xl mx-auto">
+            Track stock trades by members of Congress. The STOCK Act requires disclosure within 45 days.
+            Trades are cross-referenced with committee assignments, donor networks, and regulatory activity.
+          </p>
+        </div>
+
+        <!-- Hero stats -->
+        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4 max-w-3xl mx-auto mt-8">
+          <div class="bg-white/10 border border-white/20 rounded-lg px-5 py-4 text-center">
+            <p class="text-3xl font-display font-bold text-white">{(totalTrades ?? 0).toLocaleString()}</p>
+            <p class="text-sm text-slate-300 mt-1">Total trades tracked</p>
+          </div>
+          <div class="bg-white/10 border border-white/20 rounded-lg px-5 py-4 text-center">
+            <p class="text-3xl font-display font-bold text-civic-gold">{(lateCount ?? 0).toLocaleString()}</p>
+            <p class="text-sm text-slate-300 mt-1">Late STOCK Act filings</p>
+          </div>
+          <div class="bg-white/10 border border-white/20 rounded-lg px-5 py-4 text-center">
+            <p class="text-3xl font-display font-bold text-red-400">{(flaggedCount ?? 0).toLocaleString()}</p>
+            <p class="text-sm text-slate-300 mt-1">
+              Conflict-flagged trades —
+              <a href="/conflicts" class="underline underline-offset-2 hover:text-white transition-colors ml-1">
+                view conflicts
+              </a>
+            </p>
+          </div>
+        </div>
       </div>
     </section>
 
+    <!-- Interactive tracker -->
     <section class="max-w-7xl mx-auto px-4 py-8">
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-        <div class="bg-white rounded-lg shadow p-6 text-center">
-          <p class="text-3xl font-bold text-civic-navy">{(totalTrades ?? 0).toLocaleString()}</p>
-          <p class="text-sm text-civic-slate">Total Trades Tracked</p>
-        </div>
-        <div class="bg-white rounded-lg shadow p-6 text-center">
-          <p class="text-3xl font-bold text-civic-red">{(lateCount ?? 0).toLocaleString()}</p>
-          <p class="text-sm text-civic-slate">Late Filings</p>
-        </div>
-        <div class="bg-white rounded-lg shadow p-6 text-center">
-          <p class="text-3xl font-bold text-civic-gold">45</p>
-          <p class="text-sm text-civic-slate">Days to Disclose (STOCK Act)</p>
-        </div>
-      </div>
-
-      <form method="get" class="flex flex-wrap gap-3 mb-6">
-        <input
-          type="text"
-          name="ticker"
-          value={ticker}
-          placeholder="Search by ticker..."
-          class="px-4 py-2 border border-slate-300 rounded-lg focus:ring-2 focus:ring-civic-blue"
-        />
-        <label class="flex items-center gap-2 px-4 py-2 bg-white border rounded-lg cursor-pointer">
-          <input type="checkbox" name="suspicious" value="true" checked={suspiciousOnly} class="rounded" />
-          <span class="text-sm">Late filings only</span>
-        </label>
-        <button type="submit" class="px-6 py-2 bg-civic-blue text-white rounded-lg hover:bg-blue-700 transition-colors">
-          Filter
-        </button>
-      </form>
-
-      {(trades ?? []).length === 0 ? (
-        <p class="text-civic-slate italic text-center py-8">
-          No stock trades found. Data will appear as import pipelines run.
-        </p>
-      ) : (
-        <div class="bg-white rounded-lg shadow overflow-x-auto">
-          <table class="w-full text-sm">
-            <thead class="bg-slate-50">
-              <tr>
-                <th class="px-3 py-3 text-left text-civic-navy font-semibold">Member</th>
-                <th class="px-3 py-3 text-left text-civic-navy font-semibold">Party</th>
-                <th class="px-3 py-3 text-left text-civic-navy font-semibold">Ticker</th>
-                <th class="px-3 py-3 text-left text-civic-navy font-semibold">Type</th>
-                <th class="px-3 py-3 text-left text-civic-navy font-semibold">Amount</th>
-                <th class="px-3 py-3 text-left text-civic-navy font-semibold">Trade Date</th>
-                <th class="px-3 py-3 text-left text-civic-navy font-semibold">Days Late</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-slate-100">
-              {(trades ?? []).map((trade) => {
-                const official = trade.official as { full_name?: string; party?: string; state?: string } | null;
-                const isLate = (trade.days_late ?? 0) > 0;
-                return (
-                  <tr class={`hover:bg-slate-50 ${isLate ? 'bg-red-50' : ''}`}>
-                    <td class="px-3 py-3 font-medium">{official?.full_name ?? 'Unknown'}</td>
-                    <td class="px-3 py-3">
-                      <span class={`text-xs px-2 py-1 rounded ${official?.party === 'Democrat' ? 'bg-blue-100 text-blue-800' : official?.party === 'Republican' ? 'bg-red-100 text-red-800' : 'bg-slate-100 text-slate-800'}`}>
-                        {official?.party?.[0] ?? '?'}-{official?.state ?? '??'}
-                      </span>
-                    </td>
-                    <td class="px-3 py-3 font-mono font-bold">{trade.ticker ?? '—'}</td>
-                    <td class="px-3 py-3">
-                      <span class={`text-xs px-2 py-1 rounded ${trade.trade_type === 'purchase' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {trade.trade_type}
-                      </span>
-                    </td>
-                    <td class="px-3 py-3">{formatAmount(trade.amount_range_low, trade.amount_range_high)}</td>
-                    <td class="px-3 py-3">{trade.trade_date ?? '—'}</td>
-                    <td class={`px-3 py-3 font-bold ${isLate ? 'text-civic-red' : 'text-green-600'}`}>
-                      {trade.days_late != null ? (isLate ? `+${trade.days_late}` : 'On time') : '—'}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-
-      {totalPages > 1 && (
-        <div class="flex justify-center gap-2 mt-6">
-          {page > 1 && <a href={`?ticker=${ticker}&suspicious=${suspiciousOnly}&page=${page - 1}`} class="px-4 py-2 bg-white border rounded hover:bg-slate-50">&laquo; Prev</a>}
-          <span class="px-4 py-2 text-civic-slate">Page {page} of {totalPages}</span>
-          {page < totalPages && <a href={`?ticker=${ticker}&suspicious=${suspiciousOnly}&page=${page + 1}`} class="px-4 py-2 bg-white border rounded hover:bg-slate-50">Next &raquo;</a>}
-        </div>
-      )}
+      <StockTracker client:load />
     </section>
+
   </main>
   <Footer />
 </BaseLayout>

@@ -24,6 +24,10 @@ interface StockTrade {
   committee_overlap: boolean;
   committee_names: string[];
   filing_date: string;
+  conflict_severity: number;
+  sector: string | null;
+  donor_overlap: boolean;
+  regulatory_overlap: boolean;
 }
 
 interface Pagination {
@@ -42,9 +46,10 @@ interface SummaryStats {
   totalThisMonth: number;
   lateFilings: number;
   suspiciousTiming: number;
+  flaggedCount: number;
 }
 
-type SortField = 'trade_date' | 'official' | 'ticker' | 'amount_min' | 'days_late';
+type SortField = 'trade_date' | 'official' | 'ticker' | 'amount_min' | 'days_late' | 'conflict_severity';
 type SortDir = 'asc' | 'desc';
 
 interface FilterState {
@@ -53,7 +58,9 @@ interface FilterState {
   dateFrom: string;
   dateTo: string;
   tradeType: string;
+  party: string;
   lateOnly: boolean;
+  flaggedOnly: boolean;
 }
 
 const INITIAL_FILTERS: FilterState = {
@@ -62,7 +69,9 @@ const INITIAL_FILTERS: FilterState = {
   dateFrom: '',
   dateTo: '',
   tradeType: '',
+  party: '',
   lateOnly: false,
+  flaggedOnly: false,
 };
 
 const TRADE_TYPE_LABELS: Record<string, string> = {
@@ -199,10 +208,46 @@ function CommitteeOverlapBadge({ names }: { names: string[] }) {
   );
 }
 
+function severityBadgeClass(s: number): string {
+  if (s >= 8) return 'bg-red-600 text-white';
+  if (s >= 6) return 'bg-orange-500 text-white';
+  if (s >= 4) return 'bg-amber-400 text-amber-900';
+  return 'bg-blue-500 text-white';
+}
+
+function severityLabel(s: number): string {
+  if (s >= 8) return 'Critical';
+  if (s >= 6) return 'High';
+  if (s >= 4) return 'Medium';
+  return 'Low';
+}
+
+function SeverityBadge({ severity }: { severity: number }) {
+  if (severity <= 0) return null;
+  return (
+    <span
+      className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-bold tabular-nums ${severityBadgeClass(severity)}`}
+      aria-label={`Severity ${severity} — ${severityLabel(severity)}`}
+    >
+      <span className="w-1.5 h-1.5 rounded-full bg-current opacity-70" aria-hidden="true" />
+      {severity}
+    </span>
+  );
+}
+
+function SectorTag({ sector }: { sector: string | null }) {
+  if (!sector) return null;
+  return (
+    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded bg-slate-100 text-slate-500 border border-slate-200 uppercase tracking-wide">
+      {sector}
+    </span>
+  );
+}
+
 function EmptyState({ hasFilters }: { hasFilters: boolean }) {
   return (
     <tr>
-      <td colSpan={7} className="py-16 text-center">
+      <td colSpan={8} className="py-16 text-center">
         <p className="text-civic-slate font-medium">
           {hasFilters ? 'No trades match your filters.' : 'No trades found.'}
         </p>
@@ -219,7 +264,7 @@ function LoadingRows() {
     <>
       {Array.from({ length: 8 }).map((_, i) => (
         <tr key={i} className="animate-pulse">
-          {Array.from({ length: 7 }).map((_, j) => (
+          {Array.from({ length: 8 }).map((_, j) => (
             <td key={j} className="px-4 py-3">
               <div className="h-4 bg-slate-100 rounded w-3/4" />
             </td>
@@ -242,7 +287,7 @@ export default function StockTracker() {
 
   const [trades, setTrades] = useState<StockTrade[]>([]);
   const [pagination, setPagination] = useState<Pagination>({ page: 1, limit: 50, total: 0, pages: 0 });
-  const [stats, setStats] = useState<SummaryStats>({ totalThisMonth: 0, lateFilings: 0, suspiciousTiming: 0 });
+  const [stats, setStats] = useState<SummaryStats>({ totalThisMonth: 0, lateFilings: 0, suspiciousTiming: 0, flaggedCount: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [sortField, setSortField] = useState<SortField>('trade_date');
@@ -258,12 +303,22 @@ export default function StockTracker() {
       if (committedFilters.tradeType) params.set('trade_type', committedFilters.tradeType);
       if (committedFilters.dateFrom) params.set('date_from', committedFilters.dateFrom);
       if (committedFilters.dateTo) params.set('date_to', committedFilters.dateTo);
+      if (committedFilters.party) params.set('party', committedFilters.party);
       if (committedFilters.lateOnly) params.set('late_only', 'true');
+      if (committedFilters.flaggedOnly) params.set('flagged_only', 'true');
+      // Map the client sort field to the API sort param for server-side ordering.
+      if (sortField === 'conflict_severity') {
+        params.set('sort', 'severity');
+      } else if (sortField === 'amount_min') {
+        params.set('sort', 'amount');
+      } else {
+        params.set('sort', 'date');
+      }
       params.set('page', String(overridePage ?? page));
       params.set('limit', '50');
       return params;
     },
-    [committedFilters, page]
+    [committedFilters, sortField, page]
   );
 
   // Fetch trades whenever committed filters, page, or sort change.
@@ -300,10 +355,12 @@ export default function StockTracker() {
     const thisMonth = tradeList.filter(t => t.trade_date >= startOfMonth).length;
     const late = tradeList.filter(t => t.days_late > 0).length;
     const suspicious = tradeList.filter(t => t.committee_overlap).length;
+    const flagged = tradeList.filter(t => t.conflict_severity > 0).length;
     setStats({
       totalThisMonth: thisMonth,
       lateFilings: late,
       suspiciousTiming: suspicious,
+      flaggedCount: flagged,
     });
   }
 
@@ -320,6 +377,8 @@ export default function StockTracker() {
       cmp = a.amount_min - b.amount_min;
     } else if (sortField === 'days_late') {
       cmp = a.days_late - b.days_late;
+    } else if (sortField === 'conflict_severity') {
+      cmp = a.conflict_severity - b.conflict_severity;
     }
     return sortDir === 'asc' ? cmp : -cmp;
   });
@@ -351,19 +410,28 @@ export default function StockTracker() {
     setCommittedFilters(updated);
   }
 
+  function handleFlaggedOnlyToggle(checked: boolean) {
+    const updated = { ...filters, flaggedOnly: checked };
+    setFilters(updated);
+    setPage(1);
+    setCommittedFilters(updated);
+  }
+
   const hasActiveFilters =
     committedFilters.official !== '' ||
     committedFilters.ticker !== '' ||
     committedFilters.dateFrom !== '' ||
     committedFilters.dateTo !== '' ||
     committedFilters.tradeType !== '' ||
-    committedFilters.lateOnly;
+    committedFilters.party !== '' ||
+    committedFilters.lateOnly ||
+    committedFilters.flaggedOnly;
 
   return (
     <div className="flex flex-col gap-6">
 
       {/* Summary stats */}
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Trades this month"
           value={stats.totalThisMonth}
@@ -380,6 +448,12 @@ export default function StockTracker() {
           value={stats.suspiciousTiming}
           accent="danger"
           note="Trade overlaps with committee jurisdiction"
+        />
+        <StatCard
+          label="Conflict-flagged trades"
+          value={stats.flaggedCount}
+          accent="danger"
+          note="Severity score above zero on this page"
         />
       </div>
 
@@ -464,6 +538,24 @@ export default function StockTracker() {
             </select>
           </div>
 
+          {/* Party filter */}
+          <div className="flex flex-col gap-1 min-w-[110px]">
+            <label htmlFor="filter-party" className="text-xs font-medium text-slate-600">
+              Party
+            </label>
+            <select
+              id="filter-party"
+              value={filters.party}
+              onChange={e => setFilters(f => ({ ...f, party: e.target.value }))}
+              className="border border-slate-300 rounded-md px-3 py-1.5 text-sm focus:outline-none focus:ring-2 focus:ring-civic-blue focus:border-transparent"
+            >
+              <option value="">All parties</option>
+              <option value="D">Democrat</option>
+              <option value="R">Republican</option>
+              <option value="I">Independent</option>
+            </select>
+          </div>
+
           {/* Late only toggle */}
           <label className="flex items-center gap-2 cursor-pointer self-end pb-[9px]">
             <input
@@ -473,6 +565,17 @@ export default function StockTracker() {
               className="w-4 h-4 accent-civic-red rounded"
             />
             <span className="text-sm font-medium text-slate-700">Late filings only</span>
+          </label>
+
+          {/* Flagged only toggle */}
+          <label className="flex items-center gap-2 cursor-pointer self-end pb-[9px]">
+            <input
+              type="checkbox"
+              checked={filters.flaggedOnly}
+              onChange={e => handleFlaggedOnlyToggle(e.target.checked)}
+              className="w-4 h-4 accent-civic-red rounded"
+            />
+            <span className="text-sm font-medium text-slate-700">Flagged only</span>
           </label>
 
           {/* Action buttons */}
@@ -498,8 +601,10 @@ export default function StockTracker() {
           <p className="mt-3 text-xs text-civic-slate border-t border-slate-100 pt-3">
             Showing filtered results
             {committedFilters.lateOnly && ' — late filings only'}
+            {committedFilters.flaggedOnly && ' — conflict-flagged only'}
             {committedFilters.ticker && ` — ticker: ${committedFilters.ticker.toUpperCase()}`}
             {committedFilters.tradeType && ` — type: ${tradeTypeLabel(committedFilters.tradeType)}`}
+            {committedFilters.party && ` — party: ${committedFilters.party}`}
           </p>
         )}
       </div>
@@ -563,6 +668,11 @@ export default function StockTracker() {
                 <th className="px-4 py-3 text-left">
                   <SortButton field="days_late" currentField={sortField} currentDir={sortDir} onSort={handleSort}>
                     Filing
+                  </SortButton>
+                </th>
+                <th className="px-4 py-3 text-left">
+                  <SortButton field="conflict_severity" currentField={sortField} currentDir={sortDir} onSort={handleSort}>
+                    Severity
                   </SortButton>
                 </th>
                 <th className="px-4 py-3 text-left">
@@ -659,9 +769,12 @@ function TradeRow({ trade }: { trade: StockTrade }) {
       {/* Ticker / Asset */}
       <td className="px-4 py-3">
         <div>
-          <span className="font-mono font-semibold text-civic-navy text-xs tracking-wider">
-            {trade.ticker}
-          </span>
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <span className="font-mono font-semibold text-civic-navy text-xs tracking-wider">
+              {trade.ticker}
+            </span>
+            <SectorTag sector={trade.sector} />
+          </div>
           {trade.asset_description && (
             <p className="text-xs text-slate-400 mt-0.5 max-w-[180px] truncate" title={trade.asset_description}>
               {trade.asset_description}
@@ -692,9 +805,34 @@ function TradeRow({ trade }: { trade: StockTrade }) {
         </div>
       </td>
 
+      {/* Severity */}
+      <td className="px-4 py-3 whitespace-nowrap">
+        <SeverityBadge severity={trade.conflict_severity} />
+      </td>
+
       {/* Flags */}
       <td className="px-4 py-3">
-        <CommitteeOverlapBadge names={trade.committee_names ?? []} />
+        <div className="flex flex-wrap gap-1">
+          <CommitteeOverlapBadge names={trade.committee_names ?? []} />
+          {trade.donor_overlap && (
+            <span
+              title="Donor overlap detected"
+              className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-purple-100 text-purple-800 border border-purple-200"
+            >
+              <span aria-hidden="true">&#9650;</span>
+              Donor overlap
+            </span>
+          )}
+          {trade.regulatory_overlap && (
+            <span
+              title="Regulatory overlap detected"
+              className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 border border-blue-200"
+            >
+              <span aria-hidden="true">&#8635;</span>
+              Regulatory
+            </span>
+          )}
+        </div>
       </td>
     </tr>
   );
