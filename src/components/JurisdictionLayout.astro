@@ -1,0 +1,34 @@
+---
+import TaxonomySidebar from './TaxonomySidebar.astro';
+
+interface JurisdictionLink {
+  name: string;
+  slug: string;
+}
+
+interface SidebarProps {
+  currentLevel: 'federal' | 'state' | 'county' | 'city';
+  currentSlug?: string;
+  stateName?: string;
+  stateSlug?: string;
+  countyName?: string;
+  countySlug?: string;
+  cityName?: string;
+  citySlug?: string;
+  siblingCounties?: JurisdictionLink[];
+  siblingCities?: JurisdictionLink[];
+}
+
+interface Props {
+  sidebarProps: SidebarProps;
+}
+
+const { sidebarProps } = Astro.props;
+---
+
+<div class="max-w-7xl mx-auto px-4 py-10 flex gap-8">
+  <TaxonomySidebar {...sidebarProps} />
+  <div class="flex-1 min-w-0">
+    <slot />
+  </div>
+</div>

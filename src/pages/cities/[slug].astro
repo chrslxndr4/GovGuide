@@ -16,41 +16,85 @@ const { data: city } = await supabase
 
 if (!city) return Astro.redirect('/404');
 
-// Fetch related data in parallel
+// Look up parent state name/slug, county name/slug, and sibling cities in parallel with other queries
 const [
+  { data: parentState },
+  { data: parentCounty },
   { data: council },
   { data: elections },
-  { data: issues },
+  { data: siblingCities },
 ] = await Promise.all([
+  // State name + slug: match on state_abbr + level='state'
+  city.state_abbr
+    ? supabase
+        .from('jurisdictions')
+        .select('name, slug')
+        .eq('level', 'state')
+        .eq('state_abbr', city.state_abbr)
+        .single()
+    : Promise.resolve({ data: null }),
+
+  // County name + slug: look up parent jurisdiction if parent_id exists
+  city.parent_id
+    ? supabase
+        .from('jurisdictions')
+        .select('name, slug')
+        .eq('id', city.parent_id)
+        .single()
+    : Promise.resolve({ data: null }),
+
+  // Officials joined through offices
   supabase
     .from('officials')
-    .select('id, name, slug, party, title, district')
-    .eq('jurisdiction_id', city.id)
-    .order('title', { ascending: true }),
+    .select('id, full_name, slug, party, photo_url, offices!inner(title, branch, district, jurisdiction_id)')
+    .eq('is_current', true)
+    .eq('offices.jurisdiction_id', city.id)
+    .order('full_name'),
+
+  // Elections — use election_type, no type/status columns
   supabase
     .from('elections')
-    .select('id, name, election_date, type, status')
+    .select('id, name, election_date, election_type, registration_deadline')
     .eq('jurisdiction_id', city.id)
     .order('election_date', { ascending: false })
     .limit(10),
-  supabase
-    .from('local_issues')
-    .select('id, title, category, status, summary, created_at')
-    .eq('jurisdiction_id', city.id)
-    .order('created_at', { ascending: false })
-    .limit(10),
+
+  // Sibling cities in same state, ordered by population
+  city.state_abbr
+    ? supabase
+        .from('jurisdictions')
+        .select('name, slug, population')
+        .eq('level', 'city')
+        .eq('state_abbr', city.state_abbr)
+        .neq('slug', slug)
+        .order('population', { ascending: false })
+        .limit(12)
+    : Promise.resolve({ data: null }),
 ]);
 
-type PartyKey = 'D' | 'R' | 'I' | string;
+const stateName: string | null = parentState?.name ?? null;
+const stateSlug: string | null = parentState?.slug ?? null;
+const countyName: string | null = parentCounty?.name ?? null;
+const countySlug: string | null = parentCounty?.slug ?? null;
 
-function partyLabel(party: PartyKey): string {
-  const labels: Record<string, string> = { D: 'Democrat', R: 'Republican', I: 'Independent' };
-  return labels[party] ?? party ?? 'Unknown';
+type PartyEnum = 'democratic' | 'republican' | 'independent' | 'libertarian' | 'green' | 'other' | string;
+
+function partyLabel(party: PartyEnum): string {
+  const labels: Record<string, string> = {
+    democratic: 'Democrat',
+    republican: 'Republican',
+    independent: 'Independent',
+    libertarian: 'Libertarian',
+    green: 'Green',
+    other: 'Other',
+  };
+  return labels[party?.toLowerCase()] ?? party ?? 'Unknown';
 }
 
-function partyBadge(party: PartyKey): string {
-  if (party === 'D') return 'bg-blue-100 text-blue-800 border-blue-200';
-  if (party === 'R') return 'bg-red-100 text-red-800 border-red-200';
+function partyBadge(party: PartyEnum): string {
+  const p = party?.toLowerCase();
+  if (p === 'democratic') return 'bg-blue-100 text-blue-800 border-blue-200';
+  if (p === 'republican') return 'bg-red-100 text-red-800 border-red-200';
   return 'bg-slate-100 text-slate-700 border-slate-200';
 }
 
@@ -63,21 +107,37 @@ function formatDate(dateStr: string | null | undefined): string {
   });
 }
 
-// Split out the mayor (title contains 'mayor') from council members
-const mayor = council?.find(o => o.title?.toLowerCase().includes('mayor')) ?? null;
-const councilMembers = council?.filter(o => !o.title?.toLowerCase().includes('mayor')) ?? [];
+// Split out the mayor from council members using the joined office title
+const mayor = council?.find(o => {
+  const officeTitle = Array.isArray(o.offices) ? o.offices[0]?.title : (o.offices as { title?: string } | null)?.title;
+  return officeTitle?.toLowerCase().includes('mayor');
+}) ?? null;
+
+const councilMembers = council?.filter(o => {
+  const officeTitle = Array.isArray(o.offices) ? o.offices[0]?.title : (o.offices as { title?: string } | null)?.title;
+  return !officeTitle?.toLowerCase().includes('mayor');
+}) ?? [];
+
+function getOfficeTitle(o: (typeof council)[number]): string {
+  const officeTitle = Array.isArray(o.offices) ? o.offices[0]?.title : (o.offices as { title?: string } | null)?.title;
+  return officeTitle ?? 'Council Member';
+}
+
+function getOfficeDistrict(o: (typeof council)[number]): string | null {
+  const district = Array.isArray(o.offices) ? o.offices[0]?.district : (o.offices as { district?: string } | null)?.district;
+  return district ?? null;
+}
 
 const sections = [
   { id: 'council', label: 'Mayor & Council' },
-  { id: 'budget', label: 'City Budget' },
-  { id: 'issues', label: 'Local Issues' },
   { id: 'elections', label: 'Elections' },
+  { id: 'see-also', label: 'See Also' },
 ];
 ---
 
 <BaseLayout
   title={city.name}
-  description={`City profile for ${city.name} — mayor and council, city budget, local issues, and elections.`}
+  description={`City profile for ${city.name} — mayor and council, and upcoming elections.`}
 >
   <main class="flex-1">
 
@@ -86,7 +146,9 @@ const sections = [
       <div class="max-w-5xl mx-auto">
         <Breadcrumb
           items={[
-            { label: 'Cities', href: '/cities' },
+            { label: 'States', href: '/states' },
+            ...(stateSlug && stateName ? [{ label: stateName, href: `/states/${stateSlug}` }] : []),
+            ...(countySlug && countyName ? [{ label: countyName, href: `/counties/${countySlug}` }] : []),
             { label: city.name },
           ]}
         />
@@ -97,7 +159,7 @@ const sections = [
                    flex items-center justify-center text-2xl font-display font-bold text-white/60"
             aria-hidden="true"
           >
-            {city.state_code ?? '??'}
+            {city.state_abbr ?? '??'}
           </div>
 
           <div class="flex-1 min-w-0">
@@ -105,17 +167,17 @@ const sections = [
               {city.name}
             </h1>
             <div class="flex flex-wrap items-center gap-3 text-sm text-slate-300">
-              {city.state_name && <span>{city.state_name}</span>}
+              {stateName && <span>{stateName}</span>}
               {city.population != null && (
                 <>
                   <span class="text-slate-500" aria-hidden="true">·</span>
                   <span>Pop. {city.population.toLocaleString()}</span>
                 </>
               )}
-              {city.county_name && (
+              {countyName && (
                 <>
                   <span class="text-slate-500" aria-hidden="true">·</span>
-                  <span>{city.county_name} County</span>
+                  <span>{countyName} County</span>
                 </>
               )}
             </div>
@@ -163,11 +225,11 @@ const sections = [
                        text-lg font-display font-bold text-civic-navy"
                 aria-hidden="true"
               >
-                {mayor.name.charAt(0).toUpperCase()}
+                {mayor.full_name.charAt(0).toUpperCase()}
               </div>
               <div>
                 <a href={`/officials/${mayor.slug}`} class="font-bold text-lg text-civic-navy hover:text-civic-blue transition-colors">
-                  {mayor.name}
+                  {mayor.full_name}
                 </a>
                 {mayor.party && (
                   <div class="mt-1">
@@ -195,13 +257,13 @@ const sections = [
                            text-sm font-display font-bold text-slate-500"
                     aria-hidden="true"
                   >
-                    {member.name.charAt(0).toUpperCase()}
+                    {member.full_name.charAt(0).toUpperCase()}
                   </div>
                   <div class="min-w-0">
-                    <div class="font-semibold text-slate-800 truncate">{member.name}</div>
+                    <div class="font-semibold text-slate-800 truncate">{member.full_name}</div>
                     <div class="flex items-center gap-2 mt-0.5">
                       <span class="text-xs text-civic-slate truncate">
-                        {member.title ?? 'Council Member'}{member.district ? ` · District ${member.district}` : ''}
+                        {getOfficeTitle(member)}{getOfficeDistrict(member) ? ` · District ${getOfficeDistrict(member)}` : ''}
                       </span>
                       {member.party && (
                         <span class={`inline-flex px-1.5 py-0.5 rounded text-xs font-semibold border ${partyBadge(member.party)}`}>
@@ -224,86 +286,21 @@ const sections = [
         <h2 id="budget-heading" class="text-xl font-display text-civic-navy mb-2 pb-2 border-b border-slate-200">
           City Budget
         </h2>
-        <p class="text-xs text-civic-slate mb-6">
-          Budget and expenditure data for {city.name}. Sourced from city financial disclosures.
-        </p>
-
-        <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          {[
-            { label: 'Annual Budget', value: city.annual_budget },
-            { label: 'Per Capita Spending', value: city.per_capita_spending },
-            { label: 'Fiscal Year', value: city.fiscal_year },
-          ].map(stat => (
-            <div class="rounded-lg border border-slate-200 bg-white p-4">
-              <div class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-1">
-                {stat.label}
-              </div>
-              <div class="text-2xl font-display font-bold text-civic-navy">
-                {stat.value != null
-                  ? typeof stat.value === 'number'
-                    ? `$${stat.value.toLocaleString()}`
-                    : stat.value
-                  : <span class="text-slate-300 text-base font-normal italic">Not available</span>
-                }
-              </div>
-            </div>
-          ))}
-        </div>
-
-        {city.budget_url && (
-          <div class="mt-4">
+        <div class="rounded-lg border border-slate-200 bg-slate-50 p-6 text-center">
+          <p class="text-civic-slate text-sm">
+            Detailed budget data is not yet available for {city.name}.
+          </p>
+          {city.website && (
             <a
-              href={city.budget_url}
+              href={city.website}
               target="_blank"
               rel="noopener noreferrer"
-              class="inline-flex items-center gap-1.5 text-sm text-civic-blue hover:underline"
+              class="inline-flex items-center gap-1.5 text-sm text-civic-blue hover:underline mt-3"
             >
-              View full budget document &rarr;
+              Visit {city.name} official website &rarr;
             </a>
-          </div>
-        )}
-      </section>
-
-      <!-- ── Local Issues ───────────────────────────────────────── -->
-      <section id="issues" aria-labelledby="issues-heading">
-        <h2 id="issues-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
-          Local Issues
-        </h2>
-
-        {issues && issues.length > 0 ? (
-          <ul class="flex flex-col gap-4" role="list">
-            {issues.map(issue => (
-              <li class="rounded-lg border border-slate-200 bg-white p-4">
-                <div class="flex flex-wrap items-start justify-between gap-2 mb-2">
-                  <h3 class="font-semibold text-slate-800">{issue.title}</h3>
-                  <div class="flex items-center gap-2 shrink-0">
-                    {issue.category && (
-                      <span class="text-xs font-medium px-2 py-0.5 rounded bg-slate-100 text-civic-slate capitalize">
-                        {issue.category.replace(/_/g, ' ')}
-                      </span>
-                    )}
-                    {issue.status && (
-                      <span class={`text-xs font-semibold px-2 py-0.5 rounded capitalize ${
-                        issue.status === 'active'
-                          ? 'bg-blue-100 text-blue-700'
-                          : issue.status === 'resolved'
-                          ? 'bg-emerald-100 text-emerald-700'
-                          : 'bg-slate-100 text-slate-600'
-                      }`}>
-                        {issue.status}
-                      </span>
-                    )}
-                  </div>
-                </div>
-                {issue.summary && (
-                  <p class="text-sm text-slate-600 leading-relaxed">{issue.summary}</p>
-                )}
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p class="text-slate-400 italic text-sm">No local issues on record for this city.</p>
-        )}
+          )}
+        </div>
       </section>
 
       <!-- ── Elections ─────────────────────────────────────────── -->
@@ -318,19 +315,17 @@ const sections = [
               <li class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 p-4 rounded-lg border border-slate-200 bg-white">
                 <div>
                   <div class="font-semibold text-slate-800">{election.name}</div>
-                  <div class="text-xs text-civic-slate mt-0.5 capitalize">{election.type ?? 'General'}</div>
+                  {election.election_type && (
+                    <div class="text-xs text-civic-slate mt-0.5 capitalize">
+                      {election.election_type.replace(/_/g, ' ')}
+                    </div>
+                  )}
                 </div>
                 <div class="flex items-center gap-3 shrink-0">
                   <span class="text-sm text-slate-500">{formatDate(election.election_date)}</span>
-                  {election.status && (
-                    <span class={`text-xs font-semibold px-2 py-0.5 rounded capitalize ${
-                      election.status === 'upcoming'
-                        ? 'bg-blue-100 text-blue-700'
-                        : election.status === 'completed'
-                        ? 'bg-emerald-100 text-emerald-700'
-                        : 'bg-slate-100 text-slate-600'
-                    }`}>
-                      {election.status}
+                  {election.registration_deadline && (
+                    <span class="text-xs text-civic-slate">
+                      Reg. deadline: {formatDate(election.registration_deadline)}
                     </span>
                   )}
                 </div>
@@ -339,6 +334,48 @@ const sections = [
           </ul>
         ) : (
           <p class="text-slate-400 italic text-sm">No election records for this city.</p>
+        )}
+      </section>
+
+      <!-- ── Other Cities in State ─────────────────────────────── -->
+      <section id="see-also" aria-labelledby="see-also-heading">
+        <h2 id="see-also-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Other Cities in {stateName ?? city.state_abbr}
+        </h2>
+
+        {siblingCities && siblingCities.length > 0 ? (
+          <>
+            <ul
+              class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-x-6 gap-y-1"
+              role="list"
+            >
+              {siblingCities.map(sibling => (
+                <li class="flex items-baseline gap-1 min-w-0">
+                  <a
+                    href={`/cities/${sibling.slug}`}
+                    class="text-sm text-blue-600 hover:underline no-underline truncate"
+                  >
+                    {sibling.name}
+                  </a>
+                  {sibling.population != null && (
+                    <span class="text-xs text-slate-400 ml-1 shrink-0">
+                      (pop.&nbsp;{sibling.population.toLocaleString()})
+                    </span>
+                  )}
+                </li>
+              ))}
+            </ul>
+            {stateSlug && stateName && (
+              <a
+                href={`/states/${stateSlug}#cities`}
+                class="text-sm text-blue-600 hover:underline font-medium mt-3 inline-block"
+              >
+                View all cities in {stateName} &rarr;
+              </a>
+            )}
+          </>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No sibling city data available.</p>
         )}
       </section>
 

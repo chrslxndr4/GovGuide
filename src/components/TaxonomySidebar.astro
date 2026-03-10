@@ -1,0 +1,243 @@
+---
+interface JurisdictionLink {
+  name: string;
+  slug: string;
+}
+
+interface Props {
+  currentLevel: 'federal' | 'state' | 'county' | 'city';
+  currentSlug?: string;
+  stateName?: string;
+  stateSlug?: string;
+  countyName?: string;
+  countySlug?: string;
+  cityName?: string;
+  citySlug?: string;
+  siblingCounties?: JurisdictionLink[];
+  siblingCities?: JurisdictionLink[];
+}
+
+const {
+  currentLevel,
+  currentSlug,
+  stateName,
+  stateSlug,
+  countyName,
+  countySlug,
+  cityName,
+  citySlug,
+  siblingCounties = [],
+  siblingCities = [],
+} = Astro.props;
+
+const MAX_VISIBLE = 8;
+
+const visibleCounties = siblingCounties.slice(0, MAX_VISIBLE);
+const hasMoreCounties = siblingCounties.length > MAX_VISIBLE;
+
+const visibleCities = siblingCities.slice(0, MAX_VISIBLE);
+const hasMoreCities = siblingCities.length > MAX_VISIBLE;
+
+function isCurrentPage(level: string, slug?: string): boolean {
+  if (currentLevel !== level) return false;
+  if (slug === undefined) return true;
+  return slug === currentSlug;
+}
+---
+
+<nav
+  aria-label="Government hierarchy"
+  class="w-56 shrink-0 hidden lg:block sticky top-16 self-start bg-white border-r border-slate-200 pr-4 max-h-[calc(100vh-4rem)] overflow-y-auto"
+>
+  <ul class="py-4 space-y-0.5" role="list">
+
+    <!-- Federal -->
+    <li>
+      {isCurrentPage('federal') ? (
+        <span
+          class="block text-sm font-semibold text-civic-navy bg-blue-50 rounded px-2 py-0.5"
+          aria-current="page"
+        >
+          Federal Government
+        </span>
+      ) : (
+        <a
+          href="/federal"
+          class="block text-sm text-slate-600 hover:text-civic-blue px-2 py-0.5 rounded transition-colors"
+        >
+          Federal Government
+        </a>
+      )}
+    </li>
+
+    <!-- State level -->
+    {stateName && stateSlug && (
+      <>
+        <li class="pl-4">
+          <span class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1 mt-2 px-2">
+            State
+          </span>
+        </li>
+        <li class="pl-4">
+          {isCurrentPage('state', stateSlug) ? (
+            <span
+              class="block text-sm font-semibold text-civic-navy bg-blue-50 rounded px-2 py-0.5"
+              aria-current="page"
+            >
+              {stateName}
+            </span>
+          ) : (
+            <a
+              href={`/states/${stateSlug}`}
+              class="block text-sm text-slate-600 hover:text-civic-blue px-2 py-0.5 rounded transition-colors"
+            >
+              {stateName}
+            </a>
+          )}
+        </li>
+
+        <!-- Counties under the state -->
+        {visibleCounties.length > 0 && (
+          <>
+            <li class="pl-8">
+              <span class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1 mt-2 px-2">
+                Counties
+                {siblingCounties.length > 0 && (
+                  <span class="font-normal normal-case tracking-normal ml-1">({siblingCounties.length})</span>
+                )}
+              </span>
+            </li>
+            {visibleCounties.map((county) => (
+              <li class="pl-8">
+                {isCurrentPage('county', county.slug) ? (
+                  <span
+                    class="block text-sm font-semibold text-civic-navy bg-blue-50 rounded px-2 py-0.5"
+                    aria-current="page"
+                  >
+                    {county.name}
+                  </span>
+                ) : (
+                  <a
+                    href={`/counties/${county.slug}`}
+                    class="block text-sm text-slate-600 hover:text-civic-blue px-2 py-0.5 rounded transition-colors truncate"
+                    title={county.name}
+                  >
+                    {county.name}
+                  </a>
+                )}
+              </li>
+            ))}
+            {hasMoreCounties && (
+              <li class="pl-8">
+                <a
+                  href={`/states/${stateSlug}#counties`}
+                  class="block text-xs text-civic-blue hover:underline px-2 py-0.5"
+                >
+                  View all {siblingCounties.length} counties
+                </a>
+              </li>
+            )}
+          </>
+        )}
+
+        <!-- Current county detail (no siblings passed) -->
+        {countyName && countySlug && visibleCounties.length === 0 && (
+          <>
+            <li class="pl-8">
+              <span class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1 mt-2 px-2">
+                County
+              </span>
+            </li>
+            <li class="pl-8">
+              {isCurrentPage('county', countySlug) ? (
+                <span
+                  class="block text-sm font-semibold text-civic-navy bg-blue-50 rounded px-2 py-0.5"
+                  aria-current="page"
+                >
+                  {countyName}
+                </span>
+              ) : (
+                <a
+                  href={`/counties/${countySlug}`}
+                  class="block text-sm text-slate-600 hover:text-civic-blue px-2 py-0.5 rounded transition-colors"
+                >
+                  {countyName}
+                </a>
+              )}
+            </li>
+          </>
+        )}
+
+        <!-- Cities under the state -->
+        {visibleCities.length > 0 && (
+          <>
+            <li class="pl-8">
+              <span class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1 mt-2 px-2">
+                Cities
+              </span>
+            </li>
+            {visibleCities.map((city) => (
+              <li class="pl-8">
+                {isCurrentPage('city', city.slug) ? (
+                  <span
+                    class="block text-sm font-semibold text-civic-navy bg-blue-50 rounded px-2 py-0.5"
+                    aria-current="page"
+                  >
+                    {city.name}
+                  </span>
+                ) : (
+                  <a
+                    href={`/cities/${city.slug}`}
+                    class="block text-sm text-slate-600 hover:text-civic-blue px-2 py-0.5 rounded transition-colors truncate"
+                    title={city.name}
+                  >
+                    {city.name}
+                  </a>
+                )}
+              </li>
+            ))}
+            {hasMoreCities && (
+              <li class="pl-8">
+                <a
+                  href={`/states/${stateSlug}#cities`}
+                  class="block text-xs text-civic-blue hover:underline px-2 py-0.5"
+                >
+                  View all {siblingCities.length} cities
+                </a>
+              </li>
+            )}
+          </>
+        )}
+
+        <!-- Current city detail (no siblings passed) -->
+        {cityName && citySlug && visibleCities.length === 0 && (
+          <>
+            <li class="pl-8 mt-2">
+              <span class="block text-xs font-semibold uppercase tracking-wider text-slate-400 mb-1 px-2">
+                City
+              </span>
+            </li>
+            <li class="pl-8">
+              {isCurrentPage('city', citySlug) ? (
+                <span
+                  class="block text-sm font-semibold text-civic-navy bg-blue-50 rounded px-2 py-0.5"
+                  aria-current="page"
+                >
+                  {cityName}
+                </span>
+              ) : (
+                <a
+                  href={`/cities/${citySlug}`}
+                  class="block text-sm text-slate-600 hover:text-civic-blue px-2 py-0.5 rounded transition-colors"
+                >
+                  {cityName}
+                </a>
+              )}
+            </li>
+          </>
+        )}
+      </>
+    )}
+
+  </ul>
+</nav>

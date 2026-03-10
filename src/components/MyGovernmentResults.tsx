@@ -211,24 +211,80 @@ function JurisdictionSidebar({ data }: { data: LookupResponse }) {
       {/* Jurisdiction links */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">
         <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Explore</h3>
-        <div className="space-y-2">
+        <div className="space-y-3">
           {data.jurisdictions.state && (
-            <a href={'/states/' + data.jurisdictions.state.slug} className="block text-sm text-blue-600 hover:underline no-underline">
-              {data.jurisdictions.state.name} &rarr;
-            </a>
+            <div>
+              <a href={'/states/' + data.jurisdictions.state.slug} className="block text-sm text-blue-600 hover:underline no-underline font-medium">
+                {data.jurisdictions.state.name} &rarr;
+              </a>
+              <p className="text-xs text-slate-400 mt-0.5">See officials, elections, money &rarr;</p>
+            </div>
           )}
           {data.jurisdictions.county && (
-            <a href={'/counties/' + data.jurisdictions.county.slug} className="block text-sm text-blue-600 hover:underline no-underline">
-              {data.jurisdictions.county.name} &rarr;
-            </a>
+            <div>
+              <a href={'/counties/' + data.jurisdictions.county.slug} className="block text-sm text-blue-600 hover:underline no-underline font-medium">
+                {data.jurisdictions.county.name} &rarr;
+              </a>
+              <p className="text-xs text-slate-400 mt-0.5">See officials, elections, money &rarr;</p>
+            </div>
           )}
           {data.jurisdictions.city && (
-            <a href={'/cities/' + data.jurisdictions.city.slug} className="block text-sm text-blue-600 hover:underline no-underline">
-              {data.jurisdictions.city.name} &rarr;
-            </a>
+            <div>
+              <a href={'/cities/' + data.jurisdictions.city.slug} className="block text-sm text-blue-600 hover:underline no-underline font-medium">
+                {data.jurisdictions.city.name} &rarr;
+              </a>
+              <p className="text-xs text-slate-400 mt-0.5">See officials, elections, money &rarr;</p>
+            </div>
           )}
         </div>
       </div>
+
+      {/* Government Hierarchy mini-tree */}
+      {(data.jurisdictions.state || data.jurisdictions.county || data.jurisdictions.city) && (
+        <div className="bg-white border border-slate-200 rounded-lg p-4">
+          <h3 className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-3">Government Hierarchy</h3>
+          <div className="space-y-1.5 text-xs">
+            {/* Federal — always present */}
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-civic-navy shrink-0" aria-hidden="true" />
+              <a href="/states" className="text-blue-600 hover:underline no-underline">
+                United States
+              </a>
+              <span className="text-slate-400">(Federal)</span>
+            </div>
+
+            {data.jurisdictions.state && (
+              <div className="flex items-center gap-2 pl-3">
+                <span className="w-2 h-2 rounded-full bg-blue-500 shrink-0" aria-hidden="true" />
+                <a href={'/states/' + data.jurisdictions.state.slug} className="text-blue-600 hover:underline no-underline">
+                  {data.jurisdictions.state.name}
+                </a>
+                <span className="text-slate-400">(State)</span>
+              </div>
+            )}
+
+            {data.jurisdictions.county && (
+              <div className="flex items-center gap-2 pl-6">
+                <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" aria-hidden="true" />
+                <a href={'/counties/' + data.jurisdictions.county.slug} className="text-blue-600 hover:underline no-underline">
+                  {data.jurisdictions.county.name}
+                </a>
+                <span className="text-slate-400">(County)</span>
+              </div>
+            )}
+
+            {data.jurisdictions.city && (
+              <div className="flex items-center gap-2 pl-9">
+                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" aria-hidden="true" />
+                <a href={'/cities/' + data.jurisdictions.city.slug} className="text-blue-600 hover:underline no-underline">
+                  {data.jurisdictions.city.name}
+                </a>
+                <span className="text-slate-400">(City)</span>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Quick links */}
       <div className="bg-white border border-slate-200 rounded-lg p-4">

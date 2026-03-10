@@ -615,22 +615,22 @@ const sections = [
         {conflicts && conflicts.length > 0 ? (
           <ul class="flex flex-col gap-4" role="list">
             {conflicts.map(alert => {
-              const severityStyles: Record<string, string> = {
+              const severityStyles = {
                 critical: 'border-red-400 bg-red-50',
                 high: 'border-orange-400 bg-orange-50',
                 medium: 'border-yellow-400 bg-yellow-50',
                 low: 'border-slate-300 bg-white',
               };
-              const badgeStyles: Record<string, string> = {
+              const badgeStyles = {
                 critical: 'bg-red-100 text-red-800',
                 high: 'bg-orange-100 text-orange-800',
                 medium: 'bg-yellow-100 text-yellow-800',
                 low: 'bg-slate-100 text-slate-600',
               };
-              const severity: string = alert.severity ?? 'low';
+              const severity = alert.severity ?? 'low';
               const cardClass = severityStyles[severity] ?? severityStyles.low;
               const badgeClass = badgeStyles[severity] ?? badgeStyles.low;
-              const severityScore: number | null = alert.severity_score ?? null;
+              const severityScore = alert.severity_score ?? null;
 
               return (
                 <li class={`rounded-lg border-l-4 p-4 ${cardClass}`} role="listitem">

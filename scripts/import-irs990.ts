@@ -33,28 +33,29 @@
  */
 
 import { supabase } from './lib/supabase-admin.js';
+import { execSync } from 'node:child_process';
+import { existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { tmpdir } from 'node:os';
 
 // ---------------------------------------------------------------------------
 // Types
 // ---------------------------------------------------------------------------
 
-/** One entry from the IRS annual index JSON. */
+/** One entry from the IRS annual index CSV. */
 interface IrsIndexEntry {
   EIN: string;
   TaxPeriod: string;          // e.g. "202312"
   DLN: string;
   FormType: string;           // "990", "990EZ", "990PF", "990T"
-  URL: string;                // full S3 URL to the XML
+  URL: string;                // constructed URL (legacy, not used for batch approach)
   OrganizationName: string;
-  SubmittedOn: string;        // ISO date
+  SubmittedOn: string;        // year string
   ObjectId: string;           // unique filing identifier
   LastUpdated: string;
   IsElectronic: string;       // "1" | "0"
   IsAvailable: string;        // "1" | "0"
-}
-
-interface IrsIndexResponse {
-  Filings: IrsIndexEntry[];
+  BatchId: string;            // e.g. "2024_TEOS_XML_01A"
 }
 
 /** Parsed data extracted from a 990 XML filing. */
@@ -122,10 +123,9 @@ interface RelationshipInsert {
   relationship_type: string;
   amount: number | null;
   date_start: string | null;
-  cycle: string | null;
+  date_end: string | null;
   metadata: Record<string, unknown>;
   confidence_score: number;
-  source: string;
 }
 
 // ---------------------------------------------------------------------------
@@ -133,8 +133,9 @@ interface RelationshipInsert {
 // ---------------------------------------------------------------------------
 
 const IRS_INDEX_BASE =
-  'https://apps.irs.gov/pub/epostcard/990/xml/index_{year}.json';
-const IRS_S3_BASE = 'https://s3.amazonaws.com/irs-form-990';
+  'https://apps.irs.gov/pub/epostcard/990/xml/{year}/index_{year}.csv';
+const IRS_ZIP_BASE =
+  'https://apps.irs.gov/pub/epostcard/990/xml/{year}';
 
 const BATCH_SIZE = 500;
 
@@ -238,44 +239,143 @@ function sleep(ms: number): Promise<void> {
 // IRS index fetch
 // ---------------------------------------------------------------------------
 
+/**
+ * Parse CSV text into an array of IrsIndexEntry objects.
+ * CSV columns: RETURN_ID,FILING_TYPE,EIN,TAX_PERIOD,SUB_DATE,TAXPAYER_NAME,RETURN_TYPE,DLN,OBJECT_ID,XML_BATCH_ID
+ */
+function parseCsvIndex(csv: string): IrsIndexEntry[] {
+  const lines = csv.split('\n');
+  if (lines.length < 2) return [];
+
+  // Skip header row
+  const entries: IrsIndexEntry[] = [];
+  for (let i = 1; i < lines.length; i++) {
+    const line = lines[i].trim();
+    if (!line) continue;
+
+    // Simple CSV parse (no quoted fields in this dataset)
+    // Columns: RETURN_ID,FILING_TYPE,EIN,TAX_PERIOD,SUB_DATE,TAXPAYER_NAME,RETURN_TYPE,DLN,OBJECT_ID,XML_BATCH_ID
+    const parts = line.split(',');
+    if (parts.length < 10) continue;
+
+    const [_returnId, _filingType, ein, taxPeriod, subDate, taxpayerName, returnType, dln, objectId, batchId] = parts;
+
+    entries.push({
+      EIN: ein,
+      TaxPeriod: taxPeriod,
+      DLN: dln,
+      FormType: returnType,
+      URL: '',
+      OrganizationName: taxpayerName,
+      SubmittedOn: subDate,
+      ObjectId: objectId,
+      LastUpdated: subDate,
+      IsElectronic: '1',
+      IsAvailable: '1',
+      BatchId: batchId?.trim() ?? '',
+    });
+  }
+  return entries;
+}
+
 async function fetchIndex(year: number): Promise<IrsIndexEntry[]> {
-  const url = IRS_INDEX_BASE.replace('{year}', String(year));
+  const url = IRS_INDEX_BASE.replace(/\{year\}/g, String(year));
   console.log(`  Downloading index for ${year}: ${url}`);
 
-  const res = await fetch(url);
+  const res = await fetch(url, { redirect: 'follow' });
   if (!res.ok) {
     throw new Error(`IRS index fetch failed for year ${year}: ${res.status} ${res.statusText}`);
   }
 
-  const body = (await res.json()) as IrsIndexResponse;
-  return body.Filings ?? [];
+  const csv = await res.text();
+  return parseCsvIndex(csv);
 }
 
 // ---------------------------------------------------------------------------
 // 990 XML fetch + extraction
 // ---------------------------------------------------------------------------
 
-async function fetchFiling(entry: IrsIndexEntry): Promise<Filing990 | null> {
-  // Prefer the URL provided in the index; construct S3 fallback if absent.
-  const xmlUrl =
-    entry.URL && entry.URL.startsWith('http')
-      ? entry.URL
-      : `${IRS_S3_BASE}/${entry.ObjectId}_public.xml`;
+// ---------------------------------------------------------------------------
+// Batch ZIP download + extraction
+// ---------------------------------------------------------------------------
 
+const WORK_DIR = join(tmpdir(), 'govguide-irs990');
+
+/**
+ * Download a batch ZIP file and extract its XML contents to a temp directory.
+ * Returns the path to the extraction directory.
+ */
+async function downloadAndExtractBatch(batchId: string, year: number): Promise<string> {
+  const extractDir = join(WORK_DIR, batchId);
+  if (existsSync(extractDir) && readdirSync(extractDir).length > 0) {
+    console.log(`  Batch ${batchId} already extracted, reusing.`);
+    return extractDir;
+  }
+
+  mkdirSync(extractDir, { recursive: true });
+
+  const zipUrl = `${IRS_ZIP_BASE.replace('{year}', String(year))}/${batchId}.zip`;
+  const zipPath = join(WORK_DIR, `${batchId}.zip`);
+
+  console.log(`\n  Downloading batch ZIP: ${zipUrl}`);
+  const res = await fetch(zipUrl, { redirect: 'follow' });
+  if (!res.ok) {
+    throw new Error(`Failed to download batch ZIP ${batchId}: ${res.status} ${res.statusText}`);
+  }
+
+  const buffer = Buffer.from(await res.arrayBuffer());
+  writeFileSync(zipPath, buffer);
+  console.log(`  Downloaded ${(buffer.length / 1024 / 1024).toFixed(1)} MB, extracting...`);
+
+  try {
+    execSync(`unzip -o -q "${zipPath}" -d "${extractDir}"`, { stdio: 'pipe' });
+  } catch (err) {
+    console.error(`  ERROR extracting ${batchId}: ${(err as Error).message}`);
+  }
+
+  // Clean up ZIP to save disk space
+  try { rmSync(zipPath); } catch { /* ignore */ }
+
+  const files = readdirSync(extractDir);
+  console.log(`  Extracted ${files.length} files from ${batchId}.`);
+  return extractDir;
+}
+
+/**
+ * Build a map of ObjectId -> XML file path from an extracted batch directory.
+ * ZIP files extract into a subdirectory named after the batch ID, so we
+ * check both the extract dir and one level of subdirectories.
+ */
+function buildXmlFileMap(extractDir: string): Map<string, string> {
+  const map = new Map<string, string>();
+
+  function scanDir(dir: string): void {
+    let entries: string[];
+    try { entries = readdirSync(dir); } catch { return; }
+    for (const entry of entries) {
+      const fullPath = join(dir, entry);
+      if (entry.endsWith('.xml')) {
+        const objectId = entry.replace(/_public\.xml$/i, '');
+        map.set(objectId, fullPath);
+      } else if (!entry.includes('.')) {
+        // Likely a subdirectory — scan one level deeper
+        scanDir(fullPath);
+      }
+    }
+  }
+
+  scanDir(extractDir);
+  return map;
+}
+
+/**
+ * Parse a 990 XML filing from a local file.
+ */
+function parseFiling(entry: IrsIndexEntry, xmlPath: string): Filing990 | null {
   let xml: string;
   try {
-    const res = await fetch(xmlUrl, {
-      headers: { Accept: 'application/xml, text/xml, */*' },
-    });
-    if (!res.ok) {
-      // 403/404 from S3 is common for redacted/not-yet-available filings
-      if (res.status === 403 || res.status === 404) return null;
-      throw new Error(`HTTP ${res.status}`);
-    }
-    xml = await res.text();
-  } catch (err) {
-    // Non-fatal: log and skip
-    process.stdout.write('x');
+    xml = readFileSync(xmlPath, 'utf-8');
+  } catch {
     return null;
   }
 
@@ -645,17 +745,25 @@ async function importIrs990(): Promise<void> {
   }
   console.log(`  Total filings in ${year} index: ${allEntries.length.toLocaleString()}`);
 
-  // --- Step 2: Filter to politically relevant filings ---
-  // The IRS index JSON does not expose the subsection directly, so we first
-  // filter on FormType (990 / 990EZ are the ones with financials we need;
-  // 990PF is for private foundations; 990T is business income) and only
-  // fetch XML for those.  Post-XML-parse we apply the subsection filter.
-  // 990EZ filings are included because many smaller 501(c)(4)s file EZ.
+  // --- Step 2: Filter to relevant filings and group by batch ---
   const relevantFormTypes = new Set(['990', '990EZ', '990PF']);
   const candidateEntries = allEntries.filter(
     (e) => relevantFormTypes.has(e.FormType) && e.IsAvailable === '1',
   );
   console.log(`  Candidate filings (990/990EZ/990PF, available): ${candidateEntries.length.toLocaleString()}`);
+
+  // Group candidates by BatchId for efficient ZIP processing
+  const batchGroups = new Map<string, IrsIndexEntry[]>();
+  for (const entry of candidateEntries) {
+    const batchId = entry.BatchId;
+    if (!batchId) continue;
+    if (!batchGroups.has(batchId)) batchGroups.set(batchId, []);
+    batchGroups.get(batchId)!.push(entry);
+  }
+  console.log(`  Batch ZIP files to process: ${batchGroups.size}`);
+
+  // Create work directory
+  mkdirSync(WORK_DIR, { recursive: true });
 
   // --- Counters ---
   let processed = 0;
@@ -713,14 +821,39 @@ async function importIrs990(): Promise<void> {
     }
   }
 
-  // --- Step 3: Process each candidate filing ---
-  for (const entry of candidateEntries) {
+  // --- Step 3: Process batch ZIP files one at a time ---
+  let batchNum = 0;
+  for (const [batchId, entries] of batchGroups) {
     if (processed >= limit) break;
+    batchNum++;
 
-    await sleep(FETCH_DELAY_MS);
+    console.log(`\n  --- Batch ${batchNum}/${batchGroups.size}: ${batchId} (${entries.length} candidates) ---`);
 
-    const filing = await fetchFiling(entry);
-    processed++;
+    let extractDir: string;
+    try {
+      extractDir = await downloadAndExtractBatch(batchId, year);
+    } catch (err) {
+      console.error(`  SKIP batch ${batchId}: ${(err as Error).message}`);
+      skippedXmlError += entries.length;
+      processed += entries.length;
+      continue;
+    }
+
+    // Build ObjectId -> XML path map for this batch
+    const xmlFileMap = buildXmlFileMap(extractDir);
+
+    for (const entry of entries) {
+      if (processed >= limit) break;
+
+      const xmlPath = xmlFileMap.get(entry.ObjectId);
+      if (!xmlPath) {
+        skippedXmlError++;
+        processed++;
+        continue;
+      }
+
+      const filing = parseFiling(entry, xmlPath);
+      processed++;
 
     if (!filing) {
       skippedXmlError++;
@@ -813,22 +946,30 @@ async function importIrs990(): Promise<void> {
         relationship_type: 'granted_to',
         amount: grant.amount,
         date_start: filing.taxPeriodEnd,
-        cycle: filing.taxYear ? String(filing.taxYear) : null,
+        date_end: null,
         metadata: {
           irs_filing: filing.objectId,
           recipient_ein: grant.recipientEin,
           form_type: entry.FormType,
+          cycle: filing.taxYear ? String(filing.taxYear) : null,
+          source: 'irs_990',
         },
         confidence_score: 0.95,
-        source: 'irs_990',
       });
     }
 
     await maybeFlush();
-  }
+    } // end inner entries loop
+
+    // Clean up extracted batch to save disk space
+    try { rmSync(extractDir, { recursive: true, force: true }); } catch { /* ignore */ }
+  } // end outer batch loop
 
   // Flush remaining batches
   await maybeFlush(true);
+
+  // Clean up work directory
+  try { rmSync(WORK_DIR, { recursive: true, force: true }); } catch { /* ignore */ }
 
   // --- Summary ---
   console.log('\n\n=== Completed ===');

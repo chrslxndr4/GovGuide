@@ -28,3 +28,11 @@ pnpm-debug.log*
 
 # git worktrees
 .worktrees/
+.vercel
+
+# large generated data files
+public/data/*.pmtiles
+data/zip-county-crosswalk.csv
+
+# playwright MCP cache
+.playwright-mcp/

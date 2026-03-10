@@ -3,6 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Header from '../components/Header.astro';
 import Footer from '../components/Footer.astro';
 import MyGovernmentResults from '../components/MyGovernmentResults';
+import Breadcrumb from '../components/Breadcrumb.astro';
 
 export const prerender = false;
 
@@ -21,6 +22,7 @@ const initialAddress = addressParam || (zipParam ? zipParam : '');
     <!-- Hero -->
     <section class="bg-white border-b border-slate-200 py-10 px-4">
       <div class="max-w-3xl mx-auto text-center">
+        <Breadcrumb items={[{ label: 'My Government' }]} />
         <p class="text-xs font-medium text-civic-blue uppercase tracking-widest mb-2">Personalized Civic Dashboard</p>
         <h1 class="text-3xl md:text-4xl font-display font-bold text-slate-900 mb-3">
           My Government

@@ -4,6 +4,7 @@ import Header from '../../components/Header.astro';
 import Footer from '../../components/Footer.astro';
 import ConflictFeed from '../../components/alerts/ConflictFeed';
 import DisclaimerBanner from '../../components/conflicts/DisclaimerBanner';
+import Breadcrumb from '../../components/Breadcrumb.astro';
 import { supabase } from '../../lib/supabase';
 
 export const prerender = false;
@@ -46,7 +47,7 @@ const { data: initialAlerts } = await supabase
     <!-- Hero -->
     <section class="bg-white border-b border-border px-4 py-10">
       <div class="max-w-7xl mx-auto">
-        <p class="text-xs font-medium text-civic-blue uppercase tracking-widest mb-2">GovGuide / Conflicts</p>
+        <Breadcrumb items={[{ label: 'Conflict Alerts' }]} />
         <h1 class="text-3xl md:text-4xl font-display font-bold text-civic-navy mb-2">Conflict of Interest Alerts</h1>
         <p class="text-sm text-muted max-w-2xl">
           Automated detection of potential conflicts — donor-vote alignment, suspicious stock trades,

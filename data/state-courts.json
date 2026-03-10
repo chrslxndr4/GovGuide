@@ -1,0 +1,2087 @@
+{
+  "AL": {
+    "courts": [
+      {
+        "name": "Supreme Court of Alabama",
+        "court_type": "state_supreme",
+        "website": "https://judicial.alabama.gov/appellate/supremecourt",
+        "selection_method": "partisan_election",
+        "num_seats": 9,
+        "judges": [
+          {
+            "first_name": "Sarah",
+            "last_name": "Stewart",
+            "full_name": "Sarah H. Stewart",
+            "appointing_president": null,
+            "term_start": "2025-01-20",
+            "term_end": "2031-01-20",
+            "role": "Chief Justice"
+          },
+          {
+            "first_name": "Greg",
+            "last_name": "Shaw",
+            "full_name": "Greg Shaw",
+            "appointing_president": null,
+            "term_start": "2013-01-15",
+            "term_end": "2027-01-15",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Kelli",
+            "last_name": "Wise",
+            "full_name": "Kelli Wise",
+            "appointing_president": null,
+            "term_start": "2019-01-15",
+            "term_end": "2025-01-15",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Tommy",
+            "last_name": "Bryan",
+            "full_name": "Tommy Bryan",
+            "appointing_president": null,
+            "term_start": "2019-01-15",
+            "term_end": "2025-01-15",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "William",
+            "last_name": "Sellers",
+            "full_name": "William B. Sellers",
+            "appointing_president": null,
+            "term_start": "2019-01-15",
+            "term_end": "2025-01-15",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Brady",
+            "last_name": "Mendheim",
+            "full_name": "Brady E. Mendheim Jr.",
+            "appointing_president": null,
+            "term_start": "2019-01-15",
+            "term_end": "2025-01-15",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Greg",
+            "last_name": "Cook",
+            "full_name": "Greg Cook",
+            "appointing_president": null,
+            "term_start": "2023-01-17",
+            "term_end": "2029-01-17",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Chris",
+            "last_name": "McCool",
+            "full_name": "Chris McCool",
+            "appointing_president": null,
+            "term_start": "2025-01-20",
+            "term_end": "2031-01-20",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Will",
+            "last_name": "Parker",
+            "full_name": "Will Parker",
+            "appointing_president": null,
+            "term_start": "2025-01-20",
+            "term_end": "2031-01-20",
+            "role": "Associate Justice"
+          }
+        ]
+      },
+      {
+        "name": "Alabama Court of Civil Appeals",
+        "court_type": "state_appellate",
+        "website": "https://judicial.alabama.gov/appellate/civilappeals",
+        "selection_method": "partisan_election",
+        "num_seats": 5,
+        "judges": [
+          {
+            "first_name": "Terry",
+            "last_name": "Moore",
+            "full_name": "Terry A. Moore",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Presiding Judge"
+          },
+          {
+            "first_name": "Christy",
+            "last_name": "Edwards",
+            "full_name": "Christy O. Edwards",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Chad",
+            "last_name": "Hanson",
+            "full_name": "Chad A. Hanson",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Matt",
+            "last_name": "Fridy",
+            "full_name": "Matt Fridy",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Ben",
+            "last_name": "Bowden",
+            "full_name": "Ben Bowden",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          }
+        ]
+      },
+      {
+        "name": "Alabama Court of Criminal Appeals",
+        "court_type": "state_appellate",
+        "website": "https://judicial.alabama.gov/appellate/criminalappeals",
+        "selection_method": "partisan_election",
+        "num_seats": 5,
+        "judges": [
+          {
+            "first_name": "Mary",
+            "last_name": "Windom",
+            "full_name": "Mary B. Windom",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Presiding Judge"
+          },
+          {
+            "first_name": "J. Elizabeth",
+            "last_name": "Kellum",
+            "full_name": "J. Elizabeth Kellum",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "J. William",
+            "last_name": "Cole",
+            "full_name": "J. William Cole",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Richard",
+            "last_name": "Minor",
+            "full_name": "Richard J. Minor",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Richard",
+            "last_name": "Anderson",
+            "full_name": "Richard D. Anderson",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          }
+        ]
+      },
+      {
+        "name": "Alabama Circuit Courts",
+        "court_type": "state_trial",
+        "website": "https://judicial.alabama.gov/",
+        "selection_method": "partisan_election",
+        "num_seats": 149,
+        "judges": []
+      },
+      {
+        "name": "Alabama District Courts",
+        "court_type": "state_trial",
+        "website": "https://judicial.alabama.gov/",
+        "selection_method": "partisan_election",
+        "num_seats": 101,
+        "judges": []
+      },
+      {
+        "name": "Alabama Probate Courts",
+        "court_type": "special",
+        "website": "https://judicial.alabama.gov/",
+        "selection_method": "partisan_election",
+        "num_seats": 68,
+        "judges": []
+      },
+      {
+        "name": "Alabama Municipal Courts",
+        "court_type": "special",
+        "website": "https://judicial.alabama.gov/",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 273,
+        "judges": []
+      }
+    ]
+  },
+  "AK": {
+    "courts": [
+      {
+        "name": "Alaska Supreme Court",
+        "court_type": "state_supreme",
+        "website": "https://courts.alaska.gov/",
+        "selection_method": "merit_selection",
+        "num_seats": 5,
+        "judges": [
+          {
+            "first_name": "Susan",
+            "last_name": "Carney",
+            "full_name": "Susan M. Carney",
+            "appointing_president": "Mike Dunleavy",
+            "term_start": "2022-07-01",
+            "term_end": null,
+            "role": "Chief Justice"
+          },
+          {
+            "first_name": "Dario",
+            "last_name": "Borghesan",
+            "full_name": "Dario Borghesan",
+            "appointing_president": "Mike Dunleavy",
+            "term_start": "2021-10-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Jennifer",
+            "last_name": "Henderson",
+            "full_name": "Jennifer S. Henderson",
+            "appointing_president": "Mike Dunleavy",
+            "term_start": "2022-03-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Jude",
+            "last_name": "Pate",
+            "full_name": "Jude Pate",
+            "appointing_president": "Mike Dunleavy",
+            "term_start": "2023-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Aimee",
+            "last_name": "Oravec",
+            "full_name": "Aimee A. Oravec",
+            "appointing_president": "Mike Dunleavy",
+            "term_start": "2025-01-31",
+            "term_end": null,
+            "role": "Associate Justice"
+          }
+        ]
+      },
+      {
+        "name": "Alaska Court of Appeals",
+        "court_type": "state_appellate",
+        "website": "https://courts.alaska.gov/",
+        "selection_method": "merit_selection",
+        "num_seats": 4,
+        "judges": [
+          {
+            "first_name": "Marjorie",
+            "last_name": "Allard",
+            "full_name": "Marjorie K. Allard",
+            "appointing_president": "Bill Walker",
+            "term_start": "2018-01-01",
+            "term_end": null,
+            "role": "Chief Judge"
+          },
+          {
+            "first_name": "Tracey",
+            "last_name": "Wollenberg",
+            "full_name": "Tracey Wollenberg",
+            "appointing_president": "Bill Walker",
+            "term_start": "2016-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Timothy",
+            "last_name": "Terrell",
+            "full_name": "Timothy W. Terrell",
+            "appointing_president": "Mike Dunleavy",
+            "term_start": "2020-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Ruthanne",
+            "last_name": "Beach",
+            "full_name": "Ruthanne Beach",
+            "appointing_president": "Mike Dunleavy",
+            "term_start": "2023-01-01",
+            "term_end": null,
+            "role": "Judge"
+          }
+        ]
+      },
+      {
+        "name": "Alaska Superior Court",
+        "court_type": "state_trial",
+        "website": "https://courts.alaska.gov/",
+        "selection_method": "merit_selection",
+        "num_seats": 44,
+        "judges": []
+      },
+      {
+        "name": "Alaska District Court",
+        "court_type": "state_trial",
+        "website": "https://courts.alaska.gov/",
+        "selection_method": "merit_selection",
+        "num_seats": 22,
+        "judges": []
+      },
+      {
+        "name": "Alaska Family Court",
+        "court_type": "special",
+        "website": "https://courts.alaska.gov/",
+        "selection_method": "merit_selection",
+        "num_seats": 0,
+        "judges": []
+      }
+    ]
+  },
+  "AZ": {
+    "courts": [
+      {
+        "name": "Arizona Supreme Court",
+        "court_type": "state_supreme",
+        "website": "https://www.azcourts.gov/",
+        "selection_method": "merit_selection",
+        "num_seats": 7,
+        "judges": [
+          {
+            "first_name": "Ann",
+            "last_name": "Timmer",
+            "full_name": "Ann A. Scott Timmer",
+            "appointing_president": "Jan Brewer",
+            "term_start": "2012-08-01",
+            "term_end": null,
+            "role": "Chief Justice"
+          },
+          {
+            "first_name": "Clint",
+            "last_name": "Bolick",
+            "full_name": "Clint Bolick",
+            "appointing_president": "Doug Ducey",
+            "term_start": "2016-01-06",
+            "term_end": null,
+            "role": "Vice Chief Justice"
+          },
+          {
+            "first_name": "James",
+            "last_name": "Beene",
+            "full_name": "James Beene",
+            "appointing_president": "Doug Ducey",
+            "term_start": "2019-08-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "John",
+            "last_name": "Lopez",
+            "full_name": "John R. Lopez IV",
+            "appointing_president": "Doug Ducey",
+            "term_start": "2019-01-07",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Kathryn",
+            "last_name": "King",
+            "full_name": "Kathryn Hackett King",
+            "appointing_president": "Doug Ducey",
+            "term_start": "2020-09-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Bill",
+            "last_name": "Montgomery",
+            "full_name": "William G. Montgomery",
+            "appointing_president": "Doug Ducey",
+            "term_start": "2019-10-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Maria Elena",
+            "last_name": "Cruz",
+            "full_name": "Maria Elena Cruz",
+            "appointing_president": "Katie Hobbs",
+            "term_start": "2025-02-03",
+            "term_end": null,
+            "role": "Associate Justice"
+          }
+        ]
+      },
+      {
+        "name": "Arizona Court of Appeals, Division One",
+        "court_type": "state_appellate",
+        "website": "https://www.azcourts.gov/coa1/",
+        "selection_method": "merit_selection",
+        "num_seats": 19,
+        "judges": [
+          {
+            "first_name": "Kent",
+            "last_name": "Cattani",
+            "full_name": "Kent E. Cattani",
+            "appointing_president": "Jan Brewer",
+            "term_start": "2012-11-01",
+            "term_end": null,
+            "role": "Chief Judge"
+          },
+          {
+            "first_name": "Peter",
+            "last_name": "Swann",
+            "full_name": "Peter B. Swann",
+            "appointing_president": "Jan Brewer",
+            "term_start": "2013-06-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "James",
+            "last_name": "Morse",
+            "full_name": "James B. Morse Jr.",
+            "appointing_president": "Doug Ducey",
+            "term_start": "2019-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "David",
+            "last_name": "Weinzweig",
+            "full_name": "David D. Weinzweig",
+            "appointing_president": "Doug Ducey",
+            "term_start": "2019-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Samuel",
+            "last_name": "Thumma",
+            "full_name": "Samuel A. Thumma",
+            "appointing_president": "Jan Brewer",
+            "term_start": "2012-11-01",
+            "term_end": null,
+            "role": "Judge"
+          }
+        ]
+      },
+      {
+        "name": "Arizona Court of Appeals, Division Two",
+        "court_type": "state_appellate",
+        "website": "https://appeals2.az.gov/",
+        "selection_method": "merit_selection",
+        "num_seats": 9,
+        "judges": [
+          {
+            "first_name": "Peter",
+            "last_name": "Eckerstrom",
+            "full_name": "Peter J. Eckerstrom",
+            "appointing_president": "Janet Napolitano",
+            "term_start": "2006-01-01",
+            "term_end": null,
+            "role": "Chief Judge"
+          },
+          {
+            "first_name": "Philip",
+            "last_name": "Espinosa",
+            "full_name": "Philip G. Espinosa",
+            "appointing_president": "Janet Napolitano",
+            "term_start": "2008-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Sean",
+            "last_name": "Brearcliffe",
+            "full_name": "Sean E. Brearcliffe",
+            "appointing_president": "Doug Ducey",
+            "term_start": "2017-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Garye",
+            "last_name": "Vasquez",
+            "full_name": "Garye L. Vasquez",
+            "appointing_president": "Doug Ducey",
+            "term_start": "2018-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Christopher",
+            "last_name": "Staring",
+            "full_name": "Christopher P. Staring",
+            "appointing_president": "Doug Ducey",
+            "term_start": "2019-01-01",
+            "term_end": null,
+            "role": "Judge"
+          }
+        ]
+      },
+      {
+        "name": "Arizona Superior Court",
+        "court_type": "state_trial",
+        "website": "https://www.azcourts.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 184,
+        "judges": []
+      },
+      {
+        "name": "Arizona Justice Courts",
+        "court_type": "special",
+        "website": "https://www.azcourts.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 87,
+        "judges": []
+      },
+      {
+        "name": "Arizona Municipal Courts",
+        "court_type": "special",
+        "website": "https://www.azcourts.gov/",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 0,
+        "judges": []
+      }
+    ]
+  },
+  "AR": {
+    "courts": [
+      {
+        "name": "Arkansas Supreme Court",
+        "court_type": "state_supreme",
+        "website": "https://arcourts.gov/courts/supreme-court",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 7,
+        "judges": [
+          {
+            "first_name": "Karen",
+            "last_name": "Baker",
+            "full_name": "Karen R. Baker",
+            "appointing_president": null,
+            "term_start": "2025-01-01",
+            "term_end": "2032-12-31",
+            "role": "Chief Justice"
+          },
+          {
+            "first_name": "Courtney",
+            "last_name": "Hudson",
+            "full_name": "Courtney Rae Hudson",
+            "appointing_president": null,
+            "term_start": "2025-01-01",
+            "term_end": "2030-12-31",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Barbara",
+            "last_name": "Webb",
+            "full_name": "Barbara W. Webb",
+            "appointing_president": null,
+            "term_start": "2021-01-01",
+            "term_end": "2028-12-31",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Shawn",
+            "last_name": "Womack",
+            "full_name": "Shawn A. Womack",
+            "appointing_president": null,
+            "term_start": "2017-01-01",
+            "term_end": "2032-12-31",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Rhonda",
+            "last_name": "Wood",
+            "full_name": "Rhonda K. Wood",
+            "appointing_president": null,
+            "term_start": "2015-01-01",
+            "term_end": "2030-12-31",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Cody",
+            "last_name": "Hiland",
+            "full_name": "Cody Hiland",
+            "appointing_president": "Sarah Huckabee Sanders",
+            "term_start": "2025-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Nicholas",
+            "last_name": "Bronni",
+            "full_name": "Nicholas J. Bronni",
+            "appointing_president": "Sarah Huckabee Sanders",
+            "term_start": "2025-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          }
+        ]
+      },
+      {
+        "name": "Arkansas Court of Appeals",
+        "court_type": "state_appellate",
+        "website": "https://arcourts.gov/courts/court-of-appeals",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 12,
+        "judges": [
+          {
+            "first_name": "N. Mark",
+            "last_name": "Klappenbach",
+            "full_name": "N. Mark Klappenbach",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Chief Judge"
+          },
+          {
+            "first_name": "Bart",
+            "last_name": "Virden",
+            "full_name": "Bart F. Virden",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Brandon",
+            "last_name": "Harrison",
+            "full_name": "Brandon J. Harrison",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Raymond",
+            "last_name": "Abramson",
+            "full_name": "Raymond R. Abramson",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Robert",
+            "last_name": "Gladwin",
+            "full_name": "Robert J. Gladwin",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Casey",
+            "last_name": "Tucker",
+            "full_name": "Casey R. Tucker",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Kenneth",
+            "last_name": "Hixson",
+            "full_name": "Kenneth S. Hixson",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Waymond",
+            "last_name": "Brown",
+            "full_name": "Waymond M. Brown",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Cindy",
+            "last_name": "Thyer",
+            "full_name": "Cindy Thyer",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Stephanie",
+            "last_name": "Barrett",
+            "full_name": "Stephanie Potter Barrett",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Mike",
+            "last_name": "Murphy",
+            "full_name": "Mike Murphy",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Wendy",
+            "last_name": "Wood",
+            "full_name": "Wendy Scholtens Wood",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          }
+        ]
+      },
+      {
+        "name": "Arkansas Circuit Courts",
+        "court_type": "state_trial",
+        "website": "https://arcourts.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 120,
+        "judges": []
+      },
+      {
+        "name": "Arkansas District Courts",
+        "court_type": "special",
+        "website": "https://arcourts.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 0,
+        "judges": []
+      }
+    ]
+  },
+  "CA": {
+    "courts": [
+      {
+        "name": "Supreme Court of California",
+        "court_type": "state_supreme",
+        "website": "https://supreme.courts.ca.gov/",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 7,
+        "judges": [
+          {
+            "first_name": "Patricia",
+            "last_name": "Guerrero",
+            "full_name": "Patricia Guerrero",
+            "appointing_president": "Gavin Newsom",
+            "term_start": "2022-03-28",
+            "term_end": "2035-01-01",
+            "role": "Chief Justice"
+          },
+          {
+            "first_name": "Goodwin",
+            "last_name": "Liu",
+            "full_name": "Goodwin H. Liu",
+            "appointing_president": "Jerry Brown",
+            "term_start": "2011-09-01",
+            "term_end": "2027-01-01",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Leondra",
+            "last_name": "Kruger",
+            "full_name": "Leondra R. Kruger",
+            "appointing_president": "Jerry Brown",
+            "term_start": "2015-01-05",
+            "term_end": "2027-01-01",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Joshua",
+            "last_name": "Groban",
+            "full_name": "Joshua P. Groban",
+            "appointing_president": "Jerry Brown",
+            "term_start": "2019-01-03",
+            "term_end": "2031-01-01",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Kelli",
+            "last_name": "Evans",
+            "full_name": "Kelli Evans",
+            "appointing_president": "Gavin Newsom",
+            "term_start": "2022-12-22",
+            "term_end": "2035-01-01",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Carol",
+            "last_name": "Corrigan",
+            "full_name": "Carol A. Corrigan",
+            "appointing_president": "Arnold Schwarzenegger",
+            "term_start": "2006-01-04",
+            "term_end": "2027-01-01",
+            "role": "Associate Justice"
+          }
+        ]
+      },
+      {
+        "name": "California Court of Appeal, First Appellate District",
+        "court_type": "state_appellate",
+        "website": "https://appellate.courts.ca.gov/district-courts/1dca",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 20,
+        "judges": [
+          {
+            "first_name": "Tracie",
+            "last_name": "Brown",
+            "full_name": "Tracie L. Brown",
+            "appointing_president": "Gavin Newsom",
+            "term_start": "2020-01-01",
+            "term_end": null,
+            "role": "Presiding Justice"
+          },
+          {
+            "first_name": "Alison",
+            "last_name": "Tucher",
+            "full_name": "Alison M. Tucher",
+            "appointing_president": "Jerry Brown",
+            "term_start": "2014-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Ioana",
+            "last_name": "Petrou",
+            "full_name": "Ioana Petrou",
+            "appointing_president": "Jerry Brown",
+            "term_start": "2016-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Carin",
+            "last_name": "Fujisaki",
+            "full_name": "Carin T. Fujisaki",
+            "appointing_president": "Jerry Brown",
+            "term_start": "2018-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Tara",
+            "last_name": "Desautels",
+            "full_name": "Tara Desautels",
+            "appointing_president": "Gavin Newsom",
+            "term_start": "2024-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Charles",
+            "last_name": "Smiley",
+            "full_name": "Charles A. Smiley",
+            "appointing_president": "Gavin Newsom",
+            "term_start": "2024-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Danny",
+            "last_name": "Chou",
+            "full_name": "Danny Y. Chou",
+            "appointing_president": "Gavin Newsom",
+            "term_start": "2024-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Stuart",
+            "last_name": "Pollak",
+            "full_name": "Stuart R. Pollak",
+            "appointing_president": "Jerry Brown",
+            "term_start": "2015-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          }
+        ]
+      },
+      {
+        "name": "California Court of Appeal, Second Appellate District",
+        "court_type": "state_appellate",
+        "website": "https://appellate.courts.ca.gov/district-courts/2dca",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 32,
+        "judges": [
+          {
+            "first_name": "Elwood",
+            "last_name": "Lui",
+            "full_name": "Elwood G. Lui",
+            "appointing_president": "George Deukmejian",
+            "term_start": "1987-01-01",
+            "term_end": null,
+            "role": "Administrative Presiding Justice"
+          },
+          {
+            "first_name": "Brian",
+            "last_name": "Hoffstadt",
+            "full_name": "Brian M. Hoffstadt",
+            "appointing_president": "Jerry Brown",
+            "term_start": "2014-01-01",
+            "term_end": null,
+            "role": "Presiding Justice"
+          },
+          {
+            "first_name": "Carl",
+            "last_name": "Moor",
+            "full_name": "Carl H. Moor",
+            "appointing_president": "Jerry Brown",
+            "term_start": "2012-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          }
+        ]
+      },
+      {
+        "name": "California Court of Appeal, Third Appellate District",
+        "court_type": "state_appellate",
+        "website": "https://appellate.courts.ca.gov/district-courts/3dca",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 11,
+        "judges": [
+          {
+            "first_name": "Laurie",
+            "last_name": "Earl",
+            "full_name": "Laurie M. Earl",
+            "appointing_president": "Gavin Newsom",
+            "term_start": "2022-01-01",
+            "term_end": null,
+            "role": "Presiding Justice"
+          },
+          {
+            "first_name": "Louis",
+            "last_name": "Mauro",
+            "full_name": "Louis R. Mauro",
+            "appointing_president": "Arnold Schwarzenegger",
+            "term_start": "2010-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Peter",
+            "last_name": "Krause",
+            "full_name": "Peter Krause",
+            "appointing_president": "Gavin Newsom",
+            "term_start": "2022-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Elena",
+            "last_name": "Duarte",
+            "full_name": "Elena J. Duarte",
+            "appointing_president": "Jerry Brown",
+            "term_start": "2018-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Ronald",
+            "last_name": "Robie",
+            "full_name": "Ronald B. Robie",
+            "appointing_president": "Gray Davis",
+            "term_start": "2002-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Jonathan",
+            "last_name": "Renner",
+            "full_name": "Jonathan K. Renner",
+            "appointing_president": "Gavin Newsom",
+            "term_start": "2023-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          }
+        ]
+      },
+      {
+        "name": "California Court of Appeal, Fourth Appellate District",
+        "court_type": "state_appellate",
+        "website": "https://appellate.courts.ca.gov/district-courts/4dca",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 26,
+        "judges": [
+          {
+            "first_name": "Judith",
+            "last_name": "McConnell",
+            "full_name": "Judith McConnell",
+            "appointing_president": "Gray Davis",
+            "term_start": "2001-01-01",
+            "term_end": null,
+            "role": "Administrative Presiding Justice"
+          },
+          {
+            "first_name": "Joanne",
+            "last_name": "Motoike",
+            "full_name": "Joanne Motoike",
+            "appointing_president": "Jerry Brown",
+            "term_start": "2014-01-01",
+            "term_end": null,
+            "role": "Presiding Justice"
+          }
+        ]
+      },
+      {
+        "name": "California Court of Appeal, Fifth Appellate District",
+        "court_type": "state_appellate",
+        "website": "https://appellate.courts.ca.gov/district-courts/5dca",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 10,
+        "judges": []
+      },
+      {
+        "name": "California Court of Appeal, Sixth Appellate District",
+        "court_type": "state_appellate",
+        "website": "https://appellate.courts.ca.gov/district-courts/6dca",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 7,
+        "judges": []
+      },
+      {
+        "name": "California Superior Courts",
+        "court_type": "state_trial",
+        "website": "https://www.courts.ca.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 1724,
+        "judges": []
+      },
+      {
+        "name": "California Small Claims Courts",
+        "court_type": "special",
+        "website": "https://www.courts.ca.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 0,
+        "judges": []
+      }
+    ]
+  },
+  "CO": {
+    "courts": [
+      {
+        "name": "Colorado Supreme Court",
+        "court_type": "state_supreme",
+        "website": "https://www.coloradojudicial.gov/supreme-court",
+        "selection_method": "merit_selection",
+        "num_seats": 7,
+        "judges": [
+          {
+            "first_name": "Monica",
+            "last_name": "Marquez",
+            "full_name": "Monica M. Marquez",
+            "appointing_president": "John Hickenlooper",
+            "term_start": "2011-01-01",
+            "term_end": null,
+            "role": "Chief Justice"
+          },
+          {
+            "first_name": "Brian",
+            "last_name": "Boatright",
+            "full_name": "Brian D. Boatright",
+            "appointing_president": "John Hickenlooper",
+            "term_start": "2011-07-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "William",
+            "last_name": "Hood",
+            "full_name": "William W. Hood III",
+            "appointing_president": "John Hickenlooper",
+            "term_start": "2016-06-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Richard",
+            "last_name": "Gabriel",
+            "full_name": "Richard L. Gabriel",
+            "appointing_president": "John Hickenlooper",
+            "term_start": "2015-01-12",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Carlos",
+            "last_name": "Samour",
+            "full_name": "Carlos A. Samour Jr.",
+            "appointing_president": "Jared Polis",
+            "term_start": "2020-12-28",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Maria",
+            "last_name": "Berkenkotter",
+            "full_name": "Maria E. Berkenkotter",
+            "appointing_president": "Jared Polis",
+            "term_start": "2021-02-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Susan",
+            "last_name": "Blanco",
+            "full_name": "Susan Blanco",
+            "appointing_president": "Jared Polis",
+            "term_start": "2026-02-17",
+            "term_end": null,
+            "role": "Associate Justice"
+          }
+        ]
+      },
+      {
+        "name": "Colorado Court of Appeals",
+        "court_type": "state_appellate",
+        "website": "https://www.coloradojudicial.gov/court-appeals",
+        "selection_method": "merit_selection",
+        "num_seats": 22,
+        "judges": [
+          {
+            "first_name": "Gilbert",
+            "last_name": "Roman",
+            "full_name": "Gilbert M. Roman",
+            "appointing_president": "John Hickenlooper",
+            "term_start": "2013-01-01",
+            "term_end": null,
+            "role": "Chief Judge"
+          },
+          {
+            "first_name": "Ted",
+            "last_name": "Tow",
+            "full_name": "Ted C. Tow III",
+            "appointing_president": "Jared Polis",
+            "term_start": "2019-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Rebecca",
+            "last_name": "Freyre",
+            "full_name": "Rebecca R. Freyre",
+            "appointing_president": "Jared Polis",
+            "term_start": "2019-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Craig",
+            "last_name": "Welling",
+            "full_name": "Craig R. Welling",
+            "appointing_president": "John Hickenlooper",
+            "term_start": "2017-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Lino",
+            "last_name": "Lipinsky",
+            "full_name": "Lino S. Lipinsky de Orlov",
+            "appointing_president": "Jared Polis",
+            "term_start": "2019-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Elizabeth",
+            "last_name": "Harris",
+            "full_name": "Elizabeth L. Harris",
+            "appointing_president": "Jared Polis",
+            "term_start": "2020-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Anthony",
+            "last_name": "Navarro",
+            "full_name": "Anthony J. Navarro",
+            "appointing_president": "Jared Polis",
+            "term_start": "2020-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Neeti",
+            "last_name": "Pawar",
+            "full_name": "Neeti V. Pawar",
+            "appointing_president": "Jared Polis",
+            "term_start": "2021-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Timothy",
+            "last_name": "Schutz",
+            "full_name": "Timothy J. Schutz",
+            "appointing_president": "Bill Owens",
+            "term_start": "2006-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "David",
+            "last_name": "Yun",
+            "full_name": "David H. Yun",
+            "appointing_president": "Jared Polis",
+            "term_start": "2022-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "W. Eric",
+            "last_name": "Kuhn",
+            "full_name": "W. Eric Kuhn",
+            "appointing_president": "John Hickenlooper",
+            "term_start": "2017-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Stephanie",
+            "last_name": "Dunn",
+            "full_name": "Stephanie Dunn",
+            "appointing_president": "Jared Polis",
+            "term_start": "2020-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Jerry",
+            "last_name": "Jones",
+            "full_name": "Jerry N. Jones",
+            "appointing_president": "John Hickenlooper",
+            "term_start": "2015-01-01",
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Matthew",
+            "last_name": "Grove",
+            "full_name": "Matthew D. Grove",
+            "appointing_president": "Jared Polis",
+            "term_start": "2022-01-01",
+            "term_end": null,
+            "role": "Judge"
+          }
+        ]
+      },
+      {
+        "name": "Colorado District Courts",
+        "court_type": "state_trial",
+        "website": "https://www.coloradojudicial.gov/",
+        "selection_method": "merit_selection",
+        "num_seats": 160,
+        "judges": []
+      },
+      {
+        "name": "Colorado County Courts",
+        "court_type": "state_trial",
+        "website": "https://www.coloradojudicial.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 112,
+        "judges": []
+      },
+      {
+        "name": "Colorado Water Courts",
+        "court_type": "special",
+        "website": "https://www.coloradojudicial.gov/",
+        "selection_method": "merit_selection",
+        "num_seats": 7,
+        "judges": []
+      },
+      {
+        "name": "Colorado Municipal Courts",
+        "court_type": "special",
+        "website": "https://www.coloradojudicial.gov/",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 0,
+        "judges": []
+      }
+    ]
+  },
+  "CT": {
+    "courts": [
+      {
+        "name": "Connecticut Supreme Court",
+        "court_type": "state_supreme",
+        "website": "https://www.jud.ct.gov/",
+        "selection_method": "legislative_appointment",
+        "num_seats": 7,
+        "judges": [
+          {
+            "first_name": "Raheem",
+            "last_name": "Mullins",
+            "full_name": "Raheem L. Mullins",
+            "appointing_president": "Ned Lamont",
+            "term_start": "2025-01-30",
+            "term_end": null,
+            "role": "Chief Justice"
+          },
+          {
+            "first_name": "Andrew",
+            "last_name": "McDonald",
+            "full_name": "Andrew J. McDonald",
+            "appointing_president": "Dannel Malloy",
+            "term_start": "2013-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Gregory",
+            "last_name": "D'Auria",
+            "full_name": "Gregory T. D'Auria",
+            "appointing_president": "Dannel Malloy",
+            "term_start": "2017-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Steven",
+            "last_name": "Ecker",
+            "full_name": "Steven D. Ecker",
+            "appointing_president": "Ned Lamont",
+            "term_start": "2019-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Nora",
+            "last_name": "Dannehy",
+            "full_name": "Nora R. Dannehy",
+            "appointing_president": "Ned Lamont",
+            "term_start": "2023-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Joan",
+            "last_name": "Alexander",
+            "full_name": "Joan K. Alexander",
+            "appointing_president": "Ned Lamont",
+            "term_start": "2023-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "William",
+            "last_name": "Bright",
+            "full_name": "William H. Bright Jr.",
+            "appointing_president": "Ned Lamont",
+            "term_start": "2025-03-06",
+            "term_end": null,
+            "role": "Associate Justice"
+          }
+        ]
+      },
+      {
+        "name": "Connecticut Appellate Court",
+        "court_type": "state_appellate",
+        "website": "https://www.jud.ct.gov/appellatecourt/",
+        "selection_method": "legislative_appointment",
+        "num_seats": 9,
+        "judges": [
+          {
+            "first_name": "Bethany",
+            "last_name": "Alvord",
+            "full_name": "Bethany J. Alvord",
+            "appointing_president": "Ned Lamont",
+            "term_start": null,
+            "term_end": null,
+            "role": "Chief Judge"
+          },
+          {
+            "first_name": "Ingrid",
+            "last_name": "Moll",
+            "full_name": "Ingrid L. Moll",
+            "appointing_president": "Ned Lamont",
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Nina",
+            "last_name": "Elgo",
+            "full_name": "Nina F. Elgo",
+            "appointing_president": "Ned Lamont",
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Melanie",
+            "last_name": "Cradle",
+            "full_name": "Melanie L. Cradle",
+            "appointing_president": "Ned Lamont",
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Jose",
+            "last_name": "Suarez",
+            "full_name": "Jose A. Suarez",
+            "appointing_president": "Ned Lamont",
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Robert",
+            "last_name": "Clark",
+            "full_name": "Robert W. Clark",
+            "appointing_president": "Ned Lamont",
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Hope",
+            "last_name": "Seeley",
+            "full_name": "Hope C. Seeley",
+            "appointing_president": "Ned Lamont",
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Dawne",
+            "last_name": "Westbrook",
+            "full_name": "Dawne G. Westbrook",
+            "appointing_president": "Ned Lamont",
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Robin",
+            "last_name": "Wilson",
+            "full_name": "Robin L. Wilson",
+            "appointing_president": "Ned Lamont",
+            "term_start": "2025-03-01",
+            "term_end": null,
+            "role": "Judge"
+          }
+        ]
+      },
+      {
+        "name": "Connecticut Superior Court",
+        "court_type": "state_trial",
+        "website": "https://www.jud.ct.gov/",
+        "selection_method": "legislative_appointment",
+        "num_seats": 185,
+        "judges": []
+      },
+      {
+        "name": "Connecticut Probate Courts",
+        "court_type": "special",
+        "website": "https://www.ctprobate.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 54,
+        "judges": []
+      }
+    ]
+  },
+  "DE": {
+    "courts": [
+      {
+        "name": "Delaware Supreme Court",
+        "court_type": "state_supreme",
+        "website": "https://courts.delaware.gov/supreme/",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 5,
+        "judges": [
+          {
+            "first_name": "Collins",
+            "last_name": "Seitz",
+            "full_name": "Collins J. Seitz Jr.",
+            "appointing_president": "John Carney",
+            "term_start": "2019-01-01",
+            "term_end": null,
+            "role": "Chief Justice"
+          },
+          {
+            "first_name": "Karen",
+            "last_name": "Valihura",
+            "full_name": "Karen L. Valihura",
+            "appointing_president": "Jack Markell",
+            "term_start": "2014-07-25",
+            "term_end": "2026-07-25",
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Gary",
+            "last_name": "Traynor",
+            "full_name": "Gary F. Traynor",
+            "appointing_president": "John Carney",
+            "term_start": "2017-07-05",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Abigail",
+            "last_name": "LeGrow",
+            "full_name": "Abigail M. LeGrow",
+            "appointing_president": "John Carney",
+            "term_start": "2023-05-11",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "N. Christopher",
+            "last_name": "Griffiths",
+            "full_name": "N. Christopher Griffiths",
+            "appointing_president": "John Carney",
+            "term_start": "2023-05-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          }
+        ]
+      },
+      {
+        "name": "Delaware Court of Chancery",
+        "court_type": "state_trial",
+        "website": "https://courts.delaware.gov/chancery/",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 7,
+        "judges": []
+      },
+      {
+        "name": "Delaware Superior Court",
+        "court_type": "state_trial",
+        "website": "https://courts.delaware.gov/superior/",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 19,
+        "judges": []
+      },
+      {
+        "name": "Delaware Family Court",
+        "court_type": "special",
+        "website": "https://courts.delaware.gov/family/",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 17,
+        "judges": []
+      },
+      {
+        "name": "Delaware Court of Common Pleas",
+        "court_type": "special",
+        "website": "https://courts.delaware.gov/commonpleas/",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 9,
+        "judges": []
+      },
+      {
+        "name": "Delaware Justice of the Peace Courts",
+        "court_type": "special",
+        "website": "https://courts.delaware.gov/jpcourt/",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 60,
+        "judges": []
+      }
+    ]
+  },
+  "FL": {
+    "courts": [
+      {
+        "name": "Supreme Court of Florida",
+        "court_type": "state_supreme",
+        "website": "https://supremecourt.flcourts.gov/",
+        "selection_method": "assisted_appointment",
+        "num_seats": 7,
+        "judges": [
+          {
+            "first_name": "Carlos",
+            "last_name": "Muniz",
+            "full_name": "Carlos G. Muniz",
+            "appointing_president": "Ron DeSantis",
+            "term_start": "2019-01-22",
+            "term_end": null,
+            "role": "Chief Justice"
+          },
+          {
+            "first_name": "Jorge",
+            "last_name": "Labarga",
+            "full_name": "Jorge Labarga",
+            "appointing_president": "Charlie Crist",
+            "term_start": "2009-01-06",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "John",
+            "last_name": "Couriel",
+            "full_name": "John D. Couriel",
+            "appointing_president": "Ron DeSantis",
+            "term_start": "2020-09-14",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Jamie",
+            "last_name": "Grosshans",
+            "full_name": "Jamie R. Grosshans",
+            "appointing_president": "Ron DeSantis",
+            "term_start": "2020-09-14",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Renatha",
+            "last_name": "Francis",
+            "full_name": "Renatha Francis",
+            "appointing_president": "Ron DeSantis",
+            "term_start": "2020-09-14",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Meredith",
+            "last_name": "Sasso",
+            "full_name": "Meredith L. Sasso",
+            "appointing_president": "Ron DeSantis",
+            "term_start": "2022-05-26",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Adam",
+            "last_name": "Tanenbaum",
+            "full_name": "Adam S. Tanenbaum",
+            "appointing_president": "Ron DeSantis",
+            "term_start": "2026-01-14",
+            "term_end": null,
+            "role": "Associate Justice"
+          }
+        ]
+      },
+      {
+        "name": "Florida First District Court of Appeal",
+        "court_type": "state_appellate",
+        "website": "https://1dca.flcourts.gov/",
+        "selection_method": "assisted_appointment",
+        "num_seats": 13,
+        "judges": [
+          {
+            "first_name": "Timothy",
+            "last_name": "Osterhaus",
+            "full_name": "Timothy D. Osterhaus",
+            "appointing_president": "Rick Scott",
+            "term_start": "2014-01-01",
+            "term_end": null,
+            "role": "Chief Judge"
+          }
+        ]
+      },
+      {
+        "name": "Florida Second District Court of Appeal",
+        "court_type": "state_appellate",
+        "website": "https://2dca.flcourts.gov/",
+        "selection_method": "assisted_appointment",
+        "num_seats": 15,
+        "judges": [
+          {
+            "first_name": "Matthew",
+            "last_name": "Lucas",
+            "full_name": "Matthew C. Lucas",
+            "appointing_president": "Ron DeSantis",
+            "term_start": null,
+            "term_end": null,
+            "role": "Chief Judge"
+          }
+        ]
+      },
+      {
+        "name": "Florida Third District Court of Appeal",
+        "court_type": "state_appellate",
+        "website": "https://3dca.flcourts.gov/",
+        "selection_method": "assisted_appointment",
+        "num_seats": 10,
+        "judges": [
+          {
+            "first_name": "Edwin",
+            "last_name": "Scales",
+            "full_name": "Edwin A. Scales III",
+            "appointing_president": "Ron DeSantis",
+            "term_start": null,
+            "term_end": null,
+            "role": "Chief Judge"
+          }
+        ]
+      },
+      {
+        "name": "Florida Fourth District Court of Appeal",
+        "court_type": "state_appellate",
+        "website": "https://4dca.flcourts.gov/",
+        "selection_method": "assisted_appointment",
+        "num_seats": 12,
+        "judges": [
+          {
+            "first_name": "Jeffrey",
+            "last_name": "Kuntz",
+            "full_name": "Jeffrey T. Kuntz",
+            "appointing_president": "Ron DeSantis",
+            "term_start": null,
+            "term_end": null,
+            "role": "Chief Judge"
+          }
+        ]
+      },
+      {
+        "name": "Florida Fifth District Court of Appeal",
+        "court_type": "state_appellate",
+        "website": "https://5dca.flcourts.gov/",
+        "selection_method": "assisted_appointment",
+        "num_seats": 12,
+        "judges": [
+          {
+            "first_name": "James",
+            "last_name": "Edwards",
+            "full_name": "James A. Edwards",
+            "appointing_president": "Rick Scott",
+            "term_start": "2016-01-01",
+            "term_end": null,
+            "role": "Chief Judge"
+          }
+        ]
+      },
+      {
+        "name": "Florida Sixth District Court of Appeal",
+        "court_type": "state_appellate",
+        "website": "https://6dca.flcourts.gov/",
+        "selection_method": "assisted_appointment",
+        "num_seats": 9,
+        "judges": [
+          {
+            "first_name": "Dan",
+            "last_name": "Traver",
+            "full_name": "Dan Traver",
+            "appointing_president": "Ron DeSantis",
+            "term_start": null,
+            "term_end": null,
+            "role": "Chief Judge"
+          }
+        ]
+      },
+      {
+        "name": "Florida Circuit Courts",
+        "court_type": "state_trial",
+        "website": "https://www.flcourts.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 599,
+        "judges": []
+      },
+      {
+        "name": "Florida County Courts",
+        "court_type": "state_trial",
+        "website": "https://www.flcourts.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 322,
+        "judges": []
+      }
+    ]
+  },
+  "GA": {
+    "courts": [
+      {
+        "name": "Supreme Court of Georgia",
+        "court_type": "state_supreme",
+        "website": "https://www.gasupreme.us/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 9,
+        "judges": [
+          {
+            "first_name": "Nels",
+            "last_name": "Peterson",
+            "full_name": "Nels S.D. Peterson",
+            "appointing_president": "Brian Kemp",
+            "term_start": "2019-07-01",
+            "term_end": null,
+            "role": "Chief Justice"
+          },
+          {
+            "first_name": "Sarah",
+            "last_name": "Warren",
+            "full_name": "Sarah Hawkins Warren",
+            "appointing_president": "Brian Kemp",
+            "term_start": "2021-03-19",
+            "term_end": null,
+            "role": "Presiding Justice"
+          },
+          {
+            "first_name": "Charles",
+            "last_name": "Bethel",
+            "full_name": "Charles J. Bethel",
+            "appointing_president": "Nathan Deal",
+            "term_start": "2018-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "John",
+            "last_name": "Ellington",
+            "full_name": "John J. Ellington",
+            "appointing_president": "Brian Kemp",
+            "term_start": "2020-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Carla",
+            "last_name": "McMillian",
+            "full_name": "Carla Wong McMillian",
+            "appointing_president": "Brian Kemp",
+            "term_start": "2021-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Shawn Ellen",
+            "last_name": "LaGrua",
+            "full_name": "Shawn Ellen LaGrua",
+            "appointing_president": "Brian Kemp",
+            "term_start": "2022-01-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Verda",
+            "last_name": "Colvin",
+            "full_name": "Verda M. Colvin",
+            "appointing_president": "Brian Kemp",
+            "term_start": "2022-06-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Andrew",
+            "last_name": "Pinson",
+            "full_name": "Andrew A. Pinson",
+            "appointing_president": "Brian Kemp",
+            "term_start": "2022-08-01",
+            "term_end": null,
+            "role": "Associate Justice"
+          },
+          {
+            "first_name": "Benjamin",
+            "last_name": "Land",
+            "full_name": "Benjamin A. Land",
+            "appointing_president": "Brian Kemp",
+            "term_start": "2025-07-24",
+            "term_end": null,
+            "role": "Associate Justice"
+          }
+        ]
+      },
+      {
+        "name": "Georgia Court of Appeals",
+        "court_type": "state_appellate",
+        "website": "https://www.gaappeals.us/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 15,
+        "judges": [
+          {
+            "first_name": "Amanda",
+            "last_name": "Mercier",
+            "full_name": "Amanda H. Mercier",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Chief Judge"
+          },
+          {
+            "first_name": "Trenton",
+            "last_name": "Brown",
+            "full_name": "Trenton Brown",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Vice Chief Judge"
+          },
+          {
+            "first_name": "Christopher",
+            "last_name": "McFadden",
+            "full_name": "Christopher J. McFadden",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Presiding Judge"
+          },
+          {
+            "first_name": "Sara",
+            "last_name": "Doyle",
+            "full_name": "Sara L. Doyle",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Presiding Judge"
+          },
+          {
+            "first_name": "Anne Elizabeth",
+            "last_name": "Barnes",
+            "full_name": "Anne Elizabeth Barnes",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Presiding Judge"
+          },
+          {
+            "first_name": "M. Yvette",
+            "last_name": "Miller",
+            "full_name": "M. Yvette Miller",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Presiding Judge"
+          },
+          {
+            "first_name": "Stephen",
+            "last_name": "Dillard",
+            "full_name": "Stephen Louis A. Dillard",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Presiding Judge"
+          },
+          {
+            "first_name": "Brian",
+            "last_name": "Rickman",
+            "full_name": "Brian M. Rickman",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Jeffrey",
+            "last_name": "Watkins",
+            "full_name": "Jeffrey A. Watkins",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Trea",
+            "last_name": "Pipkin",
+            "full_name": "Trea Pipkin",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Todd",
+            "last_name": "Markle",
+            "full_name": "Todd Markle",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Elizabeth",
+            "last_name": "Gobeil",
+            "full_name": "Elizabeth D. Gobeil",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Kenneth",
+            "last_name": "Hodges",
+            "full_name": "Kenneth B. Hodges III",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "J. Wade",
+            "last_name": "Padgett",
+            "full_name": "J. Wade Padgett",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          },
+          {
+            "first_name": "Jeffrey",
+            "last_name": "Davis",
+            "full_name": "Jeffrey Davis",
+            "appointing_president": null,
+            "term_start": null,
+            "term_end": null,
+            "role": "Judge"
+          }
+        ]
+      },
+      {
+        "name": "Georgia Superior Courts",
+        "court_type": "state_trial",
+        "website": "https://georgiacourts.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 220,
+        "judges": []
+      },
+      {
+        "name": "Georgia State Courts",
+        "court_type": "state_trial",
+        "website": "https://georgiacourts.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 130,
+        "judges": []
+      },
+      {
+        "name": "Georgia Probate Courts",
+        "court_type": "special",
+        "website": "https://georgiacourts.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 159,
+        "judges": []
+      },
+      {
+        "name": "Georgia Juvenile Courts",
+        "court_type": "special",
+        "website": "https://georgiacourts.gov/",
+        "selection_method": "gubernatorial_appointment",
+        "num_seats": 120,
+        "judges": []
+      },
+      {
+        "name": "Georgia Magistrate Courts",
+        "court_type": "special",
+        "website": "https://georgiacourts.gov/",
+        "selection_method": "nonpartisan_election",
+        "num_seats": 159,
+        "judges": []
+      }
+    ]
+  }
+}
