@@ -1,0 +1,1114 @@
+{
+  "AL": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Will",
+          "last_name": "Ainsworth",
+          "party": "republican",
+          "email": null,
+          "phone": "(334) 242-7900",
+          "website": "https://ltgov.alabama.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-16",
+          "term_end": "2027-01-18"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Steve",
+          "last_name": "Marshall",
+          "party": "republican",
+          "email": null,
+          "phone": "(334) 242-7300",
+          "website": "https://www.alabamaag.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-16",
+          "term_end": "2027-01-18"
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Wes",
+          "last_name": "Allen",
+          "party": "republican",
+          "email": null,
+          "phone": "(334) 242-7200",
+          "website": "https://www.sos.alabama.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-16",
+          "term_end": "2027-01-18"
+        }
+      },
+      {
+        "title": "State Treasurer",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Young",
+          "last_name": "Boozer",
+          "party": "republican",
+          "email": null,
+          "phone": "(334) 242-7500",
+          "website": "https://treasury.alabama.gov/",
+          "photo_url": null,
+          "term_start": "2021-10-01",
+          "term_end": "2027-01-18"
+        }
+      },
+      {
+        "title": "State Auditor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Andrew",
+          "last_name": "Sorrell",
+          "party": "republican",
+          "email": null,
+          "phone": "(334) 242-7010",
+          "website": "https://auditor.alabama.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-16",
+          "term_end": "2027-01-18"
+        }
+      },
+      {
+        "title": "Commissioner of Agriculture and Industries",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Rick",
+          "last_name": "Pate",
+          "party": "republican",
+          "email": null,
+          "phone": "(334) 240-7100",
+          "website": "https://agi.alabama.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-16",
+          "term_end": "2027-01-18"
+        }
+      },
+      {
+        "title": "Public Service Commission President",
+        "branch": "executive",
+        "is_elected": false,
+        "official": {
+          "first_name": "Cynthia",
+          "last_name": "Almond",
+          "party": "republican",
+          "email": "cynthia.almond@psc.alabama.gov",
+          "phone": "(334) 242-5207",
+          "website": "https://psc.alabama.gov/",
+          "photo_url": null,
+          "term_start": "2025-06-16",
+          "term_end": "2026-11-04"
+        }
+      },
+      {
+        "title": "Public Service Commissioner, Place 1",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Jeremy",
+          "last_name": "Oden",
+          "party": "republican",
+          "email": "jeremy.oden@psc.alabama.gov",
+          "phone": "(334) 242-5203",
+          "website": "https://psc.alabama.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-16",
+          "term_end": "2027-01-18"
+        }
+      },
+      {
+        "title": "Public Service Commissioner, Place 2",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Chris",
+          "last_name": "Beeker",
+          "party": "republican",
+          "email": "chris.beeker@psc.alabama.gov",
+          "phone": "(334) 242-5191",
+          "website": "https://psc.alabama.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-16",
+          "term_end": "2027-01-18"
+        }
+      }
+    ]
+  },
+  "AK": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Nancy",
+          "last_name": "Dahlstrom",
+          "party": "republican",
+          "email": null,
+          "phone": "(907) 465-3520",
+          "website": "https://ltgov.alaska.gov/",
+          "photo_url": null,
+          "term_start": "2022-12-05",
+          "term_end": "2026-12-07"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": false,
+        "official": {
+          "first_name": "Stephen",
+          "last_name": "Cox",
+          "party": "republican",
+          "email": null,
+          "phone": "(907) 465-2133",
+          "website": "https://law.alaska.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-01",
+          "term_end": null
+        }
+      }
+    ]
+  },
+  "AZ": {
+    "offices": [
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Kris",
+          "last_name": "Mayes",
+          "party": "democratic",
+          "email": null,
+          "phone": "(602) 542-5025",
+          "website": "https://www.azag.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Adrian",
+          "last_name": "Fontes",
+          "party": "democratic",
+          "email": null,
+          "phone": "(602) 542-4285",
+          "website": "https://azsos.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "State Treasurer",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Kimberly",
+          "last_name": "Yee",
+          "party": "republican",
+          "email": null,
+          "phone": "(602) 542-7800",
+          "website": "https://www.aztreasury.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Superintendent of Public Instruction",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Tom",
+          "last_name": "Horne",
+          "party": "republican",
+          "email": null,
+          "phone": "(602) 542-5460",
+          "website": "https://www.azed.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "State Mine Inspector",
+        "branch": "executive",
+        "is_elected": false,
+        "official": {
+          "first_name": "Les",
+          "last_name": "Presmyk",
+          "party": "republican",
+          "email": null,
+          "phone": "(602) 542-5971",
+          "website": "https://asmi.az.gov/",
+          "photo_url": null,
+          "term_start": "2025-08-15",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Corporation Commissioner, Chairman",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Kevin",
+          "last_name": "Thompson",
+          "party": "republican",
+          "email": null,
+          "phone": "(602) 542-3935",
+          "website": "https://www.azcc.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Corporation Commissioner, Vice Chairman",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Nick",
+          "last_name": "Myers",
+          "party": "republican",
+          "email": null,
+          "phone": "(602) 542-3935",
+          "website": "https://www.azcc.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Corporation Commissioner",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Lea",
+          "last_name": "Marquez Peterson",
+          "party": "republican",
+          "email": null,
+          "phone": "(602) 542-3935",
+          "website": "https://www.azcc.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-06",
+          "term_end": "2029-01-08"
+        }
+      },
+      {
+        "title": "Corporation Commissioner",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Rene",
+          "last_name": "Lopez",
+          "party": "republican",
+          "email": null,
+          "phone": "(602) 542-3935",
+          "website": "https://www.azcc.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-06",
+          "term_end": "2029-01-08"
+        }
+      },
+      {
+        "title": "Corporation Commissioner",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Rachel",
+          "last_name": "Walden",
+          "party": "republican",
+          "email": null,
+          "phone": "(602) 542-3935",
+          "website": "https://www.azcc.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-06",
+          "term_end": "2029-01-08"
+        }
+      }
+    ]
+  },
+  "AR": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Leslie",
+          "last_name": "Rutledge",
+          "party": "republican",
+          "email": null,
+          "phone": "(501) 682-2144",
+          "website": "https://ltgovernor.arkansas.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-10",
+          "term_end": "2027-01-12"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Tim",
+          "last_name": "Griffin",
+          "party": "republican",
+          "email": null,
+          "phone": "(501) 682-2007",
+          "website": "https://arkansasag.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-10",
+          "term_end": "2027-01-12"
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Cole",
+          "last_name": "Jester",
+          "party": "republican",
+          "email": null,
+          "phone": "(501) 682-1010",
+          "website": "https://www.sos.arkansas.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-14",
+          "term_end": "2027-01-12"
+        }
+      },
+      {
+        "title": "State Treasurer",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "John",
+          "last_name": "Thurston",
+          "party": "republican",
+          "email": null,
+          "phone": "(501) 682-5888",
+          "website": "https://www.artreasury.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-14",
+          "term_end": "2027-01-12"
+        }
+      },
+      {
+        "title": "Auditor of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Dennis",
+          "last_name": "Milligan",
+          "party": "republican",
+          "email": null,
+          "phone": "(501) 682-6030",
+          "website": "https://www.arkansasauditor.com/",
+          "photo_url": null,
+          "term_start": "2023-01-10",
+          "term_end": "2027-01-12"
+        }
+      },
+      {
+        "title": "Commissioner of State Lands",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Tommy",
+          "last_name": "Land",
+          "party": "republican",
+          "email": null,
+          "phone": "(501) 324-9422",
+          "website": "https://www.cosl.org/",
+          "photo_url": null,
+          "term_start": "2023-01-10",
+          "term_end": "2027-01-12"
+        }
+      }
+    ]
+  },
+  "CA": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Eleni",
+          "last_name": "Kounalakis",
+          "party": "democratic",
+          "email": null,
+          "phone": "(916) 445-8994",
+          "website": "https://ltg.ca.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-06",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Rob",
+          "last_name": "Bonta",
+          "party": "democratic",
+          "email": null,
+          "phone": "(916) 445-9555",
+          "website": "https://oag.ca.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-06",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Shirley",
+          "last_name": "Weber",
+          "party": "democratic",
+          "email": null,
+          "phone": "(916) 653-6814",
+          "website": "https://www.sos.ca.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-06",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "State Treasurer",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Fiona",
+          "last_name": "Ma",
+          "party": "democratic",
+          "email": null,
+          "phone": "(916) 653-2995",
+          "website": "https://www.treasurer.ca.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-06",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "State Controller",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Malia",
+          "last_name": "Cohen",
+          "party": "democratic",
+          "email": null,
+          "phone": "(916) 445-2636",
+          "website": "https://www.sco.ca.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-06",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Insurance Commissioner",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Ricardo",
+          "last_name": "Lara",
+          "party": "democratic",
+          "email": null,
+          "phone": "(916) 492-3500",
+          "website": "https://www.insurance.ca.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-06",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Superintendent of Public Instruction",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Tony",
+          "last_name": "Thurmond",
+          "party": "democratic",
+          "email": null,
+          "phone": "(916) 319-0800",
+          "website": "https://www.cde.ca.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-06",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Board of Equalization Member, District 1",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Ted",
+          "last_name": "Gaines",
+          "party": "republican",
+          "email": null,
+          "phone": "(916) 274-3270",
+          "website": "https://www.boe.ca.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-06",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Board of Equalization Member, District 2",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Sally",
+          "last_name": "Lieber",
+          "party": "democratic",
+          "email": null,
+          "phone": "(916) 274-3270",
+          "website": "https://www.boe.ca.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-06",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Board of Equalization Member, District 3",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Antonio",
+          "last_name": "Vazquez",
+          "party": "republican",
+          "email": null,
+          "phone": "(916) 274-3270",
+          "website": "https://www.boe.ca.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-06",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Board of Equalization Member, District 4",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Mike",
+          "last_name": "Schaefer",
+          "party": "democratic",
+          "email": null,
+          "phone": "(916) 274-3270",
+          "website": "https://www.boe.ca.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-06",
+          "term_end": "2027-01-04"
+        }
+      }
+    ]
+  },
+  "CO": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Dianne",
+          "last_name": "Primavera",
+          "party": "democratic",
+          "email": null,
+          "phone": "(303) 866-2087",
+          "website": "https://ltgovernor.colorado.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-10",
+          "term_end": "2027-01-12"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Phil",
+          "last_name": "Weiser",
+          "party": "democratic",
+          "email": null,
+          "phone": "(303) 866-4500",
+          "website": "https://coag.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-10",
+          "term_end": "2027-01-12"
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Jena",
+          "last_name": "Griswold",
+          "party": "democratic",
+          "email": null,
+          "phone": "(303) 894-2200",
+          "website": "https://www.coloradosos.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-10",
+          "term_end": "2027-01-12"
+        }
+      },
+      {
+        "title": "State Treasurer",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Dave",
+          "last_name": "Young",
+          "party": "democratic",
+          "email": null,
+          "phone": "(303) 866-2441",
+          "website": "https://treasury.colorado.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-10",
+          "term_end": "2027-01-12"
+        }
+      }
+    ]
+  },
+  "CT": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Susan",
+          "last_name": "Bysiewicz",
+          "party": "democratic",
+          "email": null,
+          "phone": "(860) 524-7384",
+          "website": "https://portal.ct.gov/lt-governor",
+          "photo_url": null,
+          "term_start": "2023-01-04",
+          "term_end": "2027-01-06"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "William",
+          "last_name": "Tong",
+          "party": "democratic",
+          "email": "attorney.general@ct.gov",
+          "phone": "(860) 808-5318",
+          "website": "https://portal.ct.gov/ag",
+          "photo_url": null,
+          "term_start": "2023-01-04",
+          "term_end": "2027-01-06"
+        }
+      },
+      {
+        "title": "Secretary of the State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Stephanie",
+          "last_name": "Thomas",
+          "party": "democratic",
+          "email": "stephanie.thomas@ct.gov",
+          "phone": "(860) 509-6200",
+          "website": "https://portal.ct.gov/sots",
+          "photo_url": null,
+          "term_start": "2023-01-04",
+          "term_end": "2027-01-06"
+        }
+      },
+      {
+        "title": "State Treasurer",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Erick",
+          "last_name": "Russell",
+          "party": "democratic",
+          "email": "state.treasurer@ct.gov",
+          "phone": "(860) 702-3000",
+          "website": "https://portal.ct.gov/ott",
+          "photo_url": null,
+          "term_start": "2023-01-04",
+          "term_end": "2027-01-06"
+        }
+      },
+      {
+        "title": "State Comptroller",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Sean",
+          "last_name": "Scanlon",
+          "party": "democratic",
+          "email": "comptroller.scanlon@ct.gov",
+          "phone": "(860) 702-3300",
+          "website": "https://www.osc.ct.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-04",
+          "term_end": "2027-01-06"
+        }
+      }
+    ]
+  },
+  "DE": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Kyle",
+          "last_name": "Evans Gay",
+          "party": "democratic",
+          "email": "LGinfo@delaware.gov",
+          "phone": "(302) 744-4333",
+          "website": "https://ltgov.delaware.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-21",
+          "term_end": "2029-01-16"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Kathy",
+          "last_name": "Jennings",
+          "party": "democratic",
+          "email": null,
+          "phone": "(302) 577-8338",
+          "website": "https://attorneygeneral.delaware.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-03",
+          "term_end": "2027-01-05"
+        }
+      },
+      {
+        "title": "State Treasurer",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Colleen",
+          "last_name": "Davis",
+          "party": "democratic",
+          "email": null,
+          "phone": "(302) 672-6700",
+          "website": "https://treasurer.delaware.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-03",
+          "term_end": "2027-01-05"
+        }
+      },
+      {
+        "title": "Auditor of Accounts",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Lydia",
+          "last_name": "York",
+          "party": "democratic",
+          "email": null,
+          "phone": "(302) 739-5055",
+          "website": "https://auditor.delaware.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-03",
+          "term_end": "2027-01-05"
+        }
+      },
+      {
+        "title": "Insurance Commissioner",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Trinidad",
+          "last_name": "Navarro",
+          "party": "democratic",
+          "email": null,
+          "phone": "(302) 674-7300",
+          "website": "https://insurance.delaware.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-21",
+          "term_end": "2029-01-16"
+        }
+      }
+    ]
+  },
+  "FL": {
+    "offices": [
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": false,
+        "official": {
+          "first_name": "James",
+          "last_name": "Uthmeier",
+          "party": "republican",
+          "email": null,
+          "phone": "(850) 414-3300",
+          "website": "https://www.myfloridalegal.com/",
+          "photo_url": null,
+          "term_start": "2025-02-17",
+          "term_end": "2027-01-05"
+        }
+      },
+      {
+        "title": "Chief Financial Officer",
+        "branch": "executive",
+        "is_elected": false,
+        "official": {
+          "first_name": "Blaise",
+          "last_name": "Ingoglia",
+          "party": "republican",
+          "email": null,
+          "phone": "(850) 413-3089",
+          "website": "https://www.myfloridacfo.com/",
+          "photo_url": null,
+          "term_start": "2025-07-17",
+          "term_end": "2027-01-05"
+        }
+      },
+      {
+        "title": "Commissioner of Agriculture",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Wilton",
+          "last_name": "Simpson",
+          "party": "republican",
+          "email": null,
+          "phone": "(850) 617-7700",
+          "website": "https://www.fdacs.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-03",
+          "term_end": "2027-01-05"
+        }
+      }
+    ]
+  },
+  "GA": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Burt",
+          "last_name": "Jones",
+          "party": "republican",
+          "email": null,
+          "phone": "(404) 656-5030",
+          "website": "https://ltgov.georgia.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-09",
+          "term_end": "2027-01-11"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Chris",
+          "last_name": "Carr",
+          "party": "republican",
+          "email": null,
+          "phone": "(404) 458-3600",
+          "website": "https://law.georgia.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-09",
+          "term_end": "2027-01-11"
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Brad",
+          "last_name": "Raffensperger",
+          "party": "republican",
+          "email": null,
+          "phone": "(404) 656-2881",
+          "website": "https://sos.ga.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-09",
+          "term_end": "2027-01-11"
+        }
+      },
+      {
+        "title": "Insurance and Safety Fire Commissioner",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "John",
+          "last_name": "King",
+          "party": "republican",
+          "email": null,
+          "phone": "(404) 656-2070",
+          "website": "https://oci.georgia.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-09",
+          "term_end": "2027-01-11"
+        }
+      },
+      {
+        "title": "Commissioner of Labor",
+        "branch": "executive",
+        "is_elected": false,
+        "official": {
+          "first_name": "Barbara",
+          "last_name": "Rivera Holmes",
+          "party": "republican",
+          "email": null,
+          "phone": "(404) 232-3685",
+          "website": "https://dol.georgia.gov/",
+          "photo_url": null,
+          "term_start": "2025-04-04",
+          "term_end": "2027-01-11"
+        }
+      },
+      {
+        "title": "State School Superintendent",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Richard",
+          "last_name": "Woods",
+          "party": "republican",
+          "email": "state.superintendent@doe.k12.ga.us",
+          "phone": "(404) 657-1175",
+          "website": "https://www.gadoe.org/",
+          "photo_url": null,
+          "term_start": "2023-01-09",
+          "term_end": "2027-01-11"
+        }
+      },
+      {
+        "title": "Commissioner of Agriculture",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Tyler",
+          "last_name": "Harper",
+          "party": "republican",
+          "email": null,
+          "phone": "(404) 656-3600",
+          "website": "https://agr.georgia.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-09",
+          "term_end": "2027-01-11"
+        }
+      },
+      {
+        "title": "Public Service Commissioner, District 1 (Chairman)",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Jason",
+          "last_name": "Shaw",
+          "party": "republican",
+          "email": null,
+          "phone": "(404) 656-4501",
+          "website": "https://psc.ga.gov/",
+          "photo_url": null,
+          "term_start": "2019-01-03",
+          "term_end": "2028-12-31"
+        }
+      },
+      {
+        "title": "Public Service Commissioner, District 2",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Alicia",
+          "last_name": "Johnson",
+          "party": "democratic",
+          "email": null,
+          "phone": "(404) 656-4501",
+          "website": "https://psc.ga.gov/",
+          "photo_url": null,
+          "term_start": "2025-11-04",
+          "term_end": "2030-12-31"
+        }
+      },
+      {
+        "title": "Public Service Commissioner, District 3",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Peter",
+          "last_name": "Hubbard",
+          "party": "democratic",
+          "email": null,
+          "phone": "(404) 656-4501",
+          "website": "https://psc.ga.gov/",
+          "photo_url": null,
+          "term_start": "2025-11-04",
+          "term_end": "2026-12-31"
+        }
+      },
+      {
+        "title": "Public Service Commissioner, District 4",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Lauren",
+          "last_name": "McDonald Jr.",
+          "party": "republican",
+          "email": null,
+          "phone": "(404) 656-4501",
+          "website": "https://psc.ga.gov/",
+          "photo_url": null,
+          "term_start": "2009-01-01",
+          "term_end": "2028-12-31"
+        }
+      },
+      {
+        "title": "Public Service Commissioner, District 5",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Tricia",
+          "last_name": "Pridemore",
+          "party": "republican",
+          "email": null,
+          "phone": "(404) 656-4501",
+          "website": "https://psc.ga.gov/",
+          "photo_url": null,
+          "term_start": "2019-01-03",
+          "term_end": "2026-12-31"
+        }
+      }
+    ]
+  }
+}
