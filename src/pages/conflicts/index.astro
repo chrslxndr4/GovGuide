@@ -21,6 +21,16 @@ const { count: activeAlerts } = await supabase
   .select('*', { count: 'exact', head: true })
   .eq('status', 'active');
 
+const { count: predictionAlerts } = await supabase
+  .from('conflict_alerts')
+  .select('*', { count: 'exact', head: true })
+  .eq('alert_type', 'prediction_insider');
+
+const { count: stockAlerts } = await supabase
+  .from('conflict_alerts')
+  .select('*', { count: 'exact', head: true })
+  .in('alert_type', ['stock_committee', 'trade_timing']);
+
 const { data: initialAlerts } = await supabase
   .from('conflict_alerts')
   .select('*')
@@ -47,7 +57,7 @@ const { data: initialAlerts } = await supabase
     <section class="max-w-7xl mx-auto px-4 py-8">
 
       <!-- Stat cards -->
-      <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
         <div class="bg-white border border-border rounded-card px-5 py-4">
           <p class="text-2xl font-bold font-mono tabular-nums text-civic-navy leading-none mb-1">
             {(totalAlerts ?? 0).toLocaleString()}
@@ -66,6 +76,20 @@ const { data: initialAlerts } = await supabase
             {(activeAlerts ?? 0).toLocaleString()}
           </p>
           <p class="text-xs text-muted">Active Alerts</p>
+        </div>
+        <!-- Prediction anomaly card: pink top border accent -->
+        <div class="bg-white border border-border rounded-card px-5 py-4 border-t-2 border-t-pink-500">
+          <p class="text-2xl font-bold font-mono tabular-nums text-pink-600 leading-none mb-1">
+            {(predictionAlerts ?? 0).toLocaleString()}
+          </p>
+          <p class="text-xs text-muted">Prediction Anomalies</p>
+        </div>
+        <!-- Stock conflicts card: amber top border accent -->
+        <div class="bg-white border border-border rounded-card px-5 py-4 border-t-2 border-t-amber-400">
+          <p class="text-2xl font-bold font-mono tabular-nums text-amber-600 leading-none mb-1">
+            {(stockAlerts ?? 0).toLocaleString()}
+          </p>
+          <p class="text-xs text-muted">Stock Conflicts</p>
         </div>
       </div>
 

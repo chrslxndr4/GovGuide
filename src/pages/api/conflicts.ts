@@ -4,10 +4,46 @@ import type { APIRoute } from 'astro';
 import { supabase } from '../../lib/supabase';
 
 export const GET: APIRoute = async ({ url, request }) => {
-  const page = parseInt(url.searchParams.get('page') || '1');
-  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
+  const view = url.searchParams.get('view');
   const alertType = url.searchParams.get('type');
   const minSeverity = url.searchParams.get('min_severity');
+  const dateFrom = url.searchParams.get('date_from');
+  const dateTo = url.searchParams.get('date_to');
+
+  // ------------------------------------------------------------------
+  // Timeline view — returns data from mv_conflict_timeline
+  // ------------------------------------------------------------------
+  if (view === 'timeline') {
+    let timelineQuery = supabase
+      .from('mv_conflict_timeline')
+      .select('id, alert_type, severity, description, official_name, detected_at')
+      .order('detected_at', { ascending: true })
+      .limit(500);
+
+    if (alertType) timelineQuery = timelineQuery.eq('alert_type', alertType);
+    if (minSeverity) timelineQuery = timelineQuery.gte('severity', parseFloat(minSeverity));
+    if (dateFrom) timelineQuery = timelineQuery.gte('detected_at', dateFrom);
+    if (dateTo) timelineQuery = timelineQuery.lte('detected_at', dateTo);
+
+    const { data: timelineData, error: timelineError } = await timelineQuery;
+
+    if (timelineError) {
+      return new Response(JSON.stringify({ error: timelineError.message }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
+    return new Response(JSON.stringify({ points: timelineData ?? [] }), {
+      headers: { 'Content-Type': 'application/json' },
+    });
+  }
+
+  // ------------------------------------------------------------------
+  // Default feed view
+  // ------------------------------------------------------------------
+  const page = parseInt(url.searchParams.get('page') || '1');
+  const limit = Math.min(parseInt(url.searchParams.get('limit') || '50'), 100);
   const officialId = url.searchParams.get('official_id');
   const status = url.searchParams.get('status') || 'active';
 
@@ -22,6 +58,8 @@ export const GET: APIRoute = async ({ url, request }) => {
   if (alertType) query = query.eq('alert_type', alertType);
   if (minSeverity) query = query.gte('severity_score', parseFloat(minSeverity));
   if (officialId) query = query.eq('official_id', officialId);
+  if (dateFrom) query = query.gte('detected_at', dateFrom);
+  if (dateTo) query = query.lte('detected_at', dateTo);
 
   const { data, count, error } = await query;
 

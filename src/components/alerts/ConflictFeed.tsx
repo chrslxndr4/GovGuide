@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import ConflictCard from './ConflictCard';
 import type { ConflictAlert } from './ConflictCard';
+import ConflictTimeline from '../conflicts/ConflictTimeline';
 
 interface FeedStats {
   total: number;
@@ -23,6 +24,8 @@ interface FilterState {
   dateTo: string;
   sortBy: 'severity' | 'date';
 }
+
+type ViewMode = 'cards' | 'timeline';
 
 interface ConflictFeedProps {
   initialAlerts?: ConflictAlert[];
@@ -106,6 +109,7 @@ export default function ConflictFeed({
   initialAlerts = [],
   apiEndpoint = '/api/conflicts',
 }: ConflictFeedProps) {
+  const [viewMode, setViewMode] = useState<ViewMode>('cards');
   const [alerts, setAlerts] = useState<ConflictAlert[]>(initialAlerts);
   const [stats, setStats] = useState<FeedStats>(computeStats(initialAlerts));
   const [page, setPage] = useState(1);
@@ -204,6 +208,37 @@ export default function ConflictFeed({
         <StatCard label="Total Alerts" value={stats.total} />
         <StatCard label="Critical" value={stats.critical} highlight />
         <StatCard label="Active" value={stats.active} />
+      </div>
+
+      {/* View toggle */}
+      <div className="flex items-center gap-2">
+        <span className="text-xs font-medium text-[#475569] uppercase tracking-wider">View:</span>
+        <div className="flex rounded-md border border-slate-300 overflow-hidden">
+          <button
+            type="button"
+            onClick={() => setViewMode('cards')}
+            aria-pressed={viewMode === 'cards'}
+            className={`px-4 py-1.5 text-xs font-medium transition-colors ${
+              viewMode === 'cards'
+                ? 'bg-[#1B2A4A] text-white'
+                : 'bg-white text-[#475569] hover:bg-slate-50'
+            }`}
+          >
+            Cards
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('timeline')}
+            aria-pressed={viewMode === 'timeline'}
+            className={`px-4 py-1.5 text-xs font-medium border-l border-slate-300 transition-colors ${
+              viewMode === 'timeline'
+                ? 'bg-[#1B2A4A] text-white'
+                : 'bg-white text-[#475569] hover:bg-slate-50'
+            }`}
+          >
+            Timeline
+          </button>
+        </div>
       </div>
 
       {/* Filters */}
@@ -320,58 +355,71 @@ export default function ConflictFeed({
         </div>
       </div>
 
-      {/* Alert list */}
-      {loading ? (
-        <LoadingSpinner />
-      ) : error ? (
-        <div
-          className="bg-red-50 border border-red-200 rounded-lg p-5 text-center"
-          role="alert"
-        >
-          <p className="text-sm font-semibold text-[#DC2626] mb-1">Failed to load alerts</p>
-          <p className="text-sm text-[#475569]">{error}</p>
-          <button
-            type="button"
-            onClick={() => fetchAlerts(filters, 1, false)}
-            className="mt-3 px-4 py-2 bg-[#DC2626] text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
-          >
-            Retry
-          </button>
-        </div>
-      ) : alerts.length === 0 ? (
-        <EmptyState hasFilters={hasActiveFilters} />
-      ) : (
-        <div className="space-y-3" role="list" aria-label="Conflict alerts">
-          {alerts.map((alert) => (
-            <div key={alert.id} role="listitem">
-              <ConflictCard alert={alert} />
-            </div>
-          ))}
-        </div>
+      {/* Timeline view */}
+      {viewMode === 'timeline' && (
+        <ConflictTimeline
+          dateFrom={filters.dateFrom || undefined}
+          dateTo={filters.dateTo || undefined}
+          alertType={filters.alertType || undefined}
+        />
       )}
 
-      {/* Load more */}
-      {!loading && !error && hasMore && (
-        <div className="flex justify-center pt-2">
-          <button
-            type="button"
-            onClick={handleLoadMore}
-            disabled={loadingMore}
-            className="px-6 py-2.5 bg-white border border-slate-300 text-[#1B2A4A] rounded-lg text-sm font-medium hover:border-[#2563EB] hover:text-[#2563EB] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
-          >
-            {loadingMore ? (
-              <>
-                <span
-                  className="inline-block w-4 h-4 rounded-full border-2 border-slate-300 border-t-[#2563EB] animate-spin"
-                  aria-hidden="true"
-                />
-                Loading...
-              </>
-            ) : (
-              'Load more alerts'
-            )}
-          </button>
-        </div>
+      {/* Cards view — alert list */}
+      {viewMode === 'cards' && (
+        <>
+          {loading ? (
+            <LoadingSpinner />
+          ) : error ? (
+            <div
+              className="bg-red-50 border border-red-200 rounded-lg p-5 text-center"
+              role="alert"
+            >
+              <p className="text-sm font-semibold text-[#DC2626] mb-1">Failed to load alerts</p>
+              <p className="text-sm text-[#475569]">{error}</p>
+              <button
+                type="button"
+                onClick={() => fetchAlerts(filters, 1, false)}
+                className="mt-3 px-4 py-2 bg-[#DC2626] text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors"
+              >
+                Retry
+              </button>
+            </div>
+          ) : alerts.length === 0 ? (
+            <EmptyState hasFilters={hasActiveFilters} />
+          ) : (
+            <div className="space-y-3" role="list" aria-label="Conflict alerts">
+              {alerts.map((alert) => (
+                <div key={alert.id} role="listitem">
+                  <ConflictCard alert={alert} />
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Load more */}
+          {!loading && !error && hasMore && (
+            <div className="flex justify-center pt-2">
+              <button
+                type="button"
+                onClick={handleLoadMore}
+                disabled={loadingMore}
+                className="px-6 py-2.5 bg-white border border-slate-300 text-[#1B2A4A] rounded-lg text-sm font-medium hover:border-[#2563EB] hover:text-[#2563EB] transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {loadingMore ? (
+                  <>
+                    <span
+                      className="inline-block w-4 h-4 rounded-full border-2 border-slate-300 border-t-[#2563EB] animate-spin"
+                      aria-hidden="true"
+                    />
+                    Loading...
+                  </>
+                ) : (
+                  'Load more alerts'
+                )}
+              </button>
+            </div>
+          )}
+        </>
       )}
     </div>
   );
