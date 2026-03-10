@@ -70,7 +70,7 @@ void STOCK_ACT_DISCLOSURE_DAYS;
  * e.g. 2024FD.ZIP → entries named like "20240001.xml", "20240002.xml", etc.
  */
 const HOUSE_PTR_ZIP_BASE =
-  'https://disclosures-clerk.house.gov/public_disc/PTR-pdfs';
+  'https://disclosures-clerk.house.gov/public_disc/financial-pdfs';
 
 /**
  * Senate eFD search API — returns JSON for PTR (Periodic Transaction Report)
@@ -779,7 +779,7 @@ function parseHousePtrXml(xml: string, year: number): ParsedTrade[] {
 // ---------------------------------------------------------------------------
 
 async function fetchHousePtrZip(year: number): Promise<Buffer | null> {
-  const url = `${HOUSE_PTR_ZIP_BASE}/${year}FD.ZIP`;
+  const url = `${HOUSE_PTR_ZIP_BASE}/${year}FD.zip`;
   console.log(`  [house] Downloading ZIP: ${url}`);
 
   let res: Response;
