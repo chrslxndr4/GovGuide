@@ -28,7 +28,9 @@
     "test:watch": "vitest",
     "pipeline": "tsx scripts/pipeline/run.ts",
     "pipeline:all": "tsx scripts/pipeline/run.ts --all",
-    "pipeline:list": "tsx scripts/pipeline/run.ts --list"
+    "pipeline:list": "tsx scripts/pipeline/run.ts --list",
+    "detect:predictions": "npx tsx --env-file=.env scripts/detect-prediction-anomalies.ts",
+    "detect:conflicts": "npx tsx --env-file=.env scripts/detect-conflicts.ts"
   },
   "dependencies": {
     "@astrojs/node": "^9.5.4",
