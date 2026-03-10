@@ -69,6 +69,7 @@ const [
   { data: votes },
   { data: lobbyingRows },
   { data: conflicts },
+  { data: tradeSummary },
 ] = await Promise.all([
   supabase
     .from('campaign_contributions')
@@ -96,10 +97,22 @@ const [
     .limit(10),
   supabase
     .from('conflict_alerts')
-    .select('alert_type, description, severity, created_at, source_url')
+    .select('alert_type, description, severity, severity_score, created_at, source_url')
     .eq('official_entity_id', official.entity_id)
     .eq('status', 'active')
+    .in('alert_type', [
+      'stock_overlap',
+      'donor_conflict',
+      'lobbying_conflict',
+      'committee_overlap',
+      'prediction_insider',
+    ])
     .order('created_at', { ascending: false }),
+  supabase
+    .from('mv_politician_trade_summary')
+    .select('*')
+    .eq('official_id', official.id)
+    .single(),
 ]);
 
 // Format helpers used in markup
@@ -293,6 +306,35 @@ const sections = [
                 </div>
               </div>
             </div>
+
+            <!-- Trade activity summary -->
+            {tradeSummary && (tradeSummary.total_trades ?? 0) > 0 && (
+              <div>
+                <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-2">Trade Activity</h3>
+                <div class="grid grid-cols-2 gap-3">
+                  <div class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
+                    <div class="text-xl font-display font-bold text-civic-navy">{tradeSummary.total_trades}</div>
+                    <div class="text-xs text-slate-500 mt-0.5">Total Trades</div>
+                  </div>
+                  <div class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
+                    <div class={`text-xl font-display font-bold ${(tradeSummary.late_filings ?? 0) > 0 ? 'text-red-600' : 'text-civic-navy'}`}>
+                      {tradeSummary.late_filings ?? 0}
+                    </div>
+                    <div class="text-xs text-slate-500 mt-0.5">Late Filings</div>
+                  </div>
+                  <div class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
+                    <div class={`text-xl font-display font-bold ${(tradeSummary.committee_overlaps ?? 0) > 0 ? 'text-amber-600' : 'text-civic-navy'}`}>
+                      {tradeSummary.committee_overlaps ?? 0}
+                    </div>
+                    <div class="text-xs text-slate-500 mt-0.5">Committee Overlaps</div>
+                  </div>
+                  <div class="rounded-lg border border-slate-200 bg-white px-3 py-2 text-center">
+                    <div class="text-xl font-display font-bold text-civic-navy">{tradeSummary.unique_tickers ?? 0}</div>
+                    <div class="text-xs text-slate-500 mt-0.5">Unique Tickers</div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
         </div>
@@ -340,6 +382,33 @@ const sections = [
         <p class="text-xs text-civic-slate mb-6">
           Flags indicate disclosures filed more than 45 days after the trade date, violating the STOCK Act.
         </p>
+
+        {tradeSummary && (tradeSummary.total_trades ?? 0) > 0 && (
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
+            <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
+              <div class="text-2xl font-display font-bold text-civic-navy">{tradeSummary.total_trades}</div>
+              <div class="text-xs text-slate-500 mt-0.5">Total Trades</div>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
+              <div class={`text-2xl font-display font-bold ${(tradeSummary.late_filings ?? 0) > 0 ? 'text-red-600' : 'text-civic-navy'}`}>
+                {tradeSummary.late_filings ?? 0}
+              </div>
+              <div class="text-xs text-slate-500 mt-0.5">Late Filings</div>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
+              <div class={`text-2xl font-display font-bold ${(tradeSummary.committee_overlaps ?? 0) > 0 ? 'text-amber-600' : 'text-civic-navy'}`}>
+                {tradeSummary.committee_overlaps ?? 0}
+              </div>
+              <div class="text-xs text-slate-500 mt-0.5">Committee Overlaps</div>
+            </div>
+            <div class="rounded-lg border border-slate-200 bg-white px-4 py-3 text-center">
+              <div class="text-2xl font-display font-bold text-civic-navy">
+                {tradeSummary.total_volume != null ? formatMoney(tradeSummary.total_volume) : '—'}
+              </div>
+              <div class="text-xs text-slate-500 mt-0.5">Total Volume</div>
+            </div>
+          </div>
+        )}
 
         {trades && trades.length > 0 ? (
           <div class="overflow-x-auto rounded-lg border border-slate-200">
@@ -529,9 +598,19 @@ const sections = [
 
       <!-- ── Conflicts ────────────────────────────────────────── -->
       <section id="conflicts" aria-labelledby="conflicts-heading">
-        <h2 id="conflicts-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
-          Active Conflict Alerts
-        </h2>
+        <div class="flex items-center justify-between mb-6 pb-2 border-b border-slate-200">
+          <h2 id="conflicts-heading" class="text-xl font-display text-civic-navy">
+            Active Conflict Alerts
+          </h2>
+          {official.id && (
+            <a
+              href={`/conflicts?official_id=${official.id}`}
+              class="text-xs text-civic-blue hover:underline font-medium"
+            >
+              View all conflicts &rarr;
+            </a>
+          )}
+        </div>
 
         {conflicts && conflicts.length > 0 ? (
           <ul class="flex flex-col gap-4" role="list">
@@ -551,6 +630,7 @@ const sections = [
               const severity: string = alert.severity ?? 'low';
               const cardClass = severityStyles[severity] ?? severityStyles.low;
               const badgeClass = badgeStyles[severity] ?? badgeStyles.low;
+              const severityScore: number | null = alert.severity_score ?? null;
 
               return (
                 <li class={`rounded-lg border-l-4 p-4 ${cardClass}`} role="listitem">
@@ -559,6 +639,14 @@ const sections = [
                       {(alert.alert_type ?? 'Alert').replace(/_/g, ' ')}
                     </span>
                     <div class="flex items-center gap-2">
+                      {severityScore != null && (
+                        <span
+                          class={`inline-flex items-center justify-center w-10 h-6 rounded text-xs font-bold tabular-nums border ${badgeClass}`}
+                          title="Severity score out of 10"
+                        >
+                          {severityScore}/10
+                        </span>
+                      )}
                       <span class={`text-xs font-semibold uppercase px-2 py-0.5 rounded ${badgeClass}`}>
                         {severity}
                       </span>
