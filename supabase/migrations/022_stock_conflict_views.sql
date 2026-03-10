@@ -6,6 +6,9 @@
 -- mv_trade_conflicts
 -- One row per stock trade, enriched with conflict alert signals.
 -- Powers the /stocks feed and individual trade detail pages.
+-- Note: conflict_alerts uses entity_ids UUID[] not official_id.
+--       We match via officials.entity_id (if the column exists) or
+--       stock_trades.entity_id being ANY of conflict_alerts.entity_ids.
 -- ---------------------------------------------------------------------------
 CREATE MATERIALIZED VIEW mv_trade_conflicts AS
 SELECT
@@ -38,27 +41,23 @@ LEFT JOIN LATERAL (
     MAX(ca.severity_score) AS conflict_severity,
     COUNT(*)               AS conflict_count
   FROM conflict_alerts ca
-  WHERE ca.official_id = st.official_id
-    AND ca.alert_type IN ('stock_committee', 'trade_timing')
+  WHERE ca.alert_type IN ('stock_committee', 'trade_timing')
     AND ca.status = 'active'
     AND ca.detected_at BETWEEN (st.trade_date::timestamptz - INTERVAL '60 days')
                             AND (st.trade_date::timestamptz + INTERVAL '60 days')
+    AND st.official_id = ANY(ca.entity_ids)
 ) ca_agg ON true
 ORDER BY st.trade_date DESC;
 
--- Unique index required for CONCURRENTLY refresh and for point lookups by trade
 CREATE UNIQUE INDEX idx_mv_trade_conflicts_trade_id
   ON mv_trade_conflicts (trade_id);
 
--- Support date-range queries on the /stocks feed
 CREATE INDEX idx_mv_trade_conflicts_trade_date
   ON mv_trade_conflicts (trade_date DESC);
 
--- Support filtering/aggregating by legislator
 CREATE INDEX idx_mv_trade_conflicts_official_id
   ON mv_trade_conflicts (official_id);
 
--- Support "high-conflict only" filter without scanning zero-conflict rows
 CREATE INDEX idx_mv_trade_conflicts_conflict_severity
   ON mv_trade_conflicts (conflict_severity DESC)
   WHERE conflict_severity > 0;
@@ -66,7 +65,6 @@ CREATE INDEX idx_mv_trade_conflicts_conflict_severity
 -- ---------------------------------------------------------------------------
 -- mv_politician_trade_summary
 -- One row per current official with aggregated trading statistics.
--- Powers legislator scorecards and the summary table on /stocks.
 -- ---------------------------------------------------------------------------
 CREATE MATERIALIZED VIEW mv_politician_trade_summary AS
 SELECT
@@ -92,56 +90,51 @@ LEFT JOIN trade_enrichments te ON te.stock_trade_id = st.id
 WHERE o.is_current = true
 GROUP BY o.id, o.full_name, o.slug, o.party;
 
--- Unique index required for CONCURRENTLY refresh and for direct official lookups
 CREATE UNIQUE INDEX idx_mv_politician_trade_summary_official_id
   ON mv_politician_trade_summary (official_id);
 
 -- ---------------------------------------------------------------------------
 -- mv_conflict_timeline
--- Chronological stream of active conflict alerts joined to official details.
--- Powers the conflicts feed and the Connect the Dots timeline.
+-- Chronological stream of active conflict alerts.
+-- Uses entity_ids to find the related official (if any).
 -- ---------------------------------------------------------------------------
 CREATE MATERIALIZED VIEW mv_conflict_timeline AS
 SELECT
   ca.id             AS alert_id,
   ca.alert_type,
   ca.severity_score,
-  ca.title,
   ca.description,
   ca.detected_at,
-  ca.official_id,
+  o.id              AS official_id,
   o.full_name       AS official_name,
   o.slug            AS official_slug,
   o.party,
   ca.evidence,
   ca.status
 FROM conflict_alerts ca
-JOIN officials o ON o.id = ca.official_id
+LEFT JOIN officials o ON o.id = ANY(ca.entity_ids)
 WHERE ca.status = 'active'
 ORDER BY ca.detected_at DESC;
 
--- Unique index required for CONCURRENTLY refresh
 CREATE UNIQUE INDEX idx_mv_conflict_timeline_alert_id
   ON mv_conflict_timeline (alert_id);
 
--- Support time-ordered queries on the feed
 CREATE INDEX idx_mv_conflict_timeline_detected_at
   ON mv_conflict_timeline (detected_at DESC);
 
--- Support filtering by alert type (stock_committee, trade_timing, etc.)
 CREATE INDEX idx_mv_conflict_timeline_alert_type
   ON mv_conflict_timeline (alert_type);
 
 -- ---------------------------------------------------------------------------
--- Update refresh_all_materialized_views() to include the three new views.
--- All three have unique indexes, so CONCURRENTLY is safe for each.
+-- Update refresh function to include new views
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE FUNCTION refresh_all_materialized_views()
 RETURNS VOID AS $$
 BEGIN
   REFRESH MATERIALIZED VIEW CONCURRENTLY mv_official_top_donors;
   REFRESH MATERIALIZED VIEW CONCURRENTLY mv_official_industry_funding;
-  REFRESH MATERIALIZED VIEW mv_stock_trade_alerts;  -- no unique index, cannot use CONCURRENTLY
+  REFRESH MATERIALIZED VIEW CONCURRENTLY mv_corporate_influence_rankings;
+  REFRESH MATERIALIZED VIEW mv_judge_conflict_flags;
   REFRESH MATERIALIZED VIEW CONCURRENTLY mv_trade_conflicts;
   REFRESH MATERIALIZED VIEW CONCURRENTLY mv_politician_trade_summary;
   REFRESH MATERIALIZED VIEW CONCURRENTLY mv_conflict_timeline;
