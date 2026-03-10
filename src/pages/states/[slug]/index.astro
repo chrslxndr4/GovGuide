@@ -1,166 +1,688 @@
 ---
-import BaseLayout from '../../../layouts/BaseLayout.astro';
-import Header from '../../../components/Header.astro';
-import Footer from '../../../components/Footer.astro';
-import Breadcrumb from '../../../components/Breadcrumb.astro';
-import CategoryCard from '../../../components/CategoryCard.astro';
-import InfoBlock from '../../../components/InfoBlock.astro';
-import { supabase } from '../../../lib/supabase';
+export const prerender = false;
 
-export async function getStaticPaths() {
-  const { data: states } = await supabase
-    .from('jurisdictions')
-    .select('id, name, slug, state_abbr, population, website')
-    .eq('level', 'state');
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Breadcrumb from '../../components/Breadcrumb.astro';
+import { supabase } from '../../lib/supabase';
 
-  return states?.map((state) => ({
-    params: { slug: state.slug },
-    props: { state },
-  })) ?? [];
-}
+const { slug } = Astro.params;
 
-const { state } = Astro.props;
-
-// Get county count
-const { count: countyCount } = await supabase
+const { data: state } = await supabase
   .from('jurisdictions')
-  .select('id', { count: 'exact', head: true })
-  .eq('level', 'county')
-  .eq('parent_id', state.id);
-
-// Get city count
-const { count: cityCount } = await supabase
-  .from('jurisdictions')
-  .select('id', { count: 'exact', head: true })
-  .eq('level', 'city')
-  .eq('parent_id', state.id);
-
-// Get officials count
-const { data: offices } = await supabase
-  .from('offices')
-  .select('id')
-  .eq('jurisdiction_id', state.id);
-
-const officeIds = offices?.map((o) => o.id) ?? [];
-let officialCount = 0;
-if (officeIds.length > 0) {
-  const { count } = await supabase
-    .from('officials')
-    .select('id', { count: 'exact', head: true })
-    .in('office_id', officeIds)
-    .eq('is_current', true);
-  officialCount = count ?? 0;
-}
-
-// Get agencies
-const { count: agencyCount } = await supabase
-  .from('agencies')
-  .select('id', { count: 'exact', head: true })
-  .eq('jurisdiction_id', state.id);
-
-// Get election services
-const { data: electionServices } = await supabase
-  .from('election_services')
   .select('*')
-  .eq('jurisdiction_id', state.id)
-  .maybeSingle();
+  .eq('slug', slug)
+  .eq('level', 'state')
+  .single();
+
+if (!state) return Astro.redirect('/404');
+
+const { data: officials } = await supabase
+  .from('officials')
+  .select('*, offices(*)')
+  .eq('offices.jurisdiction_id', state.id)
+  .limit(50);
+
+// Parallel fetches for congressional delegation, campaign finance,
+// legislature session, bills, and upcoming elections
+const [
+  { data: senators },
+  { data: houseReps },
+  { data: topDonors },
+  { data: pacActivity },
+  { data: recentBills },
+  { data: upcomingElections },
+  { data: sessionInfo },
+] = await Promise.all([
+  supabase
+    .from('officials')
+    .select('id, name, party, slug, term_start, term_end, district, transparency_score')
+    .eq('chamber', 'senate')
+    .eq('offices.state', state.abbreviation ?? state.name)
+    .order('name')
+    .limit(2),
+  supabase
+    .from('officials')
+    .select('id, name, party, slug, term_start, term_end, district, transparency_score')
+    .eq('chamber', 'house')
+    .eq('offices.state', state.abbreviation ?? state.name)
+    .order('district')
+    .limit(53),
+  supabase
+    .from('campaign_contributions')
+    .select('donor_name, donor_type, amount, cycle, recipient_name')
+    .eq('state', state.abbreviation ?? state.name)
+    .order('amount', { ascending: false })
+    .limit(10),
+  supabase
+    .from('pacs')
+    .select('name, total_raised, total_spent, cycle')
+    .eq('state', state.abbreviation ?? state.name)
+    .order('total_raised', { ascending: false })
+    .limit(8),
+  supabase
+    .from('bills')
+    .select('id, bill_number, title, status, introduced_date, last_action, last_action_date')
+    .eq('jurisdiction_id', state.id)
+    .order('last_action_date', { ascending: false })
+    .limit(10),
+  supabase
+    .from('elections')
+    .select('id, name, election_date, election_type, description')
+    .eq('jurisdiction_id', state.id)
+    .gte('election_date', new Date().toISOString().split('T')[0])
+    .order('election_date')
+    .limit(10),
+  supabase
+    .from('legislative_sessions')
+    .select('name, start_date, end_date, status')
+    .eq('jurisdiction_id', state.id)
+    .order('start_date', { ascending: false })
+    .limit(1)
+    .single(),
+]);
+
+// ── Role buckets for State Officials section ──────────────────────────────
+type OfficialRow = NonNullable<typeof officials>[number];
+
+const EXECUTIVE_TITLES = ['Governor', 'Lieutenant Governor', 'Attorney General', 'Secretary of State', 'State Treasurer', 'State Comptroller', 'Superintendent of Public Instruction'];
+
+function getOfficeTitle(official: OfficialRow): string {
+  const offices = official.offices;
+  if (!offices) return '';
+  // offices may be an object or array depending on query shape
+  if (Array.isArray(offices)) return offices[0]?.title ?? offices[0]?.name ?? '';
+  return (offices as { title?: string; name?: string }).title
+    ?? (offices as { title?: string; name?: string }).name
+    ?? '';
+}
+
+function isExecutive(official: OfficialRow): boolean {
+  const title = getOfficeTitle(official).toLowerCase();
+  return EXECUTIVE_TITLES.some(t => title.includes(t.toLowerCase()));
+}
+
+function isStateLegislator(official: OfficialRow): boolean {
+  const title = getOfficeTitle(official).toLowerCase();
+  return (
+    title.includes('state senator') ||
+    title.includes('state representative') ||
+    title.includes('state delegate') ||
+    title.includes('state assembly')
+  );
+}
+
+const executiveOfficials = (officials ?? []).filter(isExecutive);
+const stateLegislators = (officials ?? []).filter(isStateLegislator);
+
+// ── Format helpers ─────────────────────────────────────────────────────────
+function formatMoney(amount: number | null | undefined): string {
+  if (amount == null) return '—';
+  if (amount >= 1_000_000_000) return `$${(amount / 1_000_000_000).toFixed(1)}B`;
+  if (amount >= 1_000_000) return `$${(amount / 1_000_000).toFixed(1)}M`;
+  if (amount >= 1_000) return `$${(amount / 1_000).toFixed(0)}K`;
+  return `$${amount.toLocaleString()}`;
+}
+
+function formatDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+function formatElectionDate(dateStr: string | null | undefined): string {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleDateString('en-US', {
+    weekday: 'short',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+// ── Party helpers ──────────────────────────────────────────────────────────
+type PartyKey = 'D' | 'R' | 'I' | string;
+
+function partyLabel(party: PartyKey | null | undefined): string {
+  if (!party) return 'Unknown';
+  const labels: Record<string, string> = { D: 'Democrat', R: 'Republican', I: 'Independent' };
+  return labels[party] ?? party;
+}
+
+function partyDot(party: PartyKey | null | undefined): string {
+  if (party === 'D') return 'bg-blue-500';
+  if (party === 'R') return 'bg-red-500';
+  return 'bg-slate-400';
+}
+
+function partyBadge(party: PartyKey | null | undefined): string {
+  if (party === 'D') return 'bg-blue-100 text-blue-800 border-blue-200';
+  if (party === 'R') return 'bg-red-100 text-red-800 border-red-200';
+  return 'bg-slate-100 text-slate-700 border-slate-200';
+}
+
+// ── Bill status helpers ────────────────────────────────────────────────────
+function billStatusBadge(status: string | null | undefined): string {
+  const s = (status ?? '').toLowerCase();
+  if (s.includes('passed') || s.includes('signed')) return 'bg-emerald-100 text-emerald-800';
+  if (s.includes('failed') || s.includes('vetoed')) return 'bg-red-100 text-red-800';
+  if (s.includes('introduced')) return 'bg-sky-100 text-sky-800';
+  if (s.includes('committee')) return 'bg-amber-100 text-amber-800';
+  return 'bg-slate-100 text-slate-700';
+}
+
+// ── Session status label ───────────────────────────────────────────────────
+const session = sessionInfo ?? null;
+const sessionStatusLabel = session?.status === 'active' ? 'In Session' : 'Not in Session';
+const sessionStatusClass = session?.status === 'active'
+  ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+  : 'bg-slate-100 text-slate-600 border-slate-300';
+
+const sections = [
+  { id: 'state-officials', label: 'State Officials' },
+  { id: 'congressional', label: 'Congressional Delegation' },
+  { id: 'campaign-finance', label: 'Campaign Finance' },
+  { id: 'legislature', label: 'State Legislature' },
+  { id: 'elections', label: 'Elections' },
+];
+
+const stateName: string = state.name ?? slug ?? '';
+const stateAbbr: string = state.abbreviation ?? '';
 ---
-<BaseLayout title={state.name} description={`Government information for ${state.name} — officials, agencies, elections, and laws.`}>
-  <Header />
-  <main id="main-content" class="flex-1">
-    <div class="max-w-7xl mx-auto px-4 py-8">
-      <Breadcrumb items={[
-        { label: 'States', href: '/states' },
-        { label: state.name },
-      ]} />
 
-      <div class="flex items-start justify-between mb-8">
-        <div>
-          <h1 class="text-3xl font-display text-civic-navy">{state.name}</h1>
-          <p class="text-civic-slate mt-1">{state.state_abbr} &middot; FIPS {state.slug}</p>
+<BaseLayout
+  title={stateName}
+  description={`State overview for ${stateName} — officials, congressional delegation, campaign finance, legislature, and upcoming elections.`}
+>
+  <main class="flex-1">
+
+    <!-- ── Hero ──────────────────────────────────────────────────── -->
+    <section class="bg-civic-navy text-white py-10 px-4">
+      <div class="max-w-5xl mx-auto">
+        <Breadcrumb
+          items={[
+            { label: 'States', href: '/states' },
+            { label: stateName },
+          ]}
+        />
+
+        <div class="flex flex-col sm:flex-row items-start gap-6 mt-4">
+
+          <!-- Flag placeholder -->
+          <div
+            class="shrink-0 w-20 h-14 rounded bg-[#2a3f6a] border border-white/20
+                   flex items-center justify-center text-white/40 text-xs font-mono font-semibold tracking-wider"
+            aria-label={`${stateName} state flag`}
+          >
+            {stateAbbr || stateName.slice(0, 2).toUpperCase()}
+          </div>
+
+          <!-- Identity + stats -->
+          <div class="flex-1 min-w-0">
+            <h1 class="text-3xl md:text-4xl font-display font-bold mb-4 leading-tight">
+              {stateName}
+            </h1>
+
+            <!-- Key stats row -->
+            <dl class="flex flex-wrap gap-x-8 gap-y-3 text-sm">
+              {state.population != null && (
+                <div>
+                  <dt class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Population</dt>
+                  <dd class="text-white font-medium">{Number(state.population).toLocaleString()}</dd>
+                </div>
+              )}
+              {state.congressional_districts != null && (
+                <div>
+                  <dt class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Congressional Districts</dt>
+                  <dd class="text-white font-medium">{state.congressional_districts}</dd>
+                </div>
+              )}
+              {(() => {
+                const governor = executiveOfficials.find(o =>
+                  getOfficeTitle(o).toLowerCase().includes('governor') &&
+                  !getOfficeTitle(o).toLowerCase().includes('lieutenant')
+                );
+                return governor ? (
+                  <div>
+                    <dt class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Governor</dt>
+                    <dd class="text-white font-medium flex items-center gap-1.5">
+                      <span class={`inline-block w-2 h-2 rounded-full ${partyDot(governor.party)}`} aria-hidden="true"></span>
+                      {governor.name}
+                    </dd>
+                  </div>
+                ) : null;
+              })()}
+              {stateAbbr && (
+                <div>
+                  <dt class="text-xs font-semibold uppercase tracking-widest text-slate-400 mb-0.5">Abbreviation</dt>
+                  <dd class="text-white font-medium font-mono">{stateAbbr}</dd>
+                </div>
+              )}
+            </dl>
+          </div>
+
         </div>
-        {state.website && (
-          <a href={state.website} target="_blank" rel="noopener noreferrer" class="text-sm text-civic-blue hover:underline">
-            Official Website &rarr;
-          </a>
+      </div>
+    </section>
+
+    <!-- ── Sticky section nav ─────────────────────────────────────── -->
+    <nav
+      class="sticky top-0 z-40 bg-white border-b border-slate-200 shadow-sm overflow-x-auto"
+      aria-label="Page sections"
+    >
+      <div class="max-w-5xl mx-auto px-4">
+        <ol class="flex items-center gap-0 text-sm font-medium whitespace-nowrap">
+          {sections.map(s => (
+            <li>
+              <a
+                href={`#${s.id}`}
+                class="block px-4 py-3 text-civic-slate hover:text-civic-blue border-b-2 border-transparent hover:border-civic-blue transition-colors"
+              >
+                {s.label}
+              </a>
+            </li>
+          ))}
+        </ol>
+      </div>
+    </nav>
+
+    <div class="max-w-5xl mx-auto px-4 py-10 flex flex-col gap-16">
+
+      <!-- ── State Officials ────────────────────────────────────── -->
+      <section id="state-officials" aria-labelledby="state-officials-heading">
+        <h2 id="state-officials-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          State Officials
+        </h2>
+
+        <!-- Executive officers -->
+        {executiveOfficials.length > 0 ? (
+          <div class="mb-8">
+            <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-3">
+              Executive Officers
+            </h3>
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {executiveOfficials.map(official => (
+                <a
+                  href={`/officials/${official.slug ?? official.id}`}
+                  class="flex items-center gap-3 p-3 rounded-lg border border-slate-200 bg-white
+                         hover:border-civic-blue hover:shadow-sm transition-all group"
+                >
+                  <!-- Initial avatar -->
+                  <div
+                    class="shrink-0 w-9 h-9 rounded-full bg-slate-100 border border-slate-200
+                           flex items-center justify-center text-sm font-display font-bold text-civic-slate
+                           group-hover:bg-civic-blue/10 group-hover:border-civic-blue/30 transition-colors"
+                    aria-hidden="true"
+                  >
+                    {official.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-medium text-sm text-slate-800 group-hover:text-civic-blue truncate transition-colors">
+                      {official.name}
+                    </div>
+                    <div class="flex items-center gap-1.5 mt-0.5">
+                      {official.party && (
+                        <span class={`inline-flex items-center px-1.5 py-0 rounded text-xs font-medium border ${partyBadge(official.party)}`}>
+                          {official.party}
+                        </span>
+                      )}
+                      <span class="text-xs text-slate-400 truncate">{getOfficeTitle(official)}</span>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          </div>
+        ) : null}
+
+        <!-- State legislators -->
+        {stateLegislators.length > 0 ? (
+          <div>
+            <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-3">
+              State Legislators
+            </h3>
+            <div class="overflow-x-auto rounded-lg border border-slate-200">
+              <table class="min-w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                    <th class="px-4 py-3 text-left">Name</th>
+                    <th class="px-4 py-3 text-left">Office</th>
+                    <th class="px-4 py-3 text-left">Party</th>
+                    <th class="px-4 py-3 text-right">Term End</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  {stateLegislators.map((official, i) => (
+                    <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                      <td class="px-4 py-3">
+                        <a
+                          href={`/officials/${official.slug ?? official.id}`}
+                          class="font-medium text-civic-blue hover:underline"
+                        >
+                          {official.name}
+                        </a>
+                      </td>
+                      <td class="px-4 py-3 text-slate-600">{getOfficeTitle(official) || '—'}</td>
+                      <td class="px-4 py-3">
+                        {official.party ? (
+                          <span class={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${partyBadge(official.party)}`}>
+                            {partyLabel(official.party)}
+                          </span>
+                        ) : (
+                          <span class="text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td class="px-4 py-3 text-right text-slate-500">{formatDate(official.term_end)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        ) : null}
+
+        {executiveOfficials.length === 0 && stateLegislators.length === 0 && (
+          <p class="text-slate-400 italic text-sm">No state official records on file.</p>
         )}
-      </div>
+      </section>
 
-      <!-- Quick Facts -->
-      <div class="bg-white rounded-lg border border-slate-200 p-6 mb-8">
-        <h2 class="text-lg font-display text-civic-navy mb-4">Quick Facts</h2>
-        <dl class="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {state.population && (
-            <InfoBlock label="Population" value={state.population.toLocaleString()} />
+      <!-- ── Congressional Delegation ───────────────────────────── -->
+      <section id="congressional" aria-labelledby="congressional-heading">
+        <h2 id="congressional-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Congressional Delegation
+        </h2>
+
+        <!-- Senators -->
+        <div class="mb-8">
+          <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-3">
+            U.S. Senators
+          </h3>
+          {senators && senators.length > 0 ? (
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {senators.map(senator => (
+                <a
+                  href={`/officials/${senator.slug ?? senator.id}`}
+                  class="flex items-center gap-4 p-4 rounded-lg border border-slate-200 bg-white
+                         hover:border-civic-blue hover:shadow-sm transition-all group"
+                >
+                  <div
+                    class="shrink-0 w-11 h-11 rounded-full bg-slate-100 border border-slate-200
+                           flex items-center justify-center text-base font-display font-bold text-civic-slate
+                           group-hover:bg-civic-blue/10 group-hover:border-civic-blue/30 transition-colors"
+                    aria-hidden="true"
+                  >
+                    {senator.name.charAt(0).toUpperCase()}
+                  </div>
+                  <div class="min-w-0">
+                    <div class="font-semibold text-slate-800 group-hover:text-civic-blue truncate transition-colors">
+                      {senator.name}
+                    </div>
+                    <div class="flex items-center gap-2 mt-0.5">
+                      {senator.party && (
+                        <span class={`inline-flex items-center px-2 py-0 rounded-full border text-xs font-medium ${partyBadge(senator.party)}`}>
+                          {partyLabel(senator.party)}
+                        </span>
+                      )}
+                      <span class="text-xs text-slate-400">
+                        Term ends {formatDate(senator.term_end)}
+                      </span>
+                    </div>
+                  </div>
+                </a>
+              ))}
+            </div>
+          ) : (
+            <p class="text-slate-400 italic text-sm">No senator records on file.</p>
           )}
-          <InfoBlock label="Counties" value={String(countyCount ?? 0)} href={`/states/${state.slug}/counties`} />
-          <InfoBlock label="Cities/Towns" value={String(cityCount ?? 0)} />
-          <InfoBlock label="Officials" value={String(officialCount)} href={`/states/${state.slug}/officials`} />
-        </dl>
-      </div>
+        </div>
 
-      <!-- Voter Info -->
-      {electionServices && (
-        <div class="bg-civic-blue/5 border border-civic-blue/20 rounded-lg p-6 mb-8">
-          <h2 class="text-lg font-display text-civic-navy mb-3">Voter Information</h2>
-          <div class="flex flex-wrap gap-3">
-            {electionServices.registration_url && (
-              <a href={electionServices.registration_url} target="_blank" rel="noopener noreferrer"
-                class="px-4 py-2 bg-civic-blue text-white rounded-lg text-sm font-medium hover:bg-blue-700 transition-colors">
-                Register to Vote
-              </a>
+        <!-- House representatives -->
+        <div>
+          <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-3">
+            U.S. House Representatives
+          </h3>
+          {houseReps && houseReps.length > 0 ? (
+            <div class="overflow-x-auto rounded-lg border border-slate-200">
+              <table class="min-w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                    <th class="px-4 py-3 text-left">Name</th>
+                    <th class="px-4 py-3 text-center">District</th>
+                    <th class="px-4 py-3 text-left">Party</th>
+                    <th class="px-4 py-3 text-right">Term End</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  {houseReps.map((rep, i) => (
+                    <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                      <td class="px-4 py-3">
+                        <a
+                          href={`/officials/${rep.slug ?? rep.id}`}
+                          class="font-medium text-civic-blue hover:underline"
+                        >
+                          {rep.name}
+                        </a>
+                      </td>
+                      <td class="px-4 py-3 text-center font-mono text-slate-600">{rep.district ?? '—'}</td>
+                      <td class="px-4 py-3">
+                        {rep.party ? (
+                          <span class={`inline-flex items-center px-2 py-0.5 rounded-full border text-xs font-medium ${partyBadge(rep.party)}`}>
+                            {partyLabel(rep.party)}
+                          </span>
+                        ) : (
+                          <span class="text-slate-300">—</span>
+                        )}
+                      </td>
+                      <td class="px-4 py-3 text-right text-slate-500">{formatDate(rep.term_end)}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p class="text-slate-400 italic text-sm">No House representative records on file.</p>
+          )}
+        </div>
+      </section>
+
+      <!-- ── Campaign Finance ────────────────────────────────────── -->
+      <section id="campaign-finance" aria-labelledby="campaign-finance-heading">
+        <h2 id="campaign-finance-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Campaign Finance
+        </h2>
+
+        <!-- Top donors -->
+        <div class="mb-8">
+          <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-3">
+            Top Donors
+          </h3>
+          {topDonors && topDonors.length > 0 ? (
+            <div class="overflow-x-auto rounded-lg border border-slate-200">
+              <table class="min-w-full text-sm">
+                <thead>
+                  <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                    <th class="px-4 py-3 text-left">Donor</th>
+                    <th class="px-4 py-3 text-left">Type</th>
+                    <th class="px-4 py-3 text-left">Recipient</th>
+                    <th class="px-4 py-3 text-right">Amount</th>
+                    <th class="px-4 py-3 text-right">Cycle</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-slate-100">
+                  {topDonors.map((row, i) => (
+                    <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                      <td class="px-4 py-3 font-medium text-slate-800">{row.donor_name ?? '—'}</td>
+                      <td class="px-4 py-3 text-civic-slate capitalize">{row.donor_type ?? '—'}</td>
+                      <td class="px-4 py-3 text-slate-600 max-w-[160px] truncate" title={row.recipient_name ?? undefined}>
+                        {row.recipient_name ?? '—'}
+                      </td>
+                      <td class="px-4 py-3 text-right font-mono text-slate-800">{formatMoney(row.amount)}</td>
+                      <td class="px-4 py-3 text-right text-slate-500">{row.cycle ?? '—'}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <p class="text-slate-400 italic text-sm">No donor records on file for this state.</p>
+          )}
+        </div>
+
+        <!-- PAC activity -->
+        <div>
+          <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-3">
+            PAC Activity
+          </h3>
+          {pacActivity && pacActivity.length > 0 ? (
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {pacActivity.map(pac => (
+                <div class="p-4 rounded-lg border border-slate-200 bg-white">
+                  <div class="font-semibold text-slate-800 text-sm mb-2 leading-snug">{pac.name ?? '—'}</div>
+                  <div class="flex justify-between text-xs text-slate-500">
+                    <span>Raised: <span class="font-mono font-medium text-slate-700">{formatMoney(pac.total_raised)}</span></span>
+                    <span>Spent: <span class="font-mono font-medium text-slate-700">{formatMoney(pac.total_spent)}</span></span>
+                    {pac.cycle && <span class="text-slate-400">{pac.cycle}</span>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p class="text-slate-400 italic text-sm">No PAC activity records on file.</p>
+          )}
+        </div>
+      </section>
+
+      <!-- ── State Legislature ──────────────────────────────────── -->
+      <section id="legislature" aria-labelledby="legislature-heading">
+        <h2 id="legislature-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          State Legislature
+        </h2>
+
+        <!-- Session status -->
+        <div class="flex flex-col sm:flex-row sm:items-center gap-4 p-4 rounded-lg border border-slate-200 bg-slate-50 mb-8">
+          <div class="flex-1">
+            <div class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-1">Current Session</div>
+            {session ? (
+              <div class="font-semibold text-slate-800">{session.name}</div>
+            ) : (
+              <div class="text-slate-400 italic text-sm">No session data on record.</div>
             )}
-            {electionServices.ballot_tracking_url && (
-              <a href={electionServices.ballot_tracking_url} target="_blank" rel="noopener noreferrer"
-                class="px-4 py-2 bg-white border border-civic-blue text-civic-blue rounded-lg text-sm font-medium hover:bg-civic-blue/5 transition-colors">
-                Track Your Ballot
-              </a>
-            )}
-            {electionServices.registration_status_url && (
-              <a href={electionServices.registration_status_url} target="_blank" rel="noopener noreferrer"
-                class="px-4 py-2 bg-white border border-slate-300 text-civic-slate rounded-lg text-sm font-medium hover:border-civic-blue hover:text-civic-blue transition-colors">
-                Check Registration Status
-              </a>
+            {session?.start_date && session?.end_date && (
+              <div class="text-xs text-slate-500 mt-0.5">
+                {formatDate(session.start_date)} — {formatDate(session.end_date)}
+              </div>
             )}
           </div>
+          {session && (
+            <span class={`self-start sm:self-auto inline-flex items-center px-3 py-1 rounded-full border text-xs font-semibold ${sessionStatusClass}`}>
+              {sessionStatusLabel}
+            </span>
+          )}
         </div>
-      )}
 
-      <!-- Navigation Cards -->
-      <h2 class="text-xl font-display text-civic-navy mb-4">Explore {state.name}</h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        <CategoryCard
-          title="Officials"
-          description={`Current elected and appointed officials in ${state.name}`}
-          href={`/states/${state.slug}/officials`}
-          count={officialCount}
-        />
-        <CategoryCard
-          title="Counties"
-          description={`County governments within ${state.name}`}
-          href={`/states/${state.slug}/counties`}
-          count={countyCount ?? 0}
-        />
-        <CategoryCard
-          title="Elections"
-          description={`Upcoming elections, voter registration, and ballot info`}
-          href={`/states/${state.slug}/elections`}
-        />
-        <CategoryCard
-          title="Laws & Regulations"
-          description={`State constitution, statutes, and administrative code`}
-          href={`/states/${state.slug}/laws`}
-        />
-        {(agencyCount ?? 0) > 0 && (
-          <CategoryCard
-            title="Agencies"
-            description={`State agencies and departments`}
-            href={`/states/${state.slug}/agencies`}
-            count={agencyCount ?? 0}
-          />
+        <!-- Recent bills -->
+        <h3 class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-3">
+          Recent Bills
+        </h3>
+        {recentBills && recentBills.length > 0 ? (
+          <div class="overflow-x-auto rounded-lg border border-slate-200">
+            <table class="min-w-full text-sm">
+              <thead>
+                <tr class="bg-slate-50 text-xs font-semibold uppercase tracking-wider text-civic-slate">
+                  <th class="px-4 py-3 text-left">Bill</th>
+                  <th class="px-4 py-3 text-left">Title</th>
+                  <th class="px-4 py-3 text-center">Status</th>
+                  <th class="px-4 py-3 text-right">Last Action</th>
+                </tr>
+              </thead>
+              <tbody class="divide-y divide-slate-100">
+                {recentBills.map((bill, i) => (
+                  <tr class={i % 2 === 0 ? 'bg-white' : 'bg-slate-50/50'}>
+                    <td class="px-4 py-3 font-mono font-medium text-civic-blue whitespace-nowrap">
+                      {bill.bill_number ?? bill.id ?? '—'}
+                    </td>
+                    <td class="px-4 py-3 text-slate-700 max-w-[280px]">
+                      <div class="line-clamp-2 leading-snug" title={bill.title ?? undefined}>
+                        {bill.title ?? '—'}
+                      </div>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                      {bill.status ? (
+                        <span class={`inline-flex items-center px-2 py-0.5 rounded text-xs font-semibold ${billStatusBadge(bill.status)}`}>
+                          {bill.status}
+                        </span>
+                      ) : (
+                        <span class="text-slate-300">—</span>
+                      )}
+                    </td>
+                    <td class="px-4 py-3 text-right">
+                      <div class="text-slate-500 whitespace-nowrap">{formatDate(bill.last_action_date)}</div>
+                      {bill.last_action && (
+                        <div class="text-xs text-slate-400 mt-0.5 max-w-[160px] ml-auto truncate" title={bill.last_action}>
+                          {bill.last_action}
+                        </div>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        ) : (
+          <p class="text-slate-400 italic text-sm">No bill records on file.</p>
         )}
-      </div>
+      </section>
+
+      <!-- ── Elections ──────────────────────────────────────────── -->
+      <section id="elections" aria-labelledby="elections-heading">
+        <h2 id="elections-heading" class="text-xl font-display text-civic-navy mb-6 pb-2 border-b border-slate-200">
+          Upcoming Elections
+        </h2>
+
+        {upcomingElections && upcomingElections.length > 0 ? (
+          <ul class="flex flex-col gap-4" role="list">
+            {upcomingElections.map(election => (
+              <li
+                class="flex flex-col sm:flex-row sm:items-start gap-4 p-5 rounded-lg border border-slate-200 bg-white"
+                role="listitem"
+              >
+                <!-- Date block -->
+                <div class="shrink-0 sm:w-28 text-center sm:text-left">
+                  <div class="text-xs font-semibold uppercase tracking-widest text-civic-slate mb-0.5">Date</div>
+                  <time
+                    datetime={election.election_date ?? undefined}
+                    class="text-sm font-semibold text-civic-navy leading-snug"
+                  >
+                    {formatElectionDate(election.election_date)}
+                  </time>
+                </div>
+
+                <!-- Content block -->
+                <div class="flex-1 min-w-0">
+                  <div class="flex flex-wrap items-center gap-2 mb-1">
+                    <span class="font-semibold text-slate-800">{election.name ?? 'Unnamed Election'}</span>
+                    {election.election_type && (
+                      <span class="inline-flex items-center px-2 py-0.5 rounded bg-civic-light text-civic-navy text-xs font-medium capitalize">
+                        {election.election_type}
+                      </span>
+                    )}
+                  </div>
+                  {election.description && (
+                    <p class="text-sm text-slate-600 leading-relaxed">{election.description}</p>
+                  )}
+                </div>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div class="p-6 rounded-lg border border-slate-200 bg-slate-50 text-center">
+            <p class="text-slate-400 italic text-sm">No upcoming elections on record for {stateName}.</p>
+          </div>
+        )}
+      </section>
+
     </div>
   </main>
-  <Footer />
 </BaseLayout>

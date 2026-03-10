@@ -2,31 +2,312 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─────────────────────────────────────────────
+   BASE LAYER — global element defaults
+   ───────────────────────────────────────────── */
 @layer base {
   html {
-    @apply antialiased text-slate-800 bg-civic-light;
+    @apply antialiased text-slate-800 bg-surface-50;
+    font-feature-settings: 'cv11', 'ss01'; /* Inter numeric alternates */
   }
-  h1, h2, h3, h4 {
-    @apply font-display font-bold tracking-tight;
+
+  body {
+    @apply text-[0.9375rem] leading-relaxed;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-display font-semibold tracking-tight text-civic-navy;
+  }
+
+  h1 { @apply text-3xl; }
+  h2 { @apply text-2xl; }
+  h3 { @apply text-xl; }
+  h4 { @apply text-lg; }
+
+  p {
+    @apply text-slate-700 leading-relaxed;
+  }
+
+  /* Polished link defaults — blue accent, no underline until hover */
+  a {
+    @apply text-civic-blue font-medium no-underline transition-colors duration-fast;
+  }
+  a:hover {
+    @apply text-civic-blue-hover underline;
+  }
+  a:focus-visible {
+    @apply outline-none ring-2 ring-civic-blue ring-offset-2 rounded-sm;
+  }
+
+  /* Clean, minimal horizontal rule */
+  hr {
+    @apply border-0 border-t border-border my-6;
+  }
+
+  /* Code / pre */
+  code {
+    @apply font-mono text-data-sm bg-surface-100 text-civic-navy px-1 py-0.5 rounded;
+  }
+  pre {
+    @apply font-mono text-data-sm bg-surface-100 border border-border rounded-card p-4 overflow-x-auto;
+  }
+  pre code {
+    @apply bg-transparent p-0;
+  }
+
+  /* Base table resets — component styles live in @layer components below */
+  table {
+    @apply w-full border-collapse text-sm;
+  }
+
+  /* Smooth scrolling — respects prefers-reduced-motion */
+  @media (prefers-reduced-motion: no-preference) {
+    html {
+      scroll-behavior: smooth;
+    }
   }
 }
 
+/* ─────────────────────────────────────────────
+   COMPONENTS LAYER — reusable UI patterns
+   ───────────────────────────────────────────── */
+@layer components {
+
+  /* ── .data-table ──────────────────────────────
+     QuiverQuant-style data table: clean borders,
+     subtle row stripes, crisp hover states.
+     Usage: <table class="data-table"> ... </table>
+  ──────────────────────────────────────────────── */
+  .data-table {
+    @apply w-full border-collapse text-sm text-slate-700 bg-white;
+  }
+
+  .data-table thead {
+    @apply bg-surface-50 border-b border-border-strong;
+  }
+
+  .data-table thead th {
+    @apply py-2.5 px-4 text-left text-data font-semibold text-civic-navy tracking-wide
+           whitespace-nowrap select-none;
+  }
+
+  /* Right-align numeric columns — add .num to <th> and <td> */
+  .data-table th.num,
+  .data-table td.num {
+    @apply text-right tabular-nums font-mono text-data;
+  }
+
+  .data-table tbody tr {
+    @apply border-b border-border transition-colors duration-fast;
+  }
+
+  /* Subtle alternating row stripes */
+  .data-table tbody tr:nth-child(even) {
+    @apply bg-surface-50;
+  }
+
+  .data-table tbody tr:hover {
+    @apply bg-civic-blue-muted;
+  }
+
+  .data-table td {
+    @apply py-2.5 px-4 text-data align-middle;
+  }
+
+  /* Sortable column header affordance */
+  .data-table th.sortable {
+    @apply cursor-pointer hover:text-civic-blue;
+  }
+
+  /* Compact variant — tighter rows for dense dashboards */
+  .data-table.compact thead th,
+  .data-table.compact td {
+    @apply py-1.5 px-3;
+  }
+
+  /* Sticky first column for wide tables */
+  .data-table .col-sticky {
+    @apply sticky left-0 bg-white z-10 border-r border-border;
+  }
+  .data-table tbody tr:nth-child(even) .col-sticky {
+    @apply bg-surface-50;
+  }
+  .data-table tbody tr:hover .col-sticky {
+    @apply bg-civic-blue-muted;
+  }
+
+  /* ── .stat-card ───────────────────────────────
+     Metric display card — bold headline number,
+     label, optional delta badge.
+     Usage: <div class="stat-card"> ... </div>
+  ──────────────────────────────────────────────── */
+  .stat-card {
+    @apply bg-white border border-border rounded-card shadow-card px-card-pad py-5
+           flex flex-col gap-1 transition-shadow duration-fast;
+  }
+
+  .stat-card:hover {
+    @apply shadow-card-hover;
+  }
+
+  .stat-card-label {
+    @apply text-data-sm font-medium text-muted uppercase tracking-wider;
+  }
+
+  .stat-card-value {
+    @apply text-2xl font-bold font-display text-civic-navy tabular-nums leading-none;
+  }
+
+  .stat-card-sub {
+    @apply text-data text-muted;
+  }
+
+  /* Delta badges — apply to a <span> next to the value */
+  .stat-card-delta {
+    @apply inline-flex items-center gap-0.5 text-data-sm font-semibold px-1.5 py-0.5 rounded;
+  }
+
+  .stat-card-delta.positive {
+    @apply text-positive bg-positive-light;
+  }
+
+  .stat-card-delta.negative {
+    @apply text-negative bg-negative-light;
+  }
+
+  .stat-card-delta.warning {
+    @apply text-warning bg-warning-light;
+  }
+
+  /* ── .section-alt ─────────────────────────────
+     Alternating section background — light gray
+     band to visually separate page sections.
+     Usage: <section class="section-alt"> ... </section>
+  ──────────────────────────────────────────────── */
+  .section-alt {
+    @apply bg-surface-100 border-y border-border;
+  }
+
+  /* ── General card ─────────────────────────────
+     Lightweight card shell without stat-card's
+     flex layout — for arbitrary content blocks.
+  ──────────────────────────────────────────────── */
+  .card {
+    @apply bg-white border border-border rounded-card shadow-card p-card-pad;
+  }
+
+  .card-header {
+    @apply flex items-center justify-between pb-3 mb-4 border-b border-border;
+  }
+
+  .card-title {
+    @apply text-base font-semibold text-civic-navy;
+  }
+
+  /* ── Badge ────────────────────────────────────
+     Inline status / tag chips.
+  ──────────────────────────────────────────────── */
+  .badge {
+    @apply inline-flex items-center text-data-sm font-medium px-2 py-0.5 rounded-full border;
+  }
+
+  .badge-blue    { @apply bg-civic-blue-muted text-civic-blue border-blue-200; }
+  .badge-green   { @apply bg-positive-light text-positive-dark border-green-200; }
+  .badge-red     { @apply bg-negative-light text-negative-dark border-red-200; }
+  .badge-amber   { @apply bg-warning-light text-warning-dark border-amber-200; }
+  .badge-neutral { @apply bg-surface-100 text-muted border-border; }
+
+  /* ── Button base (unstyled, extend with Tailwind) ── */
+  .btn {
+    @apply inline-flex items-center justify-center gap-1.5 font-medium rounded
+           transition-colors duration-fast focus-visible:outline-none
+           focus-visible:ring-2 focus-visible:ring-civic-blue focus-visible:ring-offset-2
+           disabled:opacity-50 disabled:cursor-not-allowed;
+  }
+
+  .btn-primary {
+    @apply btn bg-civic-blue text-white px-4 py-2 text-sm
+           hover:bg-civic-blue-hover active:bg-civic-navy;
+  }
+
+  .btn-secondary {
+    @apply btn bg-white text-civic-navy border border-border px-4 py-2 text-sm
+           hover:bg-surface-100 active:bg-surface-200;
+  }
+
+  .btn-ghost {
+    @apply btn text-civic-blue px-3 py-1.5 text-sm
+           hover:bg-civic-blue-muted;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   UTILITIES LAYER — one-off helpers & a11y overrides
+   ───────────────────────────────────────────── */
 @layer utilities {
+
+  /* Tabular number rendering helper */
+  .tabular { @apply tabular-nums font-mono; }
+
+  /* Positive / negative value coloring */
+  .value-positive { @apply text-positive font-semibold; }
+  .value-negative { @apply text-negative font-semibold; }
+  .value-neutral  { @apply text-muted; }
+
+  /* Truncate with tooltip affordance */
+  .truncate-cell {
+    @apply max-w-0 truncate;
+  }
+
+  /* ── High-contrast accessibility mode ────────
+     Applied to <html> or <body> by a user toggle.
+     Overrides palette to pure black/white/primary.
+  ──────────────────────────────────────────────── */
   .high-contrast {
-    --civic-navy: #000000;
-    --civic-blue: #0000EE;
-    --civic-slate: #333333;
-    --civic-light: #FFFFFF;
+    --tw-text-opacity: 1;
   }
-  .high-contrast * {
-    border-color: currentColor !important;
-  }
-  .high-contrast .bg-civic-navy {
-    @apply bg-black;
-  }
+
+  /* Force high-contrast text on muted shades */
+  .high-contrast .text-muted,
+  .high-contrast .text-muted-light,
+  .high-contrast .text-muted-xlight,
   .high-contrast .text-slate-300,
   .high-contrast .text-slate-400,
   .high-contrast .text-slate-500 {
     @apply text-gray-800;
   }
+
+  /* Force dark text on all civic-navy backgrounds */
+  .high-contrast .bg-civic-navy,
+  .high-contrast .bg-civic-navy-dark {
+    @apply bg-black;
+  }
+
+  /* Force visible borders everywhere */
+  .high-contrast *,
+  .high-contrast *::before,
+  .high-contrast *::after {
+    border-color: currentColor !important;
+  }
+
+  /* Ensure links remain distinguishable without relying on color alone */
+  .high-contrast a {
+    @apply underline text-blue-800;
+  }
+
+  /* Strip subtle box shadows — rely on borders instead */
+  .high-contrast .shadow-card,
+  .high-contrast .shadow-card-hover,
+  .high-contrast .shadow-modal {
+    box-shadow: none !important;
+    @apply border border-current;
+  }
+
+  /* Strengthen positive/negative contrast */
+  .high-contrast .value-positive { @apply text-green-800; }
+  .high-contrast .value-negative { @apply text-red-800; }
+
+  .high-contrast .badge-green { @apply bg-white text-green-900 border-green-900; }
+  .high-contrast .badge-red   { @apply bg-white text-red-900 border-red-900; }
+  .high-contrast .badge-blue  { @apply bg-white text-blue-900 border-blue-900; }
 }

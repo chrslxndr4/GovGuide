@@ -34,118 +34,157 @@ const pillars = [
 ];
 ---
 
-<header class="bg-civic-navy text-white relative z-50">
-  <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+<!--
+  CSS-only mobile menu: the hidden checkbox #mobile-menu-toggle acts as state.
+  The label element toggles it; the peer-checked modifier on the drawer reveals it.
+  The label must appear BEFORE the checkbox in DOM order for the peer selector to work,
+  so the checkbox is placed immediately after it and both live inside the header.
+-->
+<header class="sticky top-0 z-50 bg-white border-b border-border">
+  <div class="max-w-7xl mx-auto px-4 sm:px-6">
+    <div class="flex items-center justify-between h-14">
 
-    <!-- Wordmark -->
-    <a href="/" class="font-display text-2xl font-bold tracking-tight shrink-0">GovGuide</a>
+      <!-- Wordmark -->
+      <a
+        href="/"
+        class="font-display text-xl font-bold text-civic-navy tracking-tight shrink-0 hover:opacity-80 transition-opacity"
+      >
+        GovGuide
+      </a>
 
-    <!-- Desktop nav -->
-    <nav class="hidden md:flex items-center gap-1" aria-label="Primary navigation">
+      <!-- Desktop nav — hidden on mobile -->
+      <nav class="hidden md:flex items-center gap-0.5" aria-label="Primary navigation">
 
-      <!-- Three-pillar dropdowns -->
-      {pillars.map(pillar => (
-        <div class="group relative">
-          <button
-            class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-slate-300 hover:text-white rounded transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white/50"
-            aria-haspopup="true"
-            aria-expanded="false"
-          >
-            {pillar.label}
-            <!-- Chevron -->
-            <svg
-              class="w-3.5 h-3.5 mt-px opacity-60 transition-transform duration-200 group-hover:rotate-180"
-              viewBox="0 0 12 12"
-              fill="none"
-              xmlns="http://www.w3.org/2000/svg"
-              aria-hidden="true"
+        {pillars.map(pillar => (
+          <div class="group relative">
+            <button
+              type="button"
+              class="flex items-center gap-1 px-3 py-2 text-sm font-medium text-slate-700 hover:text-civic-navy rounded transition-colors duration-fast focus:outline-none focus-visible:ring-2 focus-visible:ring-civic-blue/40"
+              aria-haspopup="true"
+              aria-expanded="false"
             >
-              <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </button>
+              {pillar.label}
+              <svg
+                class="w-3.5 h-3.5 text-muted-light transition-transform duration-200 group-hover:rotate-180"
+                viewBox="0 0 12 12"
+                fill="none"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path d="M2 4l4 4 4-4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </button>
 
-          <!-- Dropdown panel -->
-          <div
-            class="absolute left-0 top-full mt-1 w-52 rounded-lg shadow-xl ring-1 ring-black/20
-                   bg-[#1B2A4A] border border-white/10
-                   opacity-0 invisible translate-y-1
-                   group-hover:opacity-100 group-hover:visible group-hover:translate-y-0
-                   transition-all duration-200 ease-out"
-            role="menu"
-          >
-            <ul class="py-1.5">
-              {pillar.items.map(item => (
-                <li role="none">
-                  <a
-                    href={item.href}
-                    role="menuitem"
-                    class="block px-4 py-2 text-sm text-slate-300 hover:text-white hover:bg-white/10 transition-colors"
-                  >
-                    {item.label}
-                  </a>
-                </li>
-              ))}
-            </ul>
+            <!-- Dropdown panel -->
+            <div
+              class="absolute left-0 top-full pt-1 w-52
+                     opacity-0 invisible translate-y-1
+                     group-hover:opacity-100 group-hover:visible group-hover:translate-y-0
+                     transition-all duration-200 ease-out"
+              role="menu"
+            >
+              <ul class="bg-white border border-border rounded-card shadow-modal py-1.5">
+                {pillar.items.map(item => (
+                  <li role="none">
+                    <a
+                      href={item.href}
+                      role="menuitem"
+                      class="block px-4 py-2 text-sm text-slate-600 hover:text-civic-navy hover:bg-surface-50 transition-colors duration-fast"
+                    >
+                      {item.label}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
           </div>
-        </div>
-      ))}
+        ))}
 
-      <!-- Divider -->
-      <span class="mx-2 h-5 w-px bg-white/20" aria-hidden="true"></span>
+        <!-- Divider -->
+        <span class="mx-2 h-4 w-px bg-border-strong" aria-hidden="true"></span>
 
-      <!-- My Government direct link -->
-      <a
-        href="/my-government"
-        class="px-3 py-2 text-sm font-medium text-slate-300 hover:text-white rounded transition-colors"
+        <!-- My Government -->
+        <a
+          href="/my-government"
+          class="px-3 py-2 text-sm font-semibold text-civic-blue hover:text-civic-blue-hover rounded transition-colors duration-fast"
+        >
+          My Government
+        </a>
+
+      </nav>
+
+      <!-- Right-side actions -->
+      <div class="hidden md:flex items-center gap-2">
+        <!-- Search icon button -->
+        <a
+          href="/search"
+          aria-label="Search GovGuide"
+          class="flex items-center justify-center w-8 h-8 text-muted hover:text-civic-navy rounded transition-colors duration-fast focus:outline-none focus-visible:ring-2 focus-visible:ring-civic-blue/40"
+        >
+          <svg class="w-4.5 h-4.5" viewBox="0 0 18 18" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+            <circle cx="7.5" cy="7.5" r="5.5" stroke="currentColor" stroke-width="1.6"/>
+            <path d="M12 12l4 4" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/>
+          </svg>
+        </a>
+
+        <!-- Sign in -->
+        <a
+          href="/sign-in"
+          class="px-3.5 py-1.5 text-sm font-medium text-slate-700 border border-border rounded-card hover:border-border-strong hover:text-civic-navy transition-colors duration-fast"
+        >
+          Sign in
+        </a>
+
+        <!-- Sign up / CTA -->
+        <a
+          href="/sign-up"
+          class="px-3.5 py-1.5 text-sm font-semibold text-white bg-civic-blue rounded-card hover:bg-civic-blue-hover transition-colors duration-fast"
+        >
+          Sign up free
+        </a>
+      </div>
+
+      <!-- Mobile: hamburger toggle (must come before the checkbox in DOM for peer to work) -->
+      <label
+        for="mobile-menu-toggle"
+        class="md:hidden flex flex-col justify-center items-center w-9 h-9 cursor-pointer gap-[5px] rounded hover:bg-surface-100 transition-colors duration-fast"
+        aria-label="Toggle mobile menu"
       >
-        My Government
-      </a>
+        <span class="block w-5 h-[1.5px] bg-slate-600 rounded-full transition-all duration-200"></span>
+        <span class="block w-5 h-[1.5px] bg-slate-600 rounded-full transition-all duration-200"></span>
+        <span class="block w-5 h-[1.5px] bg-slate-600 rounded-full transition-all duration-200"></span>
+      </label>
 
-      <!-- Search -->
-      <a
-        href="/search"
-        class="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-300 hover:text-white rounded transition-colors"
-        aria-label="Search"
-      >
-        <svg class="w-4 h-4" viewBox="0 0 16 16" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-          <circle cx="6.5" cy="6.5" r="4.5" stroke="currentColor" stroke-width="1.5"/>
-          <path d="M10 10l3.5 3.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/>
-        </svg>
-        Search
-      </a>
-    </nav>
-
-    <!-- Mobile: hamburger toggle (CSS-only via checkbox hack) -->
-    <label
-      for="mobile-menu-toggle"
-      class="md:hidden flex flex-col justify-center items-center w-9 h-9 cursor-pointer gap-1.5"
-      aria-label="Toggle mobile menu"
-    >
-      <span class="block w-5 h-0.5 bg-slate-300 rounded transition-all"></span>
-      <span class="block w-5 h-0.5 bg-slate-300 rounded transition-all"></span>
-      <span class="block w-5 h-0.5 bg-slate-300 rounded transition-all"></span>
-    </label>
-    <input type="checkbox" id="mobile-menu-toggle" class="peer sr-only" aria-hidden="true" />
-
+    </div>
   </div>
 
-  <!-- Mobile drawer — shown via peer-checked, hidden by default -->
+  <!--
+    The checkbox must be a sibling that comes AFTER the label in the DOM so Tailwind's
+    peer-checked: classes on the drawer work correctly. It is visually hidden.
+  -->
+  <input type="checkbox" id="mobile-menu-toggle" class="peer sr-only" aria-hidden="true" />
+
+  <!-- Mobile drawer -->
   <div
-    class="md:hidden max-h-0 overflow-hidden peer-checked:max-h-screen transition-all duration-300 ease-in-out border-t border-white/10"
+    class="md:hidden max-h-0 overflow-hidden peer-checked:max-h-[calc(100svh-3.5rem)]
+           transition-[max-height] duration-300 ease-in-out
+           border-t border-border bg-white"
     id="mobile-menu"
     aria-label="Mobile navigation"
   >
-    <nav class="px-4 py-4 flex flex-col gap-4">
+    <nav class="px-4 py-5 flex flex-col gap-5 overflow-y-auto">
 
       {pillars.map(pillar => (
         <div>
-          <p class="text-xs font-semibold uppercase tracking-widest text-slate-500 mb-1.5">{pillar.label}</p>
+          <p class="text-[10px] font-semibold uppercase tracking-widest text-muted-light mb-2">
+            {pillar.label}
+          </p>
           <ul class="flex flex-col gap-0.5">
             {pillar.items.map(item => (
               <li>
                 <a
                   href={item.href}
-                  class="block py-1.5 text-sm text-slate-300 hover:text-white transition-colors"
+                  class="block px-1 py-1.5 text-sm text-slate-600 hover:text-civic-navy transition-colors duration-fast"
                 >
                   {item.label}
                 </a>
@@ -155,12 +194,33 @@ const pillars = [
         </div>
       ))}
 
-      <div class="border-t border-white/10 pt-4 flex flex-col gap-0.5">
-        <a href="/my-government" class="block py-1.5 text-sm font-medium text-slate-300 hover:text-white transition-colors">
+      <div class="border-t border-border pt-4 flex flex-col gap-1.5">
+        <a
+          href="/my-government"
+          class="block px-1 py-1.5 text-sm font-semibold text-civic-blue hover:text-civic-blue-hover transition-colors duration-fast"
+        >
           My Government
         </a>
-        <a href="/search" class="block py-1.5 text-sm font-medium text-slate-300 hover:text-white transition-colors">
+        <a
+          href="/search"
+          class="block px-1 py-1.5 text-sm text-slate-600 hover:text-civic-navy transition-colors duration-fast"
+        >
           Search
+        </a>
+      </div>
+
+      <div class="border-t border-border pt-4 flex flex-col gap-2.5">
+        <a
+          href="/sign-in"
+          class="block text-center px-4 py-2 text-sm font-medium text-slate-700 border border-border rounded-card hover:border-border-strong transition-colors duration-fast"
+        >
+          Sign in
+        </a>
+        <a
+          href="/sign-up"
+          class="block text-center px-4 py-2 text-sm font-semibold text-white bg-civic-blue rounded-card hover:bg-civic-blue-hover transition-colors duration-fast"
+        >
+          Sign up free
         </a>
       </div>
 

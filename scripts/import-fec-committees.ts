@@ -133,7 +133,8 @@ const PAC_COMMITTEE_TYPES = new Set([
 // Helpers
 // ---------------------------------------------------------------------------
 
-function committeeTypeToEntityType(committeeType: string): EntityType {
+function committeeTypeToEntityType(committeeType: string | null | undefined): EntityType {
+  if (!committeeType) return 'other';
   return COMMITTEE_TYPE_TO_ENTITY_TYPE[committeeType.toUpperCase()] ?? 'other';
 }
 
@@ -142,6 +143,7 @@ function committeeTypeToEntityType(committeeType: string): EntityType {
  * Stored on the entity_pacs row so the UI can display "Super PAC", "Leadership PAC", etc.
  */
 function derivePacType(committee: FecCommittee): string | null {
+  if (!committee.committee_type) return null;
   const t = committee.committee_type.toUpperCase();
   if (t === 'O' || t === 'U') return 'super_pac';
   if (t === 'D') return 'leadership_pac';
@@ -158,9 +160,16 @@ function derivePacType(committee: FecCommittee): string | null {
 // FEC API pagination
 // ---------------------------------------------------------------------------
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const FEC_RATE_DELAY_MS = 4000; // ~900 requests/hour to stay under 1000/hr limit
+
 async function fetchCommitteesPage(
   apiKey: string,
   page: number,
+  retries = 3,
 ): Promise<FecCommitteesResponse> {
   const url =
     `${FEC_API_BASE}/committees/` +
@@ -169,7 +178,15 @@ async function fetchCommitteesPage(
     `&page=${page}` +
     `&sort=committee_id`;
 
+  await sleep(FEC_RATE_DELAY_MS);
   const res = await fetch(url);
+
+  if ((res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) && retries > 0) {
+    const wait = res.status === 429 ? 60000 : 10000;
+    console.warn(`  ${res.status} on page ${page}, waiting ${wait/1000}s … (${retries} retries left)`);
+    await sleep(wait);
+    return fetchCommitteesPage(apiKey, page, retries - 1);
+  }
 
   if (!res.ok) {
     throw new Error(

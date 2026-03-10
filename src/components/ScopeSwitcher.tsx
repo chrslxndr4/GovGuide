@@ -1,6 +1,6 @@
 import { useState } from 'react';
 
-export type Scope = 'federal' | 'states' | 'counties' | 'districts';
+export type Scope = 'federal' | 'states' | 'counties' | 'cities' | 'districts';
 
 interface ScopeSwitcherProps {
   onScopeChange: (scope: Scope) => void;
@@ -11,6 +11,7 @@ const scopes: { id: Scope; label: string }[] = [
   { id: 'federal', label: 'Federal' },
   { id: 'states', label: 'States' },
   { id: 'counties', label: 'Counties' },
+  { id: 'cities', label: 'Cities' },
   { id: 'districts', label: 'Districts' },
 ];
 

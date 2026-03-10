@@ -14,9 +14,11 @@
     "import:geo": "npm run import:states && npm run import:counties && npm run import:cities && npm run import:zips",
     "import:agencies": "npx tsx --env-file=.env scripts/import-agencies.ts",
     "import:congress": "npx tsx --env-file=.env scripts/import-congress-members.ts",
+    "import:stock-trades": "npx tsx --env-file=.env scripts/import-stock-trades.ts",
     "import:eos": "npx tsx --env-file=.env scripts/import-executive-orders.ts",
     "import:federal-laws": "npx tsx --env-file=.env scripts/import-federal-law-sources.ts",
     "import:federal": "npm run import:agencies && npm run import:congress && npm run import:eos && npm run import:federal-laws",
+    "import:predictions": "npx tsx --env-file=.env scripts/import-predictions.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "pipeline": "tsx scripts/pipeline/run.ts",
@@ -54,6 +56,7 @@
     "tailwindcss": "^3.4.19",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "xlsx": "^0.18.5"
   }
 }

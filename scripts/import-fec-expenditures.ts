@@ -172,10 +172,17 @@ function supportOpposeToRelationshipType(
 // FEC API pagination
 // ---------------------------------------------------------------------------
 
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const FEC_RATE_DELAY_MS = 4000;
+
 async function fetchScheduleEPage(
   apiKey: string,
   page: number,
   extraParams: Record<string, string>,
+  retries = 3,
 ): Promise<FecScheduleEResponse> {
   const params = new URLSearchParams({
     api_key: apiKey,
@@ -187,7 +194,15 @@ async function fetchScheduleEPage(
   });
 
   const url = `${FEC_API_BASE}/schedules/schedule_e/?${params.toString()}`;
+  await sleep(FEC_RATE_DELAY_MS);
   const res = await fetch(url);
+
+  if ((res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) && retries > 0) {
+    const wait = res.status === 429 ? 60000 : 10000;
+    console.warn(`  ${res.status} on page ${page}, waiting ${wait/1000}s … (${retries} retries left)`);
+    await sleep(wait);
+    return fetchScheduleEPage(apiKey, page, extraParams, retries - 1);
+  }
 
   if (!res.ok) {
     throw new Error(

@@ -1,34 +1,39 @@
 /**
  * Import prediction market contracts and trades from Kalshi and Polymarket.
  *
- * Kalshi (REST):
- *   Base URL: https://trading-api.kalshi.com/trade-api/v2
+ * Kalshi (REST + RSA-PSS auth):
+ *   Base URL: https://api.elections.kalshi.com/trade-api/v2
  *   GET /markets                  — paginated list of contracts
  *   GET /markets/{ticker}/trades  — individual trades per contract
  *
- *   Requires environment variable: KALSHI_API_KEY
- *   Obtain at: https://kalshi.com/account/api
+ *   Requires environment variables:
+ *     KALSHI_API_KEY           — API key ID from kalshi.com/account/api
+ *     KALSHI_PRIVATE_KEY_PATH  — path to RSA private key PEM file
  *
- * Polymarket (GraphQL):
- *   Endpoint: https://gamma-api.polymarket.com/query
+ * Polymarket (REST — Gamma API):
+ *   Base URL: https://gamma-api.polymarket.com
+ *   GET /markets   — paginated market list
+ *   GET /events    — paginated event list
  *   No auth required for public market data.
  *
  * Processing logic:
- *   1. Fetch all active Kalshi markets (paginated via cursor) and upsert them
- *      into prediction_contracts with platform='kalshi'.
- *   2. For each Kalshi contract, fetch recent trades and upsert into
+ *   1. Fetch Kalshi markets (paginated via cursor), upsert into
+ *      prediction_contracts with platform='kalshi'.
+ *   2. For each Kalshi contract, fetch recent trades and insert into
  *      prediction_trades.
- *   3. Fetch Polymarket markets via GraphQL and upsert into
+ *   3. Fetch Polymarket markets via REST and upsert into
  *      prediction_contracts with platform='polymarket'.
- *   4. For each Polymarket market, fetch recent trades (which include
- *      wallet_address for on-chain anomaly detection) and upsert into
- *      prediction_trades.
- *   All upserts use external_id (platform + ticker/marketId) as the conflict
- *   key and are batched in groups of BATCH_SIZE.
+ *   4. Polymarket trade data from CLOB API (wallet tracking for anomaly
+ *      detection) is fetched per-market.
+ *   All upserts use (platform, external_id) as the conflict key and are
+ *   batched in groups of BATCH_SIZE.
  *
  * Run with:  npm run import:predictions
  */
 
+import * as crypto from 'node:crypto';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { supabase } from './lib/supabase-admin.js';
 
 // ---------------------------------------------------------------------------
@@ -96,54 +101,108 @@ interface KalshiTradesResponse {
 }
 
 // ---------------------------------------------------------------------------
-// Types — Polymarket GraphQL
+// Types — Polymarket REST (Gamma API)
 // ---------------------------------------------------------------------------
 
 interface PolymarketMarket {
   id: string;
+  condition_id: string;
+  question_id: string;
   question: string;
+  slug: string;
   category: string | null;
   outcomePrices: string | null;  // JSON-encoded array, e.g. '["0.62","0.38"]'
   volume: string | null;
+  volume_num: number | null;
   startDate: string | null;
   endDate: string | null;
   closed: boolean;
+  active: boolean;
+  archived: boolean;
+  resolvedBy: string | null;
   resolution: string | null;
 }
 
-interface PolymarketMarketsResponse {
-  data: {
-    markets: PolymarketMarket[];
-  };
-}
-
-interface PolymarketTrade {
+interface PolymarketClobTrade {
   id: string;
-  timestamp: string;       // ISO timestamp
-  price: string;           // decimal, e.g. "0.62"
+  timestamp: number;         // unix seconds
+  price: string;             // decimal, e.g. "0.62"
   size: string;
-  side: string;            // 'BUY' | 'SELL'
-  transactionHash: string | null;
-  trader: string | null;   // wallet address
-}
-
-interface PolymarketTradesResponse {
-  data: {
-    trades: PolymarketTrade[];
-  };
+  side: string;              // 'BUY' | 'SELL'
+  asset_id: string;
+  owner: string;             // wallet address
+  transaction_hash: string | null;
 }
 
 // ---------------------------------------------------------------------------
 // Constants
 // ---------------------------------------------------------------------------
 
-const KALSHI_API_BASE = 'https://trading-api.kalshi.com/trade-api/v2';
-const POLYMARKET_GRAPHQL = 'https://gamma-api.polymarket.com/query';
+const KALSHI_API_BASE = process.env.KALSHI_API_BASE || 'https://api.elections.kalshi.com/trade-api/v2';
+const POLYMARKET_GAMMA_BASE = 'https://gamma-api.polymarket.com';
+const POLYMARKET_CLOB_BASE = process.env.POLYMARKET_CLOB_API || 'https://clob.polymarket.com';
 const BATCH_SIZE = 500;
-/** Maximum trades to fetch per contract (prevents runaway requests). */
 const MAX_TRADES_PER_CONTRACT = 1000;
-/** Kalshi API rate-limit: pause this many ms between trade-fetch calls. */
 const KALSHI_TRADE_DELAY_MS = 200;
+
+// ---------------------------------------------------------------------------
+// Kalshi RSA-PSS Authentication
+// ---------------------------------------------------------------------------
+
+let kalshiPrivateKey: crypto.KeyObject | null = null;
+
+function loadKalshiPrivateKey(): crypto.KeyObject {
+  if (kalshiPrivateKey) return kalshiPrivateKey;
+
+  const keyPath = process.env.KALSHI_PRIVATE_KEY_PATH;
+  if (!keyPath) {
+    throw new Error(
+      'Missing environment variable: KALSHI_PRIVATE_KEY_PATH\n' +
+        'Set it to the path of your RSA private key PEM file.',
+    );
+  }
+
+  const resolved = path.resolve(keyPath);
+  const pem = fs.readFileSync(resolved, 'utf-8');
+  kalshiPrivateKey = crypto.createPrivateKey(pem);
+  return kalshiPrivateKey;
+}
+
+function signKalshiRequest(
+  method: string,
+  pathWithoutQuery: string,
+  timestampMs: number,
+): string {
+  const privateKey = loadKalshiPrivateKey();
+  const message = `${timestampMs}${method.toUpperCase()}${pathWithoutQuery}`;
+
+  const signer = crypto.createSign('SHA256');
+  signer.update(message);
+  signer.end();
+
+  const signature = signer.sign({
+    key: privateKey,
+    padding: crypto.constants.RSA_PKCS1_PSS_PADDING,
+    saltLength: crypto.constants.RSA_PSS_SALTLEN_DIGEST,
+  });
+
+  return signature.toString('base64');
+}
+
+function kalshiHeaders(method: string, urlPath: string): Record<string, string> {
+  const apiKey = process.env.KALSHI_API_KEY!;
+  const timestampMs = Date.now();
+  // Strip query params for signing — sign only the path portion.
+  const pathOnly = urlPath.split('?')[0]!;
+  const signature = signKalshiRequest(method, pathOnly, timestampMs);
+
+  return {
+    'KALSHI-ACCESS-KEY': apiKey,
+    'KALSHI-ACCESS-TIMESTAMP': String(timestampMs),
+    'KALSHI-ACCESS-SIGNATURE': signature,
+    'Content-Type': 'application/json',
+  };
+}
 
 // ---------------------------------------------------------------------------
 // Helpers
@@ -153,20 +212,14 @@ function nullableDate(value: string | null | undefined): string | null {
   if (!value) return null;
   const trimmed = value.trim();
   if (!trimmed) return null;
-  // Accept ISO timestamps and extract the date portion.
   const match = trimmed.match(/^(\d{4}-\d{2}-\d{2})/);
   return match ? match[1]! : null;
 }
 
 function clamp5_4(value: number): number {
-  // NUMERIC(5,4) max is 9.9999 — probabilities should be in [0, 1].
   return Math.min(9.9999, Math.max(0, Math.round(value * 10000) / 10000));
 }
 
-/**
- * Map a Kalshi market category string to the prediction_contracts category
- * vocabulary.  Unmapped values are stored verbatim (the column is free-text).
- */
 function mapKalshiCategory(raw: string | null): string | null {
   if (!raw) return null;
   const lower = raw.toLowerCase();
@@ -187,7 +240,6 @@ function mapPolymarketCategory(raw: string | null): string | null {
   return raw;
 }
 
-/** Tiny delay to respect rate limits between paginated calls. */
 function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
@@ -201,12 +253,6 @@ async function flushContracts(
 ): Promise<{ ok: number; err: number }> {
   if (batch.length === 0) return { ok: 0, err: 0 };
 
-  // external_id alone is not unique across platforms — use the composite
-  // (platform, external_id) index defined in the migration for deduplication.
-  // Supabase upsert requires a single column or named constraint.  We rely on
-  // the migration's unique index idx_pred_external covering (platform, external_id);
-  // if your Supabase version requires an explicit UNIQUE constraint, add one in
-  // a follow-up migration.
   const { error } = await supabase
     .from('prediction_contracts')
     .upsert(batch, { onConflict: 'platform,external_id', ignoreDuplicates: false });
@@ -226,10 +272,6 @@ async function flushTrades(
 ): Promise<{ ok: number; err: number }> {
   if (batch.length === 0) return { ok: 0, err: 0 };
 
-  // Trades have no natural unique key from the API so we insert without
-  // a conflict target to avoid silent data loss.  Re-running the script on the
-  // same time window will produce duplicates; callers should either truncate the
-  // trades table or track a high-water-mark cursor.
   const { error } = await supabase.from('prediction_trades').insert(batch);
 
   if (error) {
@@ -246,11 +288,7 @@ async function flushTrades(
 // Contract ID resolution
 // ---------------------------------------------------------------------------
 
-/**
- * Fetch the internal UUID for a freshly upserted contract so we can link
- * trades to it.  Results are cached in-memory for the duration of the run.
- */
-const contractIdCache = new Map<string, string>(); // "platform:external_id" → UUID
+const contractIdCache = new Map<string, string>();
 
 async function resolveContractId(
   platform: string,
@@ -282,61 +320,43 @@ async function resolveContractId(
 // Kalshi API
 // ---------------------------------------------------------------------------
 
-async function fetchKalshiMarkets(apiKey: string): Promise<KalshiMarket[]> {
-  const markets: KalshiMarket[] = [];
-  let cursor: string | null = null;
+async function fetchKalshiMarketsPage(cursor: string | null): Promise<KalshiMarketsResponse> {
+  const urlPath = '/trade-api/v2/markets';
+  const url = new URL(`${KALSHI_API_BASE}/markets`);
+  url.searchParams.set('limit', '200');
+  if (cursor) url.searchParams.set('cursor', cursor);
 
-  do {
-    const url = new URL(`${KALSHI_API_BASE}/markets`);
-    url.searchParams.set('limit', '200');
-    if (cursor) url.searchParams.set('cursor', cursor);
+  const res = await fetch(url.toString(), {
+    headers: kalshiHeaders('GET', urlPath),
+  });
 
-    console.log(`  Kalshi /markets cursor=${cursor ?? 'start'} …`);
+  if (!res.ok) {
+    const body = await res.text().catch(() => '');
+    throw new Error(
+      `Kalshi /markets returned ${res.status}: ${res.statusText}\n${body}`,
+    );
+  }
 
-    const res = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Token ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-    });
-
-    if (!res.ok) {
-      throw new Error(
-        `Kalshi /markets returned ${res.status}: ${res.statusText}`,
-      );
-    }
-
-    const body = (await res.json()) as KalshiMarketsResponse;
-    markets.push(...body.markets);
-    cursor = body.cursor ?? null;
-  } while (cursor);
-
-  console.log(`  Total Kalshi markets fetched: ${markets.length}`);
-  return markets;
+  return (await res.json()) as KalshiMarketsResponse;
 }
 
-async function fetchKalshiTrades(
-  ticker: string,
-  apiKey: string,
-): Promise<KalshiTrade[]> {
+async function fetchKalshiTrades(ticker: string): Promise<KalshiTrade[]> {
   const trades: KalshiTrade[] = [];
   let cursor: string | null = null;
   let fetched = 0;
 
   do {
-    const url = new URL(`${KALSHI_API_BASE}/markets/${encodeURIComponent(ticker)}/trades`);
+    const encodedTicker = encodeURIComponent(ticker);
+    const urlPath = `/trade-api/v2/markets/${encodedTicker}/trades`;
+    const url = new URL(`${KALSHI_API_BASE}/markets/${encodedTicker}/trades`);
     url.searchParams.set('limit', '100');
     if (cursor) url.searchParams.set('cursor', cursor);
 
     const res = await fetch(url.toString(), {
-      headers: {
-        Authorization: `Token ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
+      headers: kalshiHeaders('GET', urlPath),
     });
 
     if (!res.ok) {
-      // 404 is expected for tickers that have been delisted.
       if (res.status === 404) break;
       console.warn(
         `  WARNING: Kalshi /markets/${ticker}/trades returned ${res.status} — skipping`,
@@ -356,10 +376,6 @@ async function fetchKalshiTrades(
   return trades;
 }
 
-/**
- * Map a Kalshi yes_price (0–100 integer representing cents) to a probability
- * in the NUMERIC(5,4) range [0, 1].
- */
 function kalshiPriceToProbability(yesBid: number | null, yesAsk: number | null): number | null {
   const price = yesBid !== null && yesAsk !== null
     ? (yesBid + yesAsk) / 2
@@ -368,221 +384,148 @@ function kalshiPriceToProbability(yesBid: number | null, yesAsk: number | null):
   return clamp5_4(price / 100);
 }
 
-async function importKalshi(apiKey: string): Promise<void> {
+async function importKalshi(): Promise<void> {
   console.log('\n--- Kalshi ---');
 
-  const markets = await fetchKalshiMarkets(apiKey);
-  if (markets.length === 0) {
-    console.log('  No Kalshi markets found.');
-    return;
-  }
-
-  // -------------------------------------------------------------------------
-  // Upsert contracts.
-  // -------------------------------------------------------------------------
-
+  let cursor: string | null = null;
+  let totalFetched = 0;
   let contractsInserted = 0;
   let contractsError = 0;
-  let contractBatch: PredictionContractInsert[] = [];
-
-  for (const market of markets) {
-    const probability = kalshiPriceToProbability(market.yes_bid, market.yes_ask);
-    const isSettled = market.status === 'settled';
-
-    contractBatch.push({
-      platform: 'kalshi',
-      question: market.title,
-      category: mapKalshiCategory(market.category),
-      current_probability: probability,
-      volume_total: market.volume ?? null,
-      open_date: nullableDate(market.open_time),
-      close_date: nullableDate(market.close_time),
-      resolved: isSettled,
-      resolution: market.result ?? null,
-      external_id: market.ticker,
-      metadata: {
-        status: market.status,
-        yes_bid: market.yes_bid,
-        yes_ask: market.yes_ask,
-      },
-    });
-
-    if (contractBatch.length >= BATCH_SIZE) {
-      const { ok, err } = await flushContracts(contractBatch.splice(0, BATCH_SIZE));
-      contractsInserted += ok;
-      contractsError += err;
-      process.stdout.write(`  Flushed Kalshi contract batch (ok=${ok}, err=${err})\n`);
-    }
-  }
-
-  if (contractBatch.length > 0) {
-    const { ok, err } = await flushContracts(contractBatch);
-    contractsInserted += ok;
-    contractsError += err;
-    process.stdout.write(`  Flushed final Kalshi contract batch (ok=${ok}, err=${err})\n`);
-  }
-
-  console.log(`  Kalshi contracts: inserted/updated=${contractsInserted}, errors=${contractsError}`);
-
-  // -------------------------------------------------------------------------
-  // Fetch and upsert trades for each contract.
-  // -------------------------------------------------------------------------
-
   let tradesInserted = 0;
   let tradesError = 0;
-  let tradeBatch: PredictionTradeInsert[] = [];
 
-  for (const market of markets) {
-    const contractId = await resolveContractId('kalshi', market.ticker);
-    if (!contractId) continue;
+  do {
+    console.log(`  Kalshi /markets cursor=${cursor ?? 'start'} …`);
 
-    await sleep(KALSHI_TRADE_DELAY_MS);
-    const trades = await fetchKalshiTrades(market.ticker, apiKey);
+    const page = await fetchKalshiMarketsPage(cursor);
+    const markets = page.markets;
+    if (markets.length === 0) break;
+    totalFetched += markets.length;
 
-    for (const trade of trades) {
-      // Kalshi taker_side is 'yes' (bet on YES) or 'no' (bet on NO).
-      // Map to 'buy'/'sell' relative to the YES outcome.
-      const side: 'buy' | 'sell' =
-        trade.taker_side.toLowerCase() === 'yes' ? 'buy' : 'sell';
+    // Upsert contracts for this page.
+    const contractBatch: PredictionContractInsert[] = markets.map((market) => {
+      const probability = kalshiPriceToProbability(market.yes_bid, market.yes_ask);
+      return {
+        platform: 'kalshi',
+        question: market.title,
+        category: mapKalshiCategory(market.category),
+        current_probability: probability,
+        volume_total: market.volume ?? null,
+        open_date: nullableDate(market.open_time),
+        close_date: nullableDate(market.close_time),
+        resolved: market.status === 'settled',
+        resolution: market.result ?? null,
+        external_id: market.ticker,
+        metadata: {
+          status: market.status,
+          yes_bid: market.yes_bid,
+          yes_ask: market.yes_ask,
+        },
+      };
+    });
 
-      tradeBatch.push({
-        contract_id: contractId,
-        trade_timestamp: trade.created_time,
-        price: clamp5_4(trade.yes_price / 100),
-        size: trade.count,
-        side,
-        wallet_address: null,
-        metadata: { trade_id: trade.trade_id, ticker: trade.ticker },
-      });
+    for (let i = 0; i < contractBatch.length; i += BATCH_SIZE) {
+      const slice = contractBatch.slice(i, i + BATCH_SIZE);
+      const { ok, err } = await flushContracts(slice);
+      contractsInserted += ok;
+      contractsError += err;
+    }
 
-      if (tradeBatch.length >= BATCH_SIZE) {
-        const { ok, err } = await flushTrades(tradeBatch.splice(0, BATCH_SIZE));
-        tradesInserted += ok;
-        tradesError += err;
+    process.stdout.write(`  Upserted ${markets.length} Kalshi contracts (total: ${totalFetched})\n`);
+
+    // Fetch trades for each contract on this page.
+    for (const market of markets) {
+      const contractId = await resolveContractId('kalshi', market.ticker);
+      if (!contractId) continue;
+
+      await sleep(KALSHI_TRADE_DELAY_MS);
+      const trades = await fetchKalshiTrades(market.ticker);
+
+      const tradeBatch: PredictionTradeInsert[] = [];
+      for (const trade of trades) {
+        const side: 'buy' | 'sell' =
+          trade.taker_side.toLowerCase() === 'yes' ? 'buy' : 'sell';
+
+        tradeBatch.push({
+          contract_id: contractId,
+          trade_timestamp: trade.created_time,
+          price: clamp5_4(trade.yes_price / 100),
+          size: trade.count,
+          side,
+          wallet_address: null,
+          metadata: { trade_id: trade.trade_id, ticker: trade.ticker },
+        });
+      }
+
+      if (tradeBatch.length > 0) {
+        for (let i = 0; i < tradeBatch.length; i += BATCH_SIZE) {
+          const slice = tradeBatch.slice(i, i + BATCH_SIZE);
+          const { ok, err } = await flushTrades(slice);
+          tradesInserted += ok;
+          tradesError += err;
+        }
+        process.stdout.write('.');
       }
     }
 
-    if (trades.length > 0) {
-      process.stdout.write('.');
-    }
-  }
+    cursor = page.cursor ?? null;
+  } while (cursor);
 
-  if (tradeBatch.length > 0) {
-    const { ok, err } = await flushTrades(tradeBatch);
-    tradesInserted += ok;
-    tradesError += err;
-  }
-
-  console.log(
-    `\n  Kalshi trades: inserted=${tradesInserted}, errors=${tradesError}`,
-  );
+  console.log(`\n  Kalshi total markets fetched: ${totalFetched}`);
+  console.log(`  Kalshi contracts: inserted/updated=${contractsInserted}, errors=${contractsError}`);
+  console.log(`  Kalshi trades: inserted=${tradesInserted}, errors=${tradesError}`);
 }
 
 // ---------------------------------------------------------------------------
-// Polymarket GraphQL API
+// Polymarket REST API (Gamma + CLOB)
 // ---------------------------------------------------------------------------
 
-/**
- * GraphQL fragment reused across market and trade queries.
- */
-const POLYMARKET_MARKET_FRAGMENT = `
-  id
-  question
-  category: eventType
-  outcomePrices
-  volume
-  startDate
-  endDate
-  closed
-  resolution: resolvedOutcome
-`;
+async function fetchPolymarketMarketsPage(
+  limit: number,
+  offset: number,
+): Promise<PolymarketMarket[]> {
+  const url = new URL(`${POLYMARKET_GAMMA_BASE}/markets`);
+  url.searchParams.set('limit', String(limit));
+  url.searchParams.set('offset', String(offset));
+  url.searchParams.set('order', 'volume_24hr');
+  url.searchParams.set('ascending', 'false');
 
-async function graphql<T>(
-  query: string,
-  variables: Record<string, unknown> = {},
-): Promise<T> {
-  const res = await fetch(POLYMARKET_GRAPHQL, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ query, variables }),
-  });
+  const res = await fetch(url.toString());
 
   if (!res.ok) {
     throw new Error(
-      `Polymarket GraphQL HTTP ${res.status}: ${res.statusText}`,
+      `Polymarket /markets returned ${res.status}: ${res.statusText}`,
     );
   }
 
-  const json = (await res.json()) as { data?: T; errors?: Array<{ message: string }> };
+  return (await res.json()) as PolymarketMarket[];
+}
 
-  if (json.errors?.length) {
-    throw new Error(
-      `Polymarket GraphQL errors: ${json.errors.map((e) => e.message).join('; ')}`,
+async function fetchPolymarketClobTrades(
+  conditionId: string,
+  limit: number,
+): Promise<PolymarketClobTrade[]> {
+  const url = new URL(`${POLYMARKET_CLOB_BASE}/trades`);
+  url.searchParams.set('condition_id', conditionId);
+  url.searchParams.set('limit', String(limit));
+
+  const res = await fetch(url.toString());
+
+  if (!res.ok) {
+    if (res.status === 404) return [];
+    console.warn(
+      `  WARNING: Polymarket CLOB /trades for ${conditionId} returned ${res.status} — skipping`,
     );
+    return [];
   }
 
-  if (!json.data) {
-    throw new Error('Polymarket GraphQL: empty response data');
-  }
-
-  return json.data;
+  const body = await res.json();
+  // CLOB API may return trades directly as array or nested.
+  if (Array.isArray(body)) return body as PolymarketClobTrade[];
+  if (body && Array.isArray(body.data)) return body.data as PolymarketClobTrade[];
+  return [];
 }
 
-async function fetchPolymarketMarkets(
-  first: number,
-  skip: number,
-): Promise<PolymarketMarket[]> {
-  const query = `
-    query GetMarkets($first: Int!, $skip: Int!) {
-      markets(first: $first, skip: $skip, orderBy: createdAt, orderDirection: desc) {
-        ${POLYMARKET_MARKET_FRAGMENT}
-      }
-    }
-  `;
-
-  const data = await graphql<PolymarketMarketsResponse['data']>(query, {
-    first,
-    skip,
-  });
-
-  return data.markets ?? [];
-}
-
-async function fetchPolymarketTrades(
-  marketId: string,
-  first: number,
-  skip: number,
-): Promise<PolymarketTrade[]> {
-  const query = `
-    query GetTrades($marketId: String!, $first: Int!, $skip: Int!) {
-      trades(
-        where: { market: $marketId }
-        first: $first
-        skip: $skip
-        orderBy: timestamp
-        orderDirection: desc
-      ) {
-        id
-        timestamp
-        price
-        size
-        side
-        transactionHash
-        trader
-      }
-    }
-  `;
-
-  type TradesData = { trades: PolymarketTrade[] };
-  const data = await graphql<TradesData>(query, { marketId, first, skip });
-  return data.trades ?? [];
-}
-
-/**
- * Parse the outcomePrices field from Polymarket.
- * It is a JSON-encoded array of decimal strings, e.g. '["0.62","0.38"]'.
- * We treat the first element as the YES/primary outcome probability.
- */
 function parsePolymarketProbability(outcomePrices: string | null): number | null {
   if (!outcomePrices) return null;
   try {
@@ -597,8 +540,8 @@ function parsePolymarketProbability(outcomePrices: string | null): number | null
 async function importPolymarket(): Promise<void> {
   console.log('\n--- Polymarket ---');
 
-  const PAGE_SIZE = 200;
-  let skip = 0;
+  const PAGE_SIZE = 100;
+  let offset = 0;
   let totalFetched = 0;
   let contractsInserted = 0;
   let contractsError = 0;
@@ -608,13 +551,13 @@ async function importPolymarket(): Promise<void> {
   let pageMarkets: PolymarketMarket[];
 
   do {
-    console.log(`  Polymarket markets skip=${skip} …`);
+    console.log(`  Polymarket /markets offset=${offset} …`);
 
     try {
-      pageMarkets = await fetchPolymarketMarkets(PAGE_SIZE, skip);
+      pageMarkets = await fetchPolymarketMarketsPage(PAGE_SIZE, offset);
     } catch (err) {
       console.error(
-        `  ERROR fetching Polymarket markets at skip=${skip}: ${(err as Error).message}`,
+        `  ERROR fetching Polymarket markets at offset=${offset}: ${(err as Error).message}`,
       );
       break;
     }
@@ -622,25 +565,26 @@ async function importPolymarket(): Promise<void> {
     if (pageMarkets.length === 0) break;
     totalFetched += pageMarkets.length;
 
-    // -----------------------------------------------------------------------
     // Upsert contract records for this page.
-    // -----------------------------------------------------------------------
-
     const contractBatch: PredictionContractInsert[] = pageMarkets.map((market) => ({
       platform: 'polymarket',
       question: market.question,
       category: mapPolymarketCategory(market.category),
       current_probability: parsePolymarketProbability(market.outcomePrices),
-      volume_total: market.volume !== null ? parseFloat(market.volume ?? '') || null : null,
+      volume_total: market.volume_num ?? (market.volume !== null ? parseFloat(market.volume ?? '') || null : null),
       open_date: nullableDate(market.startDate),
       close_date: nullableDate(market.endDate),
       resolved: market.closed,
       resolution: market.resolution ?? null,
       external_id: market.id,
-      metadata: { outcome_prices: market.outcomePrices },
+      metadata: {
+        outcome_prices: market.outcomePrices,
+        slug: market.slug,
+        condition_id: market.condition_id,
+        active: market.active,
+      },
     }));
 
-    // Batch in groups of BATCH_SIZE (page is already ≤ 200 but be defensive).
     for (let i = 0; i < contractBatch.length; i += BATCH_SIZE) {
       const slice = contractBatch.slice(i, i + BATCH_SIZE);
       const { ok, err } = await flushContracts(slice);
@@ -650,73 +594,58 @@ async function importPolymarket(): Promise<void> {
 
     process.stdout.write(`  Upserted ${pageMarkets.length} Polymarket contracts\n`);
 
-    // -----------------------------------------------------------------------
-    // Fetch trades for each contract on this page.
-    // -----------------------------------------------------------------------
-
+    // Fetch trades for each contract using CLOB API (includes wallet addresses).
     for (const market of pageMarkets) {
+      if (!market.condition_id) continue;
+
       const contractId = await resolveContractId('polymarket', market.id);
       if (!contractId) continue;
 
-      let tradeSkip = 0;
-      let tradeBatch: PredictionTradeInsert[] = [];
-      let totalTradesForMarket = 0;
+      let trades: PolymarketClobTrade[];
+      try {
+        trades = await fetchPolymarketClobTrades(
+          market.condition_id,
+          Math.min(100, MAX_TRADES_PER_CONTRACT),
+        );
+      } catch (err) {
+        console.warn(
+          `  WARNING: Could not fetch trades for Polymarket market ${market.id}: ${(err as Error).message}`,
+        );
+        continue;
+      }
 
-      do {
-        let pageTrades: PolymarketTrade[];
-        try {
-          pageTrades = await fetchPolymarketTrades(market.id, 100, tradeSkip);
-        } catch (err) {
-          console.warn(
-            `  WARNING: Could not fetch trades for Polymarket market ${market.id}: ${(err as Error).message}`,
-          );
-          break;
-        }
+      if (trades.length === 0) continue;
 
-        if (pageTrades.length === 0) break;
+      const tradeBatch: PredictionTradeInsert[] = [];
 
-        for (const trade of pageTrades) {
-          const side: 'buy' | 'sell' =
-            trade.side.toUpperCase() === 'BUY' ? 'buy' : 'sell';
+      for (const trade of trades) {
+        const side: 'buy' | 'sell' =
+          (trade.side ?? '').toUpperCase() === 'BUY' ? 'buy' : 'sell';
 
-          tradeBatch.push({
-            contract_id: contractId,
-            trade_timestamp: trade.timestamp,
-            price: clamp5_4(parseFloat(trade.price)),
-            size: parseFloat(trade.size),
-            side,
-            wallet_address: trade.trader ?? null,
-            metadata: {
-              trade_id: trade.id,
-              transaction_hash: trade.transactionHash,
-            },
-          });
+        tradeBatch.push({
+          contract_id: contractId,
+          trade_timestamp: new Date(trade.timestamp * 1000).toISOString(),
+          price: clamp5_4(parseFloat(trade.price)),
+          size: parseFloat(trade.size),
+          side,
+          wallet_address: trade.owner ?? null,
+          metadata: {
+            trade_id: trade.id,
+            transaction_hash: trade.transaction_hash,
+            asset_id: trade.asset_id,
+          },
+        });
+      }
 
-          if (tradeBatch.length >= BATCH_SIZE) {
-            const { ok, err } = await flushTrades(tradeBatch.splice(0, BATCH_SIZE));
-            tradesInserted += ok;
-            tradesError += err;
-          }
-        }
-
-        totalTradesForMarket += pageTrades.length;
-        tradeSkip += pageTrades.length;
-
-        if (totalTradesForMarket >= MAX_TRADES_PER_CONTRACT) break;
-      } while (true);
-
-      // Flush remaining trades for this market.
       if (tradeBatch.length > 0) {
         const { ok, err } = await flushTrades(tradeBatch);
         tradesInserted += ok;
         tradesError += err;
-        tradeBatch = [];
+        process.stdout.write('.');
       }
-
-      if (totalTradesForMarket > 0) process.stdout.write('.');
     }
 
-    skip += pageMarkets.length;
+    offset += pageMarkets.length;
   } while (pageMarkets.length === PAGE_SIZE);
 
   console.log(`\n  Polymarket total markets fetched: ${totalFetched}`);
@@ -743,24 +672,23 @@ async function importPredictions(): Promise<void> {
     );
   }
 
+  // Validate private key is loadable before starting.
+  loadKalshiPrivateKey();
+
   // --- Kalshi ---
   try {
-    await importKalshi(kalshiApiKey);
+    await importKalshi();
   } catch (err) {
     console.error(`\nERROR during Kalshi import: ${(err as Error).message}`);
-    // Continue to Polymarket even if Kalshi fails.
   }
 
   // --- Polymarket ---
-  // Polymarket does not require an API key for public data.
   try {
     await importPolymarket();
   } catch (err) {
     console.error(`\nERROR during Polymarket import: ${(err as Error).message}`);
   }
 
-  // Each platform sub-function prints its own per-source summary.
-  // The cache size gives a rough cross-platform contract count.
   console.log(
     `\n=== Completed. Total contracts resolved: ${contractIdCache.size}. ===`,
   );

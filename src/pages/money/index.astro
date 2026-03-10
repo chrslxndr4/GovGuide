@@ -5,56 +5,64 @@ import Footer from '../../components/Footer.astro';
 import CategoryCard from '../../components/CategoryCard.astro';
 import { supabase } from '../../lib/supabase';
 
-const { count: contributionCount } = await supabase
-  .from('contributions')
-  .select('*', { count: 'exact', head: true });
-
-const { count: lobbyingCount } = await supabase
-  .from('lobbying_registrations')
-  .select('*', { count: 'exact', head: true });
-
-const { count: tradeCount } = await supabase
-  .from('stock_trades')
-  .select('*', { count: 'exact', head: true });
-
-const { count: entityCount } = await supabase
-  .from('entities')
-  .select('*', { count: 'exact', head: true });
+const { count: contributionCount } = await supabase.from('contributions').select('*', { count: 'exact', head: true });
+const { count: lobbyingCount } = await supabase.from('lobbying_registrations').select('*', { count: 'exact', head: true });
+const { count: tradeCount } = await supabase.from('stock_trades').select('*', { count: 'exact', head: true });
+const { count: entityCount } = await supabase.from('entities').select('*', { count: 'exact', head: true });
 ---
 <BaseLayout title="Follow the Money">
   <Header />
-  <main id="main-content" class="flex-1">
-    <section class="bg-civic-navy text-white py-12 px-4">
-      <div class="max-w-7xl mx-auto text-center">
-        <h1 class="text-4xl md:text-5xl font-display font-bold mb-4">Follow the Money</h1>
-        <p class="text-lg text-slate-300 max-w-2xl mx-auto">
-          Trace campaign contributions, lobbying expenditures, stock trades, and dark money flows
-          through the political system.
+  <main id="main-content" class="flex-1 bg-surface-50">
+
+    <!-- Hero -->
+    <section class="bg-white border-b border-border px-4 py-10">
+      <div class="max-w-7xl mx-auto">
+        <p class="text-xs font-medium text-civic-blue uppercase tracking-widest mb-2">GovGuide / Money</p>
+        <h1 class="text-3xl md:text-4xl font-display font-bold text-civic-navy mb-2">Follow the Money</h1>
+        <p class="text-sm text-muted max-w-2xl">
+          Trace campaign contributions, lobbying expenditures, stock trades, and dark money flows through the political system.
         </p>
       </div>
     </section>
 
     <section class="max-w-7xl mx-auto px-4 py-8">
-      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-12">
-        <div class="bg-white rounded-lg shadow p-4 text-center">
-          <p class="text-3xl font-bold text-civic-navy">{(entityCount ?? 0).toLocaleString()}</p>
-          <p class="text-sm text-civic-slate">Tracked Entities</p>
+
+      <!-- Stat cards -->
+      <div class="grid grid-cols-2 md:grid-cols-4 gap-4 mb-10">
+        <div class="bg-white border border-border rounded-card px-5 py-4">
+          <p class="text-2xl font-bold font-mono tabular-nums text-civic-navy leading-none mb-1">
+            {(entityCount ?? 0).toLocaleString()}
+          </p>
+          <p class="text-xs text-muted">Tracked Entities</p>
         </div>
-        <div class="bg-white rounded-lg shadow p-4 text-center">
-          <p class="text-3xl font-bold text-civic-navy">{(contributionCount ?? 0).toLocaleString()}</p>
-          <p class="text-sm text-civic-slate">Contributions</p>
+        <div class="bg-white border border-border rounded-card px-5 py-4">
+          <p class="text-2xl font-bold font-mono tabular-nums text-civic-navy leading-none mb-1">
+            {(contributionCount ?? 0).toLocaleString()}
+          </p>
+          <p class="text-xs text-muted">Contributions</p>
         </div>
-        <div class="bg-white rounded-lg shadow p-4 text-center">
-          <p class="text-3xl font-bold text-civic-navy">{(lobbyingCount ?? 0).toLocaleString()}</p>
-          <p class="text-sm text-civic-slate">Lobbying Registrations</p>
+        <div class="bg-white border border-border rounded-card px-5 py-4">
+          <p class="text-2xl font-bold font-mono tabular-nums text-civic-navy leading-none mb-1">
+            {(lobbyingCount ?? 0).toLocaleString()}
+          </p>
+          <p class="text-xs text-muted">Lobbying Registrations</p>
         </div>
-        <div class="bg-white rounded-lg shadow p-4 text-center">
-          <p class="text-3xl font-bold text-civic-navy">{(tradeCount ?? 0).toLocaleString()}</p>
-          <p class="text-sm text-civic-slate">Stock Trades</p>
+        <div class="bg-white border border-border rounded-card px-5 py-4">
+          <p class="text-2xl font-bold font-mono tabular-nums text-civic-navy leading-none mb-1">
+            {(tradeCount ?? 0).toLocaleString()}
+          </p>
+          <p class="text-xs text-muted">Stock Trades</p>
         </div>
       </div>
 
-      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <!-- Section header -->
+      <div class="flex items-center gap-3 mb-5">
+        <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Data Categories</h2>
+        <div class="flex-1 h-px bg-border"></div>
+      </div>
+
+      <!-- Category cards -->
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         <CategoryCard
           title="Money Graph Explorer"
           description="Interactive visualization of money flows between donors, PACs, and officials"
@@ -76,6 +84,7 @@ const { count: entityCount } = await supabase
           href="/money/dark-money"
         />
       </div>
+
     </section>
   </main>
   <Footer />

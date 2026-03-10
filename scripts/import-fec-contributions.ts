@@ -159,22 +159,37 @@ function donorName(contribution: FecContribution): string {
  * page-number pagination here for simplicity and fall back to cursor when
  * the API signals it via pagination.last_indexes.
  */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+const FEC_RATE_DELAY_MS = 4000;
+
 async function fetchScheduleAPage(
   apiKey: string,
   page: number,
   extraParams: Record<string, string>,
+  retries = 3,
 ): Promise<FecScheduleAResponse> {
   const params = new URLSearchParams({
     api_key: apiKey,
     per_page: String(PAGE_SIZE),
     page: String(page),
-    sort: 'contribution_receipt_date',
+    sort: '-contribution_receipt_date',
     sort_null_only: 'false',
     ...extraParams,
   });
 
   const url = `${FEC_API_BASE}/schedules/schedule_a/?${params.toString()}`;
+  await sleep(FEC_RATE_DELAY_MS);
   const res = await fetch(url);
+
+  if ((res.status === 429 || res.status === 502 || res.status === 503 || res.status === 504) && retries > 0) {
+    const wait = res.status === 429 ? 60000 : 10000;
+    console.warn(`  ${res.status} on page ${page}, waiting ${wait/1000}s … (${retries} retries left)`);
+    await sleep(wait);
+    return fetchScheduleAPage(apiKey, page, extraParams, retries - 1);
+  }
 
   if (!res.ok) {
     throw new Error(
@@ -388,10 +403,10 @@ async function importFecContributions(): Promise<void> {
   }
 
   // Optional scoping filters from environment.
-  const extraParams: Record<string, string> = {};
-  if (process.env.FEC_CYCLE) {
-    extraParams['two_year_transaction_period'] = process.env.FEC_CYCLE;
-  }
+  // two_year_transaction_period is REQUIRED by the FEC API — default to 2024.
+  const extraParams: Record<string, string> = {
+    two_year_transaction_period: process.env.FEC_CYCLE ?? '2024',
+  };
   if (process.env.FEC_COMMITTEE) {
     extraParams['committee_id'] = process.env.FEC_COMMITTEE;
   }

@@ -49,14 +49,24 @@ function formatVolume(v: number | null): string {
   if (v >= 1e3) return `$${(v / 1e3).toFixed(0)}K`;
   return `$${v}`;
 }
+
+function formatCandidates(candidates: unknown): string {
+  if (!candidates || typeof candidates !== 'object') return '—';
+  const entries = Object.entries(candidates as object);
+  if (entries.length === 0) return '—';
+  return entries.map(([n, v]) => n + ': ' + v + '%').join(', ');
+}
 ---
 <BaseLayout title="Predictions & Markets">
   <Header />
-  <main id="main-content" class="flex-1">
-    <section class="bg-civic-navy text-white py-12 px-4">
-      <div class="max-w-7xl mx-auto text-center">
-        <h1 class="text-4xl font-display font-bold mb-4">Predictions & Markets</h1>
-        <p class="text-lg text-slate-300 max-w-2xl mx-auto">
+  <main id="main-content" class="flex-1 bg-surface-50">
+
+    <!-- Hero -->
+    <section class="bg-white border-b border-border px-4 py-10">
+      <div class="max-w-7xl mx-auto">
+        <p class="text-xs font-medium text-civic-blue uppercase tracking-widest mb-2">GovGuide / Predictions</p>
+        <h1 class="text-3xl md:text-4xl font-display font-bold text-civic-navy mb-2">Predictions &amp; Markets</h1>
+        <p class="text-sm text-muted max-w-2xl">
           Polling averages, prediction market odds, and anomaly detection —
           where data meets democracy.
         </p>
@@ -65,34 +75,42 @@ function formatVolume(v: number | null): string {
 
     <section class="max-w-7xl mx-auto px-4 py-8">
       <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        <div class="lg:col-span-2 space-y-8">
+
+        <!-- Main column -->
+        <div class="lg:col-span-2 space-y-10">
+
           <!-- Prediction Markets -->
           <div>
-            <h2 class="text-2xl font-display text-civic-navy mb-4">Prediction Markets</h2>
+            <div class="flex items-center gap-3 mb-5">
+              <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Prediction Markets</h2>
+              <div class="flex-1 h-px bg-border"></div>
+            </div>
             {Object.keys(contractsByCategory).length === 0 ? (
-              <p class="text-civic-slate italic">No active prediction contracts. Data will appear as import pipelines run.</p>
+              <p class="text-sm text-muted italic">No active prediction contracts. Data will appear as import pipelines run.</p>
             ) : (
               Object.entries(contractsByCategory).map(([category, contracts]) => (
-                <div class="mb-6">
-                  <h3 class="text-lg font-semibold text-civic-slate capitalize mb-3">{category}</h3>
-                  <div class="space-y-3">
+                <div class="mb-8">
+                  <h3 class="text-xs font-semibold text-slate-400 uppercase tracking-wider capitalize mb-3">{category}</h3>
+                  <div class="bg-white border border-border rounded-card overflow-hidden divide-y divide-border">
                     {(contracts ?? []).map((c) => (
-                      <div class="bg-white rounded-lg shadow p-4">
-                        <div class="flex justify-between items-start mb-2">
-                          <p class="font-medium text-civic-navy flex-1 mr-4">{c.question}</p>
-                          <span class="text-xs px-2 py-1 bg-slate-100 text-civic-slate rounded">{c.platform}</span>
+                      <div class="px-4 py-3 hover:bg-surface-50 transition-colors duration-fast">
+                        <div class="flex justify-between items-start mb-2.5">
+                          <p class="text-sm font-medium text-civic-navy flex-1 mr-4 leading-snug">{c.question}</p>
+                          <span class="shrink-0 text-xs font-medium text-slate-400 bg-slate-100 px-2 py-0.5 rounded tabular-nums">
+                            {c.platform}
+                          </span>
                         </div>
-                        <div class="flex items-center gap-4">
-                          <div class="flex-1 bg-slate-200 rounded-full h-4 overflow-hidden">
+                        <div class="flex items-center gap-3">
+                          <div class="flex-1 bg-slate-100 rounded-full h-1.5 overflow-hidden">
                             <div
                               class="h-full bg-civic-blue rounded-full transition-all"
                               style={`width: ${(c.current_probability ?? 0) * 100}%`}
                             ></div>
                           </div>
-                          <span class="text-lg font-bold text-civic-navy min-w-[4rem] text-right">
+                          <span class="text-sm font-bold font-mono tabular-nums text-civic-navy min-w-[3.5rem] text-right">
                             {formatProbability(c.current_probability)}
                           </span>
-                          <span class="text-xs text-civic-slate">{formatVolume(c.volume_total)} vol</span>
+                          <span class="text-xs text-muted min-w-[4rem] text-right">{formatVolume(c.volume_total)} vol</span>
                         </div>
                       </div>
                     ))}
@@ -104,33 +122,32 @@ function formatVolume(v: number | null): string {
 
           <!-- Latest Polls -->
           <div>
-            <h2 class="text-2xl font-display text-civic-navy mb-4">Latest Polls</h2>
+            <div class="flex items-center gap-3 mb-5">
+              <h2 class="text-sm font-semibold text-slate-500 uppercase tracking-wider">Latest Polls</h2>
+              <div class="flex-1 h-px bg-border"></div>
+            </div>
             {(latestPolls ?? []).length === 0 ? (
-              <p class="text-civic-slate italic">No polling data yet.</p>
+              <p class="text-sm text-muted italic">No polling data yet.</p>
             ) : (
-              <div class="bg-white rounded-lg shadow overflow-hidden">
+              <div class="bg-white border border-border rounded-card overflow-hidden">
                 <table class="w-full text-sm">
-                  <thead class="bg-slate-50">
-                    <tr>
-                      <th class="px-4 py-3 text-left text-civic-navy font-semibold">Pollster</th>
-                      <th class="px-4 py-3 text-left text-civic-navy font-semibold">Race</th>
-                      <th class="px-4 py-3 text-left text-civic-navy font-semibold">Results</th>
-                      <th class="px-4 py-3 text-left text-civic-navy font-semibold">Date</th>
+                  <thead>
+                    <tr class="border-b border-border bg-surface-50">
+                      <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Pollster</th>
+                      <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Race</th>
+                      <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Results</th>
+                      <th class="px-4 py-2.5 text-left text-xs font-semibold text-slate-500 uppercase tracking-wide">Date</th>
                     </tr>
                   </thead>
-                  <tbody class="divide-y divide-slate-100">
-                    {(latestPolls ?? []).map((poll) => {
-                      const candidates = poll.candidates as Record<string, number> | null;
-                      const results = candidates ? Object.entries(candidates).map(([n, v]) => `${n}: ${v}%`).join(', ') : '—';
-                      return (
-                        <tr class="hover:bg-slate-50">
-                          <td class="px-4 py-3 font-medium">{poll.pollster}</td>
-                          <td class="px-4 py-3">{poll.race_type} ({poll.geography ?? 'National'})</td>
-                          <td class="px-4 py-3 text-xs">{results}</td>
-                          <td class="px-4 py-3">{poll.date_conducted ?? '—'}</td>
+                  <tbody class="divide-y divide-border">
+                    {(latestPolls ?? []).map((poll) => (
+                        <tr class="hover:bg-surface-50 transition-colors duration-fast">
+                          <td class="px-4 py-3 text-sm font-medium text-civic-navy">{poll.pollster}</td>
+                          <td class="px-4 py-3 text-sm text-slate-600">{poll.race_type} ({poll.geography ?? 'National'})</td>
+                          <td class="px-4 py-3 text-xs text-muted">{formatCandidates(poll.candidates)}</td>
+                          <td class="px-4 py-3 text-xs font-mono text-muted tabular-nums">{poll.date_conducted ?? '—'}</td>
                         </tr>
-                      );
-                    })}
+                    ))}
                   </tbody>
                 </table>
               </div>
@@ -141,44 +158,69 @@ function formatVolume(v: number | null): string {
           <div id="prediction-chart-mount"></div>
         </div>
 
-        <div class="space-y-6">
+        <!-- Sidebar -->
+        <div class="space-y-5">
+
           <!-- Anomaly Alerts -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-display text-civic-navy mb-3">Market Anomalies</h2>
-            {(anomalies ?? []).length === 0 ? (
-              <p class="text-green-600 text-sm">No anomalies detected</p>
-            ) : (
-              <div class="space-y-3">
-                {(anomalies ?? []).map((a) => {
-                  const contract = a.contract as { question?: string; platform?: string } | null;
-                  return (
-                    <div class="border-l-4 border-civic-gold pl-3 py-2">
-                      <p class="text-sm font-medium capitalize">{a.anomaly_type?.replace('_', ' ')}</p>
-                      <p class="text-xs text-civic-slate">{contract?.question?.substring(0, 60) ?? 'Unknown contract'}...</p>
-                      <p class="text-xs text-civic-slate">Severity: {a.severity_score}/10</p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+          <div class="bg-white border border-border rounded-card overflow-hidden">
+            <div class="px-4 py-3 border-b border-border bg-surface-50">
+              <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Market Anomalies</h2>
+            </div>
+            <div class="px-4 py-4">
+              {(anomalies ?? []).length === 0 ? (
+                <p class="text-sm text-positive flex items-center gap-2">
+                  <svg class="w-4 h-4 shrink-0" viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+                    <path fill-rule="evenodd" d="M8 15A7 7 0 1 0 8 1a7 7 0 0 0 0 14Zm3.53-8.47a.75.75 0 0 0-1.06-1.06L7 8.94 5.53 7.47a.75.75 0 0 0-1.06 1.06l2 2a.75.75 0 0 0 1.06 0l4-4Z" clip-rule="evenodd"/>
+                  </svg>
+                  No anomalies detected
+                </p>
+              ) : (
+                <div class="space-y-3">
+                  {(anomalies ?? []).map((a) => {
+                    const contract = a.contract as { question?: string; platform?: string } | null;
+                    return (
+                      <div class="border-l-2 border-warning pl-3 py-1">
+                        <p class="text-xs font-semibold text-slate-700 capitalize mb-0.5">
+                          {a.anomaly_type?.replace('_', ' ')}
+                        </p>
+                        <p class="text-xs text-muted leading-snug">
+                          {contract?.question?.substring(0, 60) ?? 'Unknown contract'}...
+                        </p>
+                        <p class="text-xs text-muted mt-0.5">
+                          Severity: <span class="font-mono font-semibold text-warning">{a.severity_score}/10</span>
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
           </div>
 
           <!-- Top Pollsters -->
-          <div class="bg-white rounded-lg shadow p-6">
-            <h2 class="text-lg font-display text-civic-navy mb-3">Most Accurate Pollsters</h2>
-            {(topPollsters ?? []).length === 0 ? (
-              <p class="text-civic-slate italic text-sm">No pollster ratings yet.</p>
-            ) : (
-              <div class="space-y-2">
-                {(topPollsters ?? []).map((p, i) => (
-                  <div class="flex justify-between text-sm">
-                    <span>{i + 1}. {p.pollster}</span>
-                    <span class="font-mono text-civic-blue">{p.accuracy_score?.toFixed(2) ?? '—'}</span>
+          <div class="bg-white border border-border rounded-card overflow-hidden">
+            <div class="px-4 py-3 border-b border-border bg-surface-50">
+              <h2 class="text-xs font-semibold text-slate-500 uppercase tracking-wider">Most Accurate Pollsters</h2>
+            </div>
+            <div class="divide-y divide-border">
+              {(topPollsters ?? []).length === 0 ? (
+                <p class="px-4 py-4 text-sm text-muted italic">No pollster ratings yet.</p>
+              ) : (
+                (topPollsters ?? []).map((p, i) => (
+                  <div class="flex items-center justify-between px-4 py-2.5 hover:bg-surface-50 transition-colors duration-fast">
+                    <div class="flex items-center gap-2.5 min-w-0">
+                      <span class="text-xs font-mono text-muted tabular-nums w-4 shrink-0">{i + 1}</span>
+                      <span class="text-sm text-slate-700 truncate">{p.pollster}</span>
+                    </div>
+                    <span class="text-sm font-mono font-semibold text-civic-blue tabular-nums shrink-0 ml-3">
+                      {p.accuracy_score?.toFixed(2) ?? '—'}
+                    </span>
                   </div>
-                ))}
-              </div>
-            )}
+                ))
+              )}
+            </div>
           </div>
+
         </div>
       </div>
     </section>

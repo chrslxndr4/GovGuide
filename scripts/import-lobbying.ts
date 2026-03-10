@@ -215,6 +215,26 @@ const PAGE_SIZE = 250; // LDA API supports up to 250 results per page
 /** Milliseconds to wait between paginated requests to avoid rate-limiting. */
 const REQUEST_DELAY_MS = 300;
 
+/**
+ * The LDA API requires `format=json` as an explicit query parameter in
+ * addition to the `Accept: application/json` header.  Without it some paths
+ * return an HTML browsable-API page (which is technically a 200 but breaks
+ * JSON.parse) or redirect in ways that produce a 404.
+ *
+ * Always append this to every request via iterateLdaEndpoint.
+ */
+const LDA_FORMAT_PARAM = 'json';
+
+/**
+ * Bulk-download base URL — fallback if the live API is unavailable.
+ * Files are published as annual XML archives, e.g.:
+ *   https://lda.senate.gov/system/public/disclosure/2024/2024_3.xml
+ *   https://lda.senate.gov/system/public/contribution/2024/2024_3.xml
+ *
+ * Index page: https://lda.senate.gov/system/public/
+ */
+const LDA_BULK_BASE = 'https://lda.senate.gov/system/public';
+
 // ---------------------------------------------------------------------------
 // In-process caches (lda_registrant_id → entity UUID)
 // ---------------------------------------------------------------------------
@@ -406,10 +426,79 @@ async function fetchPage<T>(url: string): Promise<LdaPage<T>> {
   });
 
   if (!res.ok) {
+    // Provide a targeted diagnostic for 404s so callers know where to look.
+    if (res.status === 404) {
+      throw new Error(
+        `LDA API 404 at ${url}\n` +
+        `  The Senate LDA API endpoint was not found.  Possible causes:\n` +
+        `  1. The URL requires ?format=json — ensure iterateLdaEndpoint passes it.\n` +
+        `  2. The path may have changed.  Known v1 paths:\n` +
+        `       ${LDA_API_BASE}/registrations/\n` +
+        `       ${LDA_API_BASE}/filings/\n` +
+        `       ${LDA_API_BASE}/contributions/\n` +
+        `       ${LDA_API_BASE}/constants/\n` +
+        `  3. As a fallback, bulk XML archives are available at:\n` +
+        `       ${LDA_BULK_BASE}/\n` +
+        `     (annual files, e.g. ${LDA_BULK_BASE}/disclosure/2024/2024_3.xml)\n` +
+        `  Verify the API root manually: curl -H "Accept: application/json" "${LDA_API_BASE}/?format=json"`,
+      );
+    }
     throw new Error(`LDA API error ${res.status} at ${url}: ${res.statusText}`);
   }
 
+  // Guard against the API returning an HTML browsable-API page instead of JSON.
+  // This happens when format=json is omitted and the Accept header is ignored.
+  const contentType = res.headers.get('content-type') ?? '';
+  if (!contentType.includes('application/json')) {
+    throw new Error(
+      `LDA API returned non-JSON content-type "${contentType}" at ${url}\n` +
+      `  The API likely returned an HTML page.  Ensure ?format=json is present in the URL.`,
+    );
+  }
+
   return (await res.json()) as LdaPage<T>;
+}
+
+/**
+ * Probe the LDA API root to verify connectivity and confirm endpoints before
+ * running the full import.  Throws a descriptive error if the API is down or
+ * the URL structure has changed.
+ */
+async function probeLdaApi(): Promise<void> {
+  // The /constants/ endpoint is lightweight (a few KB) and always returns a
+  // stable JSON object — good for connectivity checks.
+  const probeUrl = `${LDA_API_BASE}/constants/?format=json`;
+  console.log(`Probing LDA API at ${probeUrl} …`);
+
+  let res: Response;
+  try {
+    res = await fetch(probeUrl, { headers: { Accept: 'application/json' } });
+  } catch (err) {
+    throw new Error(
+      `LDA API probe failed — network error: ${(err as Error).message}\n` +
+      `  Check that https://lda.senate.gov is reachable from this host.`,
+    );
+  }
+
+  if (!res.ok) {
+    throw new Error(
+      `LDA API probe returned HTTP ${res.status} for ${probeUrl}\n` +
+      `  The Senate LDA API may be down or the URL structure has changed.\n` +
+      `  Visit https://lda.senate.gov/api/ in a browser to check.\n` +
+      `  Bulk XML fallback: ${LDA_BULK_BASE}/`,
+    );
+  }
+
+  const ct = res.headers.get('content-type') ?? '';
+  if (!ct.includes('application/json')) {
+    throw new Error(
+      `LDA API probe at ${probeUrl} returned content-type "${ct}" instead of JSON.\n` +
+      `  The ?format=json parameter may no longer be supported, or the API structure changed.\n` +
+      `  Visit https://lda.senate.gov/api/ to check the current API shape.`,
+    );
+  }
+
+  console.log(`  API probe OK (HTTP ${res.status})\n`);
 }
 
 /**
@@ -422,6 +511,9 @@ async function* iterateLdaEndpoint<T>(
 ): AsyncGenerator<T> {
   const query = new URLSearchParams({
     ...params,
+    // format=json is required by the LDA API — without it the server may
+    // return an HTML browsable-API page or a 404 redirect.
+    format: LDA_FORMAT_PARAM,
     limit: String(PAGE_SIZE),
     offset: '0',
   });
@@ -881,6 +973,10 @@ async function processFilings(): Promise<{ ok: number; err: number }> {
 
 async function importLobbying(): Promise<void> {
   console.log('=== Import Lobbying Data (Senate LDA API) ===\n');
+
+  // ---- Connectivity probe — fail fast with a clear message if the API is
+  //      unreachable or the URL structure has changed. ----------------------
+  await probeLdaApi();
 
   // ---- Pass 1: registrations -------------------------------------------
   const {

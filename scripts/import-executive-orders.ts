@@ -38,13 +38,37 @@ const BASE_URL = 'https://www.federalregister.gov/api/v1/documents';
 const PER_PAGE = 100;
 
 function buildUrl(page: number): string {
+  // The Federal Register API requires specific machine-readable identifiers:
+  //   conditions[type]                        => PRESDOCU  (not "Presidential Document")
+  //   conditions[presidential_document_type]  => executive_order  (not "Executive Order")
+  //
+  // fields[] is a repeated parameter — URLSearchParams.append() emits each as a
+  // separate key=value pair, which is what the API expects (not a comma-joined string).
   const params = new URLSearchParams({
-    'conditions[type]': 'Presidential Document',
-    'conditions[presidential_document_type]': 'Executive Order',
+    'conditions[presidential_document_type]': 'executive_order',
+    'conditions[type]': 'PRESDOCU',
     per_page: String(PER_PAGE),
     page: String(page),
     order: 'newest',
   });
+
+  // Request only the fields the importer reads so the response stays lean.
+  for (const field of [
+    'document_number',
+    'title',
+    'type',
+    'subtype',
+    'executive_order_number',
+    'signing_date',
+    'html_url',
+    'pdf_url',
+    'full_text_xml_url',
+    'president',
+    'abstract',
+  ]) {
+    params.append('fields[]', field);
+  }
+
   return `${BASE_URL}?${params.toString()}`;
 }
 

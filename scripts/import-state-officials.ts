@@ -112,6 +112,11 @@ const OPENSTATES_API_BASE = 'https://v3.openstates.org';
 const BATCH_SIZE = 100;
 const PAGE_SIZE = 100; // max allowed by OpenStates
 
+// Rate-limiting constants
+const REQUEST_DELAY_MS = 3000;   // minimum gap between every API call
+const RETRY_DELAY_MS  = 30000;  // back-off delay when a 429 is received
+const MAX_RETRIES     = 5;       // maximum number of 429-triggered retries
+
 /**
  * All 50 states + DC.  Keys are the OpenStates jurisdiction slug prefix used
  * in the jurisdiction_id field (e.g. "ocd-jurisdiction/country:us/state:al/…").
@@ -173,11 +178,62 @@ const STATE_ABBR_TO_SLUG: Record<string, string> = {
 
 // OpenStates uses two-letter state codes in the jurisdiction id path.
 // e.g. "ocd-jurisdiction/country:us/state:al/government"
-const STATE_ABBRS = Object.keys(STATE_ABBR_TO_SLUG);
+const ALL_STATE_ABBRS = Object.keys(STATE_ABBR_TO_SLUG);
+
+// Allow filtering to a subset via env:  STATES=AL,AK,AZ  (comma-separated)
+function getTargetStates(): string[] {
+  const raw = process.env.STATES?.trim();
+  if (!raw) return ALL_STATE_ABBRS;
+  const requested = raw.split(',').map((s) => s.trim().toUpperCase()).filter(Boolean);
+  const valid = requested.filter((s) => STATE_ABBR_TO_SLUG[s]);
+  const invalid = requested.filter((s) => !STATE_ABBR_TO_SLUG[s]);
+  if (invalid.length > 0) {
+    console.warn(`  WARN: Unknown state codes ignored: ${invalid.join(', ')}`);
+  }
+  return valid;
+}
+
+const STATE_ABBRS = getTargetStates();
 
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
+
+/** Pause execution for the given number of milliseconds. */
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+/**
+ * Thin wrapper around `fetch` that enforces a minimum inter-request delay and
+ * retries up to MAX_RETRIES times when the server responds with HTTP 429.
+ */
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+): Promise<Response> {
+  for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
+    if (attempt > 0) {
+      // Back-off before every retry.
+      console.warn(
+        `  429 received — waiting ${RETRY_DELAY_MS}ms before retry ${attempt}/${MAX_RETRIES}…`,
+      );
+      await sleep(RETRY_DELAY_MS);
+    }
+
+    const res = await fetch(url, options);
+
+    if (res.status !== 429) return res;
+
+    if (attempt === MAX_RETRIES) {
+      // Exhausted retries — return the 429 so the caller can handle it.
+      return res;
+    }
+  }
+
+  // Unreachable, but TypeScript requires a return path.
+  throw new Error('fetchWithRetry: exceeded retry limit unexpectedly');
+}
 
 function slugify(text: string): string {
   return text
@@ -382,6 +438,9 @@ async function fetchPeopleForState(
   let maxPage = 1;
 
   do {
+    // Enforce a minimum delay before every API request (including page 1).
+    await sleep(REQUEST_DELAY_MS);
+
     const url =
       `${OPENSTATES_API_BASE}/people` +
       `?jurisdiction=${encodeURIComponent(jurisdiction)}` +
@@ -392,7 +451,7 @@ async function fetchPeopleForState(
       `&include=links` +
       `&include=sources`;
 
-    const res = await fetch(url, {
+    const res = await fetchWithRetry(url, {
       headers: { 'X-API-KEY': apiKey },
     });
 
@@ -440,15 +499,16 @@ async function importStateOfficials(): Promise<void> {
       continue;
     }
 
-    // Fetch legislators + governor concurrently.
+    // Fetch legislators first, then governor — sequentially with a delay
+    // between calls to stay within the OpenStates rate limit.
     let legislators: OpenStatesPerson[] = [];
     let governors: OpenStatesPerson[] = [];
 
     try {
-      [legislators, governors] = await Promise.all([
-        fetchPeopleForState(stateAbbr, 'legislator', apiKey),
-        fetchPeopleForState(stateAbbr, 'governor', apiKey),
-      ]);
+      legislators = await fetchPeopleForState(stateAbbr, 'legislator', apiKey);
+      await sleep(REQUEST_DELAY_MS);
+      governors = await fetchPeopleForState(stateAbbr, 'governor', apiKey);
+      await sleep(REQUEST_DELAY_MS);
     } catch (err) {
       console.error(`  ERROR fetching from OpenStates: ${(err as Error).message}`);
       totalSkipped++;

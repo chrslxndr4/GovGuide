@@ -85,6 +85,31 @@ const STATE_SLUG_MAP: Record<string, string> = {
   VI: 'us-virgin-islands', MP: 'northern-mariana-islands', AS: 'american-samoa',
 };
 
+// Reverse map: full state name → abbreviation (Congress API returns full names)
+const STATE_NAME_TO_ABBR: Record<string, string> = {
+  'Alabama': 'AL', 'Alaska': 'AK', 'Arizona': 'AZ', 'Arkansas': 'AR',
+  'California': 'CA', 'Colorado': 'CO', 'Connecticut': 'CT', 'Delaware': 'DE',
+  'Florida': 'FL', 'Georgia': 'GA', 'Hawaii': 'HI', 'Idaho': 'ID',
+  'Illinois': 'IL', 'Indiana': 'IN', 'Iowa': 'IA', 'Kansas': 'KS',
+  'Kentucky': 'KY', 'Louisiana': 'LA', 'Maine': 'ME', 'Maryland': 'MD',
+  'Massachusetts': 'MA', 'Michigan': 'MI', 'Minnesota': 'MN', 'Mississippi': 'MS',
+  'Missouri': 'MO', 'Montana': 'MT', 'Nebraska': 'NE', 'Nevada': 'NV',
+  'New Hampshire': 'NH', 'New Jersey': 'NJ', 'New Mexico': 'NM', 'New York': 'NY',
+  'North Carolina': 'NC', 'North Dakota': 'ND', 'Ohio': 'OH', 'Oklahoma': 'OK',
+  'Oregon': 'OR', 'Pennsylvania': 'PA', 'Rhode Island': 'RI', 'South Carolina': 'SC',
+  'South Dakota': 'SD', 'Tennessee': 'TN', 'Texas': 'TX', 'Utah': 'UT',
+  'Vermont': 'VT', 'Virginia': 'VA', 'Washington': 'WA', 'West Virginia': 'WV',
+  'Wisconsin': 'WI', 'Wyoming': 'WY',
+  'District of Columbia': 'DC', 'Puerto Rico': 'PR', 'Guam': 'GU',
+  'Virgin Islands': 'VI', 'Northern Mariana Islands': 'MP', 'American Samoa': 'AS',
+};
+
+function resolveStateAbbr(stateInput: string): string {
+  const upper = stateInput.toUpperCase();
+  if (STATE_SLUG_MAP[upper]) return upper; // already an abbreviation
+  return STATE_NAME_TO_ABBR[stateInput] ?? stateInput;
+}
+
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
@@ -104,6 +129,16 @@ function mapParty(partyName: string): Party {
   if (lower.includes('green')) return 'green';
   if (lower.includes('independent')) return 'independent';
   return 'other';
+}
+
+/** Derive current chamber from terms array (Congress API doesn't put chamber at top level) */
+function deriveCurrentChamber(member: CongressApiMember): string {
+  if (member.chamber) return member.chamber;
+  const terms = member.terms?.item;
+  if (!terms || terms.length === 0) return 'unknown';
+  // Latest term is the one without endYear or with the highest startYear
+  const sorted = [...terms].sort((a, b) => (b.startYear ?? 0) - (a.startYear ?? 0));
+  return sorted[0].chamber ?? 'unknown';
 }
 
 function parseName(fullName: string): { first: string; last: string } {
@@ -185,11 +220,13 @@ async function getOrCreateOffice(
   member: CongressApiMember,
   jurisdictionId: string,
 ): Promise<string | null> {
-  const isSenate = member.chamber.toLowerCase().includes('senate');
+  const chamberStr = deriveCurrentChamber(member);
+  const isSenate = chamberStr.toLowerCase().includes('senate');
   const chamberVal: Chamber = isSenate ? 'senate' : 'house';
   const title = isSenate ? 'U.S. Senator' : 'U.S. Representative';
   const district = member.district != null ? String(member.district) : null;
-  const stateSlug = STATE_SLUG_MAP[member.state.toUpperCase()] ?? member.state;
+  const abbr = resolveStateAbbr(member.state);
+  const stateSlug = STATE_SLUG_MAP[abbr.toUpperCase()] ?? member.state;
   const cacheKey = `${chamberVal}:${stateSlug}:${district ?? 'at-large'}`;
 
   if (officeCache.has(cacheKey)) {
@@ -256,7 +293,7 @@ async function fetchAllMembers(apiKey: string): Promise<CongressApiMember[]> {
     }
 
     const body = (await res.json()) as CongressApiResponse;
-    total = body.pagination.total;
+    total = body.pagination.total ?? body.pagination.count;
     allMembers.push(...body.members);
     offset += body.members.length;
 
@@ -302,7 +339,7 @@ async function importCongressMembers(): Promise<void> {
   for (const member of members) {
     // 1. Resolve state jurisdiction
     const stateJurisdictionId = await getOrCreateStateJurisdiction(
-      member.state,
+      resolveStateAbbr(member.state),
       federalJurisdictionId,
     );
     if (!stateJurisdictionId) {

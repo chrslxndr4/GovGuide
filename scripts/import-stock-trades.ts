@@ -2,35 +2,43 @@
  * Import congressional stock trades and annual financial holdings from
  * House and Senate STOCK Act disclosures.
  *
- * Data source: Capitol Trades public API (https://www.capitoltrades.com)
- * which aggregates the official House and Senate eFD / FD filing portals.
- * The script accepts the canonical JSON shape emitted by that style of API
- * (see CapitolTradesTrade / CapitolTradesHolding interfaces below).  If the
- * upstream URL or shape ever changes, swap out the fetch helpers — all
- * database logic remains valid.
+ * Data source: Quiver Quantitative API (https://api.quiverquant.com)
+ *   - House trades:   GET /beta/live/housetrading
+ *   - Senate trades:  GET /beta/live/senatetrading
+ *   - Holdings:       GET /beta/bulk/congressholdings
+ *
+ * The official source filings live at:
+ *   House:   https://disclosures-clerk.house.gov/
+ *   Senate:  https://efdsearch.senate.gov/
+ *
+ * Quiver aggregates those filings into a clean JSON API that is freely
+ * accessible without authentication (rate limits apply).  Supplying
+ * QUIVER_QUANT_API_KEY in the environment adds an Authorization header
+ * that grants higher rate limits on a paid plan.
  *
  * Required environment variables:
  *   PUBLIC_SUPABASE_URL          – Supabase project URL
  *   SUPABASE_SERVICE_ROLE_KEY    – Service-role key (bypasses RLS)
  *
  * Optional environment variables:
- *   CAPITOL_TRADES_API_KEY       – Bearer token if the API requires auth
- *   IMPORT_YEAR                  – Calendar year to import (default: current year)
+ *   QUIVER_QUANT_API_KEY         – Bearer token for higher rate limits
+ *   IMPORT_YEAR                  – Calendar year filter applied in-process
+ *                                  (Quiver returns all available records;
+ *                                   we filter client-side). Default: current year.
  *   IMPORT_CHAMBER               – "house" | "senate" | "both" (default: "both")
  *   DRY_RUN                      – Set to "1" to skip DB writes and only log
  *
  * Run with:  npm run import:stock-trades
  *
  * What this script does:
- *   1. Fetches paginated trade disclosures from the Capitol Trades API.
- *   2. Resolves each trade to an existing official via bioguide_id (primary)
- *      or normalised full-name fuzzy match (fallback).
- *   3. Calculates days_late = (disclosure_date − trade_date) − 45.
+ *   1. Fetches trade disclosures from the Quiver Quantitative API.
+ *   2. Optionally filters to IMPORT_YEAR.
+ *   3. Resolves each trade to an existing official via normalised name match.
+ *   4. Calculates days_late = (disclosure_date − trade_date) − 45.
  *      The STOCK Act requires disclosure within 45 days of a trade.
- *   4. Upserts stock_trades rows in batches of 500.
- *   5. Fetches annual holdings from the API and upserts official_holdings rows
- *      in batches of 500.
- *   6. For each trade that can be linked to a corporation entity (via ticker
+ *   5. Upserts stock_trades rows in batches of 500.
+ *   6. Fetches annual holdings and upserts official_holdings rows in batches of 500.
+ *   7. For each trade that can be linked to a corporation entity (via ticker
  *      lookup in entity_corporations), upserts a relationships row of type
  *      'traded' linking the official's entity_id to the corporation entity_id.
  */
@@ -38,74 +46,71 @@
 import { supabase } from './lib/supabase-admin.js';
 
 // ---------------------------------------------------------------------------
-// Types — Capitol Trades / Quiver Quantitative API shape
+// Constants
+// ---------------------------------------------------------------------------
+
+/** Base URL for the Quiver Quantitative REST API. */
+const QUIVER_API_BASE = 'https://api.quiverquant.com';
+
+/** How many rows to accumulate before a batch upsert. */
+const BATCH_SIZE = 500;
+
+/** STOCK Act statutory disclosure window in calendar days. */
+const STOCK_ACT_DISCLOSURE_DAYS = 45;
+
+// ---------------------------------------------------------------------------
+// Quiver API response shapes
 // ---------------------------------------------------------------------------
 
 /**
- * A single trade disclosure record as returned by the Capitol Trades API.
- * Field names follow the well-known JSON schema published by Capitol Trades.
+ * A single trade record as returned by Quiver Quantitative.
+ * Field names follow the Quiver /beta/live/housetrading and
+ * /beta/live/senatetrading response schema.
  */
-interface CapitolTradesTrade {
-  /** Unique identifier for the filing transaction (used as upsert key). */
-  filing_id: string;
-  /** Legislator's Bioguide ID — the most reliable cross-reference key. */
-  bioguide_id: string | null;
-  /** Full name of the reporting official, e.g. "Pelosi, Nancy". */
-  legislator: string;
-  /** Ticker symbol, e.g. "AAPL".  Null for non-equity assets. */
-  ticker: string | null;
+interface QuiverTrade {
+  /** Member name — House endpoint: "Representative"; Senate: "Senator". */
+  Representative?: string;
+  Senator?: string;
+  /** Ticker symbol, e.g. "AAPL". */
+  Ticker?: string;
   /** Human-readable asset name. */
-  asset_name: string;
-  /** "purchase" | "sale" | "sale_partial" | "exchange" */
-  transaction_type: string;
-  /**
-   * Amount range encoded as a string such as "$1,001 - $15,000"
-   * or a pre-parsed object with low/high fields.  Both shapes are handled.
-   */
-  amount: string | { low: number; high: number };
-  /** ISO 8601 date string, e.g. "2024-03-15". */
-  transaction_date: string;
-  /** ISO 8601 date string when the disclosure was filed. */
-  disclosure_date: string;
-  /** URL to the original PDF filing on the House/Senate disclosure portal. */
-  filing_url: string | null;
-  /** Additional metadata the API may return. */
+  AssetName?: string;
+  AssetDescription?: string;
+  AssetType?: string;
+  /** "Purchase", "Sale", "Sale (Full)", "Sale (Partial)", "Exchange" */
+  Transaction?: string;
+  /** Amount range, e.g. "$15,001 - $50,000". */
+  Amount?: string;
+  /** ISO date of the transaction. */
+  TransactionDate?: string;
+  Date?: string;
+  /** ISO date the form was filed / disclosed. */
+  FilingDate?: string;
+  ReportDate?: string;
+  /** Owner class: "Self", "Spouse", "Dependent", "Joint". */
+  Owner?: string;
+  Comment?: string;
+  /** URL to the original PDF filing on the official portal. */
+  Link?: string;
   [key: string]: unknown;
-}
-
-interface CapitolTradesTradeResponse {
-  data: CapitolTradesTrade[];
-  meta: {
-    page: number;
-    per_page: number;
-    total_pages: number;
-    total_count: number;
-  };
 }
 
 /**
- * A single annual-holdings line item from a financial disclosure report.
+ * A single annual-holdings record as returned by Quiver Quantitative.
+ * Field names follow the /beta/bulk/congressholdings response schema.
  */
-interface CapitolTradesHolding {
-  bioguide_id: string | null;
-  legislator: string;
-  ticker: string | null;
-  asset_name: string;
-  /** Value range: string like "$50,001 - $100,000" or parsed object. */
-  value: string | { low: number; high: number };
-  /** Calendar year of the disclosure (e.g. 2023). */
-  disclosure_year: number;
+interface QuiverHolding {
+  Representative?: string;
+  Senator?: string;
+  Ticker?: string;
+  AssetName?: string;
+  AssetDescription?: string;
+  /** Value range, e.g. "$50,001 - $100,000". */
+  Amount?: string;
+  /** Four-digit year, e.g. 2024. */
+  Year?: number | string;
+  ReportYear?: number | string;
   [key: string]: unknown;
-}
-
-interface CapitolTradesHoldingResponse {
-  data: CapitolTradesHolding[];
-  meta: {
-    page: number;
-    per_page: number;
-    total_pages: number;
-    total_count: number;
-  };
 }
 
 // ---------------------------------------------------------------------------
@@ -115,12 +120,12 @@ interface CapitolTradesHoldingResponse {
 interface StockTradeInsert {
   official_id: string;
   ticker: string | null;
-  asset_name: string;
+  asset_name: string | null;
   trade_type: 'purchase' | 'sale' | 'exchange';
   amount_range_low: number | null;
   amount_range_high: number | null;
-  trade_date: string;
-  disclosure_date: string;
+  trade_date: string | null;
+  disclosure_date: string | null;
   days_late: number | null;
   filing_url: string | null;
   metadata: Record<string, unknown>;
@@ -129,7 +134,7 @@ interface StockTradeInsert {
 interface OfficialHoldingInsert {
   official_id: string;
   ticker: string | null;
-  asset_name: string;
+  asset_name: string | null;
   value_range_low: number | null;
   value_range_high: number | null;
   disclosure_year: number;
@@ -147,74 +152,88 @@ interface RelationshipInsert {
 }
 
 // ---------------------------------------------------------------------------
-// Constants
-// ---------------------------------------------------------------------------
-
-const CAPITOL_TRADES_API_BASE = 'https://api.capitoltrades.com/v1';
-const PAGE_SIZE = 100;
-const BATCH_SIZE = 500;
-/** STOCK Act statutory disclosure window in calendar days. */
-const STOCK_ACT_DISCLOSURE_DAYS = 45;
-
-// ---------------------------------------------------------------------------
 // Helpers — parsing
 // ---------------------------------------------------------------------------
 
 /**
- * Normalise the Capitol Trades transaction_type field to the three values the
- * stock_trades CHECK constraint allows.
+ * Normalise a Quiver Transaction field to the three values the stock_trades
+ * CHECK constraint allows: 'purchase', 'sale', 'exchange'.
+ * Returns null for unrecognised values (trade is skipped).
  */
 function normaliseTradeType(
-  raw: string,
+  raw: string | null | undefined,
 ): 'purchase' | 'sale' | 'exchange' | null {
-  const lower = raw.toLowerCase().replace(/[_\s-]+/g, '_');
-  if (lower.startsWith('purchase') || lower === 'buy') return 'purchase';
-  if (lower.startsWith('sale') || lower === 'sell') return 'sale';
+  if (!raw) return null;
+  const lower = raw.toLowerCase().trim();
+  if (lower === 'purchase' || lower === 'buy') return 'purchase';
+  if (
+    lower === 'sale' ||
+    lower === 'sell' ||
+    lower.startsWith('sale (')
+  )
+    return 'sale';
   if (lower === 'exchange') return 'exchange';
   return null;
 }
 
 /**
- * Parse an amount / value range into low and high numeric bounds.
- *
- * Handles two shapes:
- *   - Object: { low: 1001, high: 15000 }
- *   - String: "$1,001 - $15,000" | "Over $1,000,000" | "$1,000,000+"
+ * The STOCK Act mandates these specific dollar-range buckets.
+ * We map them to numeric low/high pairs.  The Quiver API preserves the
+ * original strings from the official filing forms.
+ */
+const AMOUNT_RANGE_MAP: Record<string, { low: number; high: number | null }> = {
+  '$1,001 - $15,000':        { low: 1_001,    high: 15_000 },
+  '$15,001 - $50,000':       { low: 15_001,   high: 50_000 },
+  '$50,001 - $100,000':      { low: 50_001,   high: 100_000 },
+  '$100,001 - $250,000':     { low: 100_001,  high: 250_000 },
+  '$250,001 - $500,000':     { low: 250_001,  high: 500_000 },
+  '$500,001 - $1,000,000':   { low: 500_001,  high: 1_000_000 },
+  'Over $1,000,000':         { low: 1_000_001, high: null },
+  // Variants without spaces around commas sometimes appear in the feed
+  '$1001 - $15000':          { low: 1_001,    high: 15_000 },
+  '$15001 - $50000':         { low: 15_001,   high: 50_000 },
+  '$50001 - $100000':        { low: 50_001,   high: 100_000 },
+  '$100001 - $250000':       { low: 100_001,  high: 250_000 },
+  '$250001 - $500000':       { low: 250_001,  high: 500_000 },
+  '$500001 - $1000000':      { low: 500_001,  high: 1_000_000 },
+  'Over $1000000':           { low: 1_000_001, high: null },
+};
+
+/**
+ * Parse an amount / value range string into low and high numeric bounds.
+ * Returns { low: null, high: null } when the string is unrecognised.
  */
 function parseAmountRange(
-  amount: string | { low: number; high: number },
+  raw: string | null | undefined,
 ): { low: number | null; high: number | null } {
-  if (typeof amount === 'object' && amount !== null) {
-    return { low: amount.low ?? null, high: amount.high ?? null };
-  }
+  if (!raw) return { low: null, high: null };
 
-  const raw = String(amount);
-  // Strip currency symbols, commas, whitespace
-  const clean = raw.replace(/[$,\s]/g, '');
+  const trimmed = raw.trim();
 
-  // "$1,001 - $15,000"  →  "1001-15000"
-  const rangeMatch = clean.match(/^(\d+)-(\d+)$/);
+  // Direct map lookup (covers ~99 % of real STOCK Act filings).
+  const mapped = AMOUNT_RANGE_MAP[trimmed];
+  if (mapped) return mapped;
+
+  // Fallback: try to parse "X - Y" with numeric values after stripping $,.
+  const clean = trimmed.replace(/[$,]/g, '');
+  const rangeMatch = clean.match(/^(\d+)\s*-\s*(\d+)$/);
   if (rangeMatch) {
     return { low: Number(rangeMatch[1]), high: Number(rangeMatch[2]) };
   }
 
-  // "Over$1,000,000" or "$1,000,000+"
-  const overMatch = clean.match(/^[Oo]ver(\d+)$|^(\d+)\+$/);
+  const overMatch = clean.match(/^[Oo]ver\s+(\d+)$/);
   if (overMatch) {
-    const val = Number(overMatch[1] ?? overMatch[2]);
-    return { low: val, high: null };
+    return { low: Number(overMatch[1]) + 1, high: null };
   }
 
-  // Single value
   const single = Number(clean);
-  if (!Number.isNaN(single)) return { low: single, high: single };
+  if (!Number.isNaN(single) && single > 0) return { low: single, high: single };
 
   return { low: null, high: null };
 }
 
 /**
  * Parse an ISO-8601 date string into a Date, returning null on failure.
- * Accepts "YYYY-MM-DD" and "YYYY-MM-DDTHH:mm:ssZ" formats.
  */
 function parseDate(raw: string | null | undefined): Date | null {
   if (!raw) return null;
@@ -233,8 +252,7 @@ function daysBetween(a: Date, b: Date): number {
 
 /**
  * Calculate how many days late a disclosure is relative to the STOCK Act
- * 45-day window.  Returns null when either date is unavailable.
- * Negative values mean the filing was on-time (or early).
+ * 45-day window.  Negative = on-time or early.  Null = dates unavailable.
  */
 function calcDaysLate(
   tradeDate: string | null | undefined,
@@ -247,8 +265,8 @@ function calcDaysLate(
 }
 
 /**
- * Normalise a legislator full-name string to a lower-cased comparison key.
- * Strips punctuation, titles (Sen./Rep./Dr.), and extra whitespace.
+ * Normalise a legislator name string to a lower-cased comparison key.
+ * Strips titles, punctuation, and extra whitespace.
  */
 function normaliseName(raw: string): string {
   return raw
@@ -263,8 +281,6 @@ function normaliseName(raw: string): string {
 // In-process caches
 // ---------------------------------------------------------------------------
 
-/** bioguide_id → officials.id */
-const officialByBioguideCache = new Map<string, string>();
 /** normalised full_name → officials.id */
 const officialByNameCache = new Map<string, string>();
 /** ticker (upper) → entity_id from entity_corporations */
@@ -277,11 +293,10 @@ const officialEntityCache = new Map<string, string>();
 // ---------------------------------------------------------------------------
 
 /**
- * Pre-load all officials that have a bioguide_id into the in-process caches.
- * This dramatically reduces per-trade round-trips for the common case.
+ * Pre-load all officials into the in-process name cache.
  */
 async function warmOfficialCaches(): Promise<void> {
-  console.log('  Warming official lookup caches …');
+  console.log('  Warming official lookup caches ...');
 
   let page = 0;
   const limit = 1000;
@@ -290,84 +305,98 @@ async function warmOfficialCaches(): Promise<void> {
   while (true) {
     const { data, error } = await supabase
       .from('officials')
-      .select('id, bioguide_id, full_name')
+      .select('id, first_name, last_name, full_name')
       .range(page * limit, (page + 1) * limit - 1);
 
     if (error) {
-      throw new Error(`Failed to load officials for cache warm: ${error.message}`);
+      throw new Error(
+        `Failed to load officials for cache warm: ${error.message}`,
+      );
     }
 
     if (!data || data.length === 0) break;
 
-    for (const row of data as { id: string; bioguide_id: string | null; full_name: string }[]) {
-      if (row.bioguide_id) {
-        officialByBioguideCache.set(row.bioguide_id, row.id);
+    for (const row of data as {
+      id: string;
+      first_name: string | null;
+      last_name: string | null;
+      full_name: string | null;
+    }[]) {
+      if (row.full_name) {
+        officialByNameCache.set(normaliseName(row.full_name), row.id);
       }
-      officialByNameCache.set(normaliseName(row.full_name), row.id);
+      // Also index "last, first" form since Quiver sometimes uses that.
+      if (row.last_name && row.first_name) {
+        const key = normaliseName(`${row.last_name} ${row.first_name}`);
+        if (!officialByNameCache.has(key)) {
+          officialByNameCache.set(key, row.id);
+        }
+      }
     }
 
     fetched += data.length;
     page++;
-
-    // If the page was not full we have retrieved everything
     if (data.length < limit) break;
   }
 
   console.log(
-    `  Cached ${officialByBioguideCache.size} bioguide IDs, ` +
-      `${officialByNameCache.size} name variants across ${fetched} officials.`,
+    `  Cached ${officialByNameCache.size} name variants across ${fetched} officials.`,
   );
 }
 
 /**
- * Resolve an official's database UUID from a trade record.
+ * Resolve an official's database UUID from a raw Quiver name string.
  * Strategy:
- *   1. bioguide_id exact match (most reliable).
- *   2. Normalised full-name match against the officials table.
+ *   1. Cache hit on normalised name.
+ *   2. DB ILIKE fallback on last name.
  *
- * Both lookups are served from the in-process cache after warmOfficialCaches().
- * Falls back to a DB query only on cache miss to handle officials added during
- * the same run.
+ * Quiver names arrive as "Last, First" or "First Last"; we try both.
  */
-async function resolveOfficialId(
-  bioguideId: string | null,
-  legislatorName: string,
-): Promise<string | null> {
-  // 1. Bioguide exact match
-  if (bioguideId) {
-    const cached = officialByBioguideCache.get(bioguideId);
-    if (cached) return cached;
+async function resolveOfficialId(rawName: string): Promise<string | null> {
+  const norm = normaliseName(rawName);
 
-    // DB fallback (official may have been inserted after cache warm)
+  const cached = officialByNameCache.get(norm);
+  if (cached) return cached;
+
+  // Decompose "Last, First" → try last_name + first_name match.
+  const commaIdx = rawName.indexOf(',');
+  if (commaIdx !== -1) {
+    const lastName = rawName.slice(0, commaIdx).trim();
+    const firstName = rawName
+      .slice(commaIdx + 1)
+      .trim()
+      .split(/\s+/)[0];
+
     const { data } = await supabase
       .from('officials')
       .select('id')
-      .eq('bioguide_id', bioguideId)
+      .ilike('last_name', lastName)
+      .ilike('first_name', `${firstName}%`)
       .maybeSingle();
 
     if (data) {
-      officialByBioguideCache.set(bioguideId, (data as { id: string }).id);
+      officialByNameCache.set(norm, (data as { id: string }).id);
       return (data as { id: string }).id;
     }
   }
 
-  // 2. Normalised name match
-  const normName = normaliseName(legislatorName);
-  const cachedByName = officialByNameCache.get(normName);
-  if (cachedByName) return cachedByName;
+  // Decompose "First Last" (last token = surname).
+  const parts = rawName.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    const firstName = parts[0];
+    const lastName = parts[parts.length - 1];
 
-  // DB fallback — use ilike for a case-insensitive partial match
-  const { data } = await supabase
-    .from('officials')
-    .select('id, full_name')
-    .ilike('full_name', `%${legislatorName.split(',')[0].trim()}%`)
-    .limit(1)
-    .maybeSingle();
+    const { data } = await supabase
+      .from('officials')
+      .select('id')
+      .ilike('last_name', lastName)
+      .ilike('first_name', `${firstName}%`)
+      .maybeSingle();
 
-  if (data) {
-    const id = (data as { id: string }).id;
-    officialByNameCache.set(normName, id);
-    return id;
+    if (data) {
+      officialByNameCache.set(norm, (data as { id: string }).id);
+      return (data as { id: string }).id;
+    }
   }
 
   return null;
@@ -377,14 +406,9 @@ async function resolveOfficialId(
 // DB helpers — entity resolution
 // ---------------------------------------------------------------------------
 
-/**
- * Look up the entities.id for an official (type='officeholder').
- * Officials may or may not have a corresponding entity row; we look for an
- * external_ids->>'officials_id' match first, then fall back to name search.
- *
- * Returns null when no entity row can be found (relationship is skipped).
- */
-async function resolveOfficialEntityId(officialId: string): Promise<string | null> {
+async function resolveOfficialEntityId(
+  officialId: string,
+): Promise<string | null> {
   const cached = officialEntityCache.get(officialId);
   if (cached) return cached;
 
@@ -402,11 +426,9 @@ async function resolveOfficialEntityId(officialId: string): Promise<string | nul
   return null;
 }
 
-/**
- * Look up entity_corporations.entity_id for a ticker symbol.
- * Tickers are stored upper-cased in the schema (INDEX on ticker column).
- */
-async function resolveCorpEntityId(ticker: string | null): Promise<string | null> {
+async function resolveCorpEntityId(
+  ticker: string | null,
+): Promise<string | null> {
   if (!ticker) return null;
 
   const upper = ticker.toUpperCase();
@@ -443,16 +465,15 @@ async function flushTrades(
     return { ok: batch.length, err: 0 };
   }
 
-  // There is no natural unique key exposed by the API that is guaranteed
-  // unique across re-runs other than (official_id, ticker, trade_date,
-  // trade_type, amount_range_low).  We use that composite to deduplicate.
   const { error } = await supabase.from('stock_trades').upsert(batch, {
     onConflict: 'official_id,ticker,trade_date,trade_type,amount_range_low',
     ignoreDuplicates: false,
   });
 
   if (error) {
-    console.error(`  BATCH ERROR flushing ${batch.length} trades: ${error.message}`);
+    console.error(
+      `  BATCH ERROR flushing ${batch.length} trades: ${error.message}`,
+    );
     return { ok: 0, err: batch.length };
   }
 
@@ -466,7 +487,9 @@ async function flushHoldings(
   if (batch.length === 0) return { ok: 0, err: 0 };
 
   if (dryRun) {
-    console.log(`  [DRY RUN] Would upsert ${batch.length} official_holdings rows`);
+    console.log(
+      `  [DRY RUN] Would upsert ${batch.length} official_holdings rows`,
+    );
     return { ok: batch.length, err: 0 };
   }
 
@@ -476,7 +499,9 @@ async function flushHoldings(
   });
 
   if (error) {
-    console.error(`  BATCH ERROR flushing ${batch.length} holdings: ${error.message}`);
+    console.error(
+      `  BATCH ERROR flushing ${batch.length} holdings: ${error.message}`,
+    );
     return { ok: 0, err: batch.length };
   }
 
@@ -490,14 +515,15 @@ async function flushRelationships(
   if (batch.length === 0) return { ok: 0, err: 0 };
 
   if (dryRun) {
-    console.log(`  [DRY RUN] Would upsert ${batch.length} relationships rows`);
+    console.log(
+      `  [DRY RUN] Would upsert ${batch.length} relationships rows`,
+    );
     return { ok: batch.length, err: 0 };
   }
 
-  // Deduplicate on the directed pair + type + date, allowing the same official
-  // to appear in multiple trades of the same ticker on different dates.
   const { error } = await supabase.from('relationships').upsert(batch, {
-    onConflict: 'source_entity_id,target_entity_id,relationship_type,date_start',
+    onConflict:
+      'source_entity_id,target_entity_id,relationship_type,date_start',
     ignoreDuplicates: false,
   });
 
@@ -512,157 +538,137 @@ async function flushRelationships(
 }
 
 // ---------------------------------------------------------------------------
-// Capitol Trades API — trades
+// Quiver Quantitative API — fetch helpers
 // ---------------------------------------------------------------------------
 
 /**
- * Build the URL for a page of trade disclosures.
+ * Build request headers for the Quiver API.
+ * Without a key, requests are still accepted at a lower rate limit.
+ */
+function quiverHeaders(apiKey: string | null): HeadersInit {
+  const headers: HeadersInit = { Accept: 'application/json' };
+  if (apiKey) {
+    headers['Authorization'] = `Token ${apiKey}`;
+  }
+  return headers;
+}
+
+/**
+ * Fetch all trade disclosures for one chamber from the Quiver API.
  *
- * Query parameters follow the Capitol Trades public REST API convention:
- *   - year           : calendar year filter
- *   - chamber        : "house" | "senate"
- *   - page / per_page: standard pagination
+ * Endpoints:
+ *   House:   GET https://api.quiverquant.com/beta/live/housetrading
+ *   Senate:  GET https://api.quiverquant.com/beta/live/senatetrading
+ *
+ * Both return a flat JSON array (no pagination wrapper).
  */
-function buildTradesUrl(
-  year: number,
+async function fetchQuiverTrades(
   chamber: 'house' | 'senate',
-  page: number,
   apiKey: string | null,
-): string {
-  const params = new URLSearchParams({
-    year: String(year),
-    chamber,
-    page: String(page),
-    per_page: String(PAGE_SIZE),
-  });
-  const url = `${CAPITOL_TRADES_API_BASE}/trades?${params.toString()}`;
-  return apiKey
-    ? `${url}&api_key=${encodeURIComponent(apiKey)}`
-    : url;
+): Promise<QuiverTrade[]> {
+  const endpoint =
+    chamber === 'house' ? 'housetrading' : 'senatetrading';
+  const url = `${QUIVER_API_BASE}/beta/live/${endpoint}`;
+
+  console.log(`  [${chamber.toUpperCase()}] Fetching trades from ${url} ...`);
+
+  const res = await fetch(url, { headers: quiverHeaders(apiKey) });
+
+  if (!res.ok) {
+    throw new Error(
+      `Quiver API error ${res.status} ${res.statusText} fetching ${chamber} trades`,
+    );
+  }
+
+  const data = (await res.json()) as unknown;
+
+  if (!Array.isArray(data)) {
+    throw new Error(
+      `Unexpected response shape from ${url}: expected array, got ${typeof data}`,
+    );
+  }
+
+  return data as QuiverTrade[];
 }
 
 /**
- * Fetch all trade disclosures for a given year and chamber.
- * Handles pagination transparently.
+ * Fetch annual holdings disclosures from the Quiver API.
+ *
+ * Endpoint: GET https://api.quiverquant.com/beta/bulk/congressholdings
+ *
+ * Returns a flat JSON array covering both chambers; the caller filters by
+ * year client-side since the endpoint does not support year parameters.
  */
-async function fetchAllTrades(
-  year: number,
-  chamber: 'house' | 'senate',
+async function fetchQuiverHoldings(
   apiKey: string | null,
-): Promise<CapitolTradesTrade[]> {
-  const trades: CapitolTradesTrade[] = [];
-  let page = 1;
-  let totalPages = 1;
+): Promise<QuiverHolding[]> {
+  const url = `${QUIVER_API_BASE}/beta/bulk/congressholdings`;
 
-  do {
-    const url = buildTradesUrl(year, chamber, page, apiKey);
-    console.log(`  [${chamber.toUpperCase()}] Fetching trades page ${page}/${totalPages} …`);
+  console.log(`  Fetching holdings from ${url} ...`);
 
-    const res = await fetch(url, {
-      headers: {
-        Accept: 'application/json',
-        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-      },
-    });
+  const res = await fetch(url, { headers: quiverHeaders(apiKey) });
 
-    if (!res.ok) {
-      if (res.status === 404) {
-        console.warn(`  [${chamber}] 404 — no trade data for year ${year}`);
-        break;
-      }
-      throw new Error(
-        `Capitol Trades API error ${res.status} for ${chamber} year=${year} page=${page}: ` +
-          res.statusText,
-      );
-    }
-
-    const body = (await res.json()) as CapitolTradesTradeResponse;
-    trades.push(...body.data);
-    totalPages = body.meta.total_pages;
-    page++;
-  } while (page <= totalPages);
-
-  console.log(
-    `  [${chamber.toUpperCase()}] Fetched ${trades.length} trade records for ${year}.`,
-  );
-  return trades;
-}
-
-// ---------------------------------------------------------------------------
-// Capitol Trades API — annual holdings
-// ---------------------------------------------------------------------------
-
-function buildHoldingsUrl(
-  year: number,
-  chamber: 'house' | 'senate',
-  page: number,
-  apiKey: string | null,
-): string {
-  const params = new URLSearchParams({
-    year: String(year),
-    chamber,
-    page: String(page),
-    per_page: String(PAGE_SIZE),
-  });
-  const url = `${CAPITOL_TRADES_API_BASE}/holdings?${params.toString()}`;
-  return apiKey
-    ? `${url}&api_key=${encodeURIComponent(apiKey)}`
-    : url;
-}
-
-async function fetchAllHoldings(
-  year: number,
-  chamber: 'house' | 'senate',
-  apiKey: string | null,
-): Promise<CapitolTradesHolding[]> {
-  const holdings: CapitolTradesHolding[] = [];
-  let page = 1;
-  let totalPages = 1;
-
-  do {
-    const url = buildHoldingsUrl(year, chamber, page, apiKey);
-    console.log(
-      `  [${chamber.toUpperCase()}] Fetching holdings page ${page}/${totalPages} …`,
+  if (!res.ok) {
+    throw new Error(
+      `Quiver API error ${res.status} ${res.statusText} fetching holdings`,
     );
+  }
 
-    const res = await fetch(url, {
-      headers: {
-        Accept: 'application/json',
-        ...(apiKey ? { Authorization: `Bearer ${apiKey}` } : {}),
-      },
-    });
+  const data = (await res.json()) as unknown;
 
-    if (!res.ok) {
-      if (res.status === 404) {
-        console.warn(`  [${chamber}] 404 — no holdings data for year ${year}`);
-        break;
-      }
-      throw new Error(
-        `Capitol Trades API error ${res.status} for ${chamber} holdings year=${year} page=${page}: ` +
-          res.statusText,
-      );
-    }
+  if (!Array.isArray(data)) {
+    throw new Error(
+      `Unexpected response shape from ${url}: expected array, got ${typeof data}`,
+    );
+  }
 
-    const body = (await res.json()) as CapitolTradesHoldingResponse;
-    holdings.push(...body.data);
-    totalPages = body.meta.total_pages;
-    page++;
-  } while (page <= totalPages);
-
-  console.log(
-    `  [${chamber.toUpperCase()}] Fetched ${holdings.length} holding records for ${year}.`,
-  );
-  return holdings;
+  return data as QuiverHolding[];
 }
 
 // ---------------------------------------------------------------------------
 // Processing — trades
 // ---------------------------------------------------------------------------
 
+/**
+ * Derive the member name from a QuiverTrade record.
+ * House endpoint stores the name under "Representative"; Senate under "Senator".
+ */
+function getMemberName(
+  trade: QuiverTrade,
+  chamber: 'house' | 'senate',
+): string {
+  const name =
+    chamber === 'house'
+      ? trade.Representative ?? trade.Senator ?? ''
+      : trade.Senator ?? trade.Representative ?? '';
+  return name.trim();
+}
+
+/**
+ * Return the ISO trade date from whichever Quiver field is populated.
+ */
+function getTradeDate(trade: QuiverTrade): string | null {
+  return trade.TransactionDate ?? trade.Date ?? null;
+}
+
+/**
+ * Return the ISO disclosure/filing date from whichever Quiver field is populated.
+ */
+function getFilingDate(trade: QuiverTrade): string | null {
+  return trade.FilingDate ?? trade.ReportDate ?? null;
+}
+
 async function processTrades(
-  trades: CapitolTradesTrade[],
+  trades: QuiverTrade[],
+  chamber: 'house' | 'senate',
+  filterYear: number | null,
   dryRun: boolean,
-): Promise<{ tradesOk: number; tradesErr: number; relsOk: number; relsErr: number }> {
+): Promise<{
+  tradesOk: number;
+  tradesErr: number;
+  relsOk: number;
+  relsErr: number;
+}> {
   let tradesOk = 0;
   let tradesErr = 0;
   let relsOk = 0;
@@ -673,94 +679,122 @@ async function processTrades(
 
   let skippedNoOfficial = 0;
   let skippedBadType = 0;
+  let skippedNoTicker = 0;
+  let skippedWrongYear = 0;
 
   for (const trade of trades) {
-    // --- 1. Resolve official ---
-    const officialId = await resolveOfficialId(
-      trade.bioguide_id,
-      trade.legislator,
-    );
+    // --- Year filter (client-side) ---
+    if (filterYear !== null) {
+      const tradeDate = getTradeDate(trade);
+      if (!tradeDate || !tradeDate.startsWith(String(filterYear))) {
+        skippedWrongYear++;
+        continue;
+      }
+    }
 
+    // --- Member name ---
+    const rawName = getMemberName(trade, chamber);
+    if (!rawName) {
+      skippedNoOfficial++;
+      continue;
+    }
+
+    // --- Resolve official ---
+    const officialId = await resolveOfficialId(rawName);
     if (!officialId) {
       skippedNoOfficial++;
       if (skippedNoOfficial <= 5) {
         console.warn(
-          `  WARN: No official found for "${trade.legislator}" ` +
-            `(bioguide=${trade.bioguide_id ?? 'n/a'}) — skipping trade`,
+          `  WARN: No official found for "${rawName}" — skipping trade`,
         );
       }
       continue;
     }
 
-    // --- 2. Normalise trade type ---
-    const tradeType = normaliseTradeType(trade.transaction_type);
+    // --- Ticker ---
+    const ticker = trade.Ticker ? trade.Ticker.trim().toUpperCase() : null;
+    if (!ticker) {
+      skippedNoTicker++;
+      continue;
+    }
+
+    // --- Trade type ---
+    const tradeType = normaliseTradeType(trade.Transaction);
     if (!tradeType) {
       skippedBadType++;
       if (skippedBadType <= 5) {
         console.warn(
-          `  WARN: Unrecognised transaction_type "${trade.transaction_type}" — skipping`,
+          `  WARN: Unrecognised Transaction "${trade.Transaction ?? ''}" — skipping`,
         );
       }
       continue;
     }
 
-    // --- 3. Parse amount ---
-    const { low: amountLow, high: amountHigh } = parseAmountRange(trade.amount);
+    // --- Amount ---
+    const { low: amountLow, high: amountHigh } = parseAmountRange(
+      trade.Amount,
+    );
 
-    // --- 4. Calculate days_late ---
-    const daysLate = calcDaysLate(trade.transaction_date, trade.disclosure_date);
+    // --- Dates ---
+    const tradeDate = getTradeDate(trade);
+    const filingDate = getFilingDate(trade);
+    const daysLate = calcDaysLate(tradeDate, filingDate);
 
-    // --- 5. Build stock_trades insert ---
-    // Preserve the raw API fields in metadata for auditability.
-    const { bioguide_id: _b, legislator: _l, ...restMeta } = trade;
+    // --- Build stock_trades insert ---
+    const { Representative: _r, Senator: _s, ...restMeta } = trade;
     const tradeInsert: StockTradeInsert = {
       official_id: officialId,
-      ticker: trade.ticker ?? null,
-      asset_name: trade.asset_name,
+      ticker,
+      asset_name:
+        (trade.AssetName ?? trade.AssetDescription ?? null) || null,
       trade_type: tradeType,
       amount_range_low: amountLow,
       amount_range_high: amountHigh,
-      trade_date: trade.transaction_date,
-      disclosure_date: trade.disclosure_date,
+      trade_date: tradeDate,
+      disclosure_date: filingDate,
       days_late: daysLate,
-      filing_url: trade.filing_url ?? null,
-      metadata: restMeta as Record<string, unknown>,
+      filing_url: trade.Link ?? null,
+      metadata: {
+        ...restMeta,
+        chamber,
+        raw_name: rawName,
+      } as Record<string, unknown>,
     };
 
     tradeBatch.push(tradeInsert);
 
-    // --- 6. Build relationship insert (official entity → corp entity) ---
-    if (trade.ticker) {
-      const corpEntityId = await resolveCorpEntityId(trade.ticker);
-      const officialEntityId = await resolveOfficialEntityId(officialId);
+    // --- Build relationship insert (official entity → corp entity) ---
+    const corpEntityId = await resolveCorpEntityId(ticker);
+    const officialEntityId = await resolveOfficialEntityId(officialId);
 
-      if (corpEntityId && officialEntityId) {
-        // Use the midpoint of the range as the relationship amount, or low.
-        const relAmount =
-          amountLow !== null && amountHigh !== null
-            ? Math.round((amountLow + amountHigh) / 2)
-            : (amountLow ?? null);
+    if (corpEntityId && officialEntityId) {
+      const relAmount =
+        amountLow !== null && amountHigh !== null
+          ? Math.round((amountLow + amountHigh) / 2)
+          : (amountLow ?? null);
 
-        relBatch.push({
-          source_entity_id: officialEntityId,
-          target_entity_id: corpEntityId,
-          relationship_type: 'traded',
-          amount: relAmount,
-          date_start: trade.transaction_date,
-          metadata: {
-            trade_type: tradeType,
-            ticker: trade.ticker,
-            days_late: daysLate,
-            filing_id: trade.filing_id,
-          },
-          confidence_score: 1.0,
-        });
-      }
+      relBatch.push({
+        source_entity_id: officialEntityId,
+        target_entity_id: corpEntityId,
+        relationship_type: 'traded',
+        amount: relAmount,
+        date_start: tradeDate,
+        metadata: {
+          trade_type: tradeType,
+          ticker,
+          days_late: daysLate,
+          chamber,
+        },
+        confidence_score: 1.0,
+      });
     }
 
     // --- Flush trades batch ---
     if (tradeBatch.length >= BATCH_SIZE) {
-      const { ok, err } = await flushTrades(tradeBatch.splice(0, BATCH_SIZE), dryRun);
+      const { ok, err } = await flushTrades(
+        tradeBatch.splice(0, BATCH_SIZE),
+        dryRun,
+      );
       tradesOk += ok;
       tradesErr += err;
       process.stdout.write(`  Flushed trade batch (ok=${ok}, err=${err})\n`);
@@ -768,10 +802,15 @@ async function processTrades(
 
     // --- Flush relationships batch ---
     if (relBatch.length >= BATCH_SIZE) {
-      const { ok, err } = await flushRelationships(relBatch.splice(0, BATCH_SIZE), dryRun);
+      const { ok, err } = await flushRelationships(
+        relBatch.splice(0, BATCH_SIZE),
+        dryRun,
+      );
       relsOk += ok;
       relsErr += err;
-      process.stdout.write(`  Flushed relationship batch (ok=${ok}, err=${err})\n`);
+      process.stdout.write(
+        `  Flushed relationship batch (ok=${ok}, err=${err})\n`,
+      );
     }
   }
 
@@ -780,26 +819,32 @@ async function processTrades(
     const { ok, err } = await flushTrades(tradeBatch, dryRun);
     tradesOk += ok;
     tradesErr += err;
-    process.stdout.write(`  Flushed final trade batch (ok=${ok}, err=${err})\n`);
+    process.stdout.write(
+      `  Flushed final trade batch (ok=${ok}, err=${err})\n`,
+    );
   }
 
   if (relBatch.length > 0) {
     const { ok, err } = await flushRelationships(relBatch, dryRun);
     relsOk += ok;
     relsErr += err;
-    process.stdout.write(`  Flushed final relationship batch (ok=${ok}, err=${err})\n`);
+    process.stdout.write(
+      `  Flushed final relationship batch (ok=${ok}, err=${err})\n`,
+    );
   }
 
-  if (skippedNoOfficial > 0) {
+  if (skippedWrongYear > 0)
+    console.log(`  Skipped ${skippedWrongYear} trades outside target year.`);
+  if (skippedNoOfficial > 0)
     console.warn(
       `  WARN: ${skippedNoOfficial} trades skipped — no matching official found.`,
     );
-  }
-  if (skippedBadType > 0) {
+  if (skippedBadType > 0)
     console.warn(
-      `  WARN: ${skippedBadType} trades skipped — unrecognised transaction_type.`,
+      `  WARN: ${skippedBadType} trades skipped — unrecognised transaction type.`,
     );
-  }
+  if (skippedNoTicker > 0)
+    console.log(`  Skipped ${skippedNoTicker} trades with no ticker.`);
 
   return { tradesOk, tradesErr, relsOk, relsErr };
 }
@@ -809,49 +854,86 @@ async function processTrades(
 // ---------------------------------------------------------------------------
 
 async function processHoldings(
-  holdings: CapitolTradesHolding[],
+  holdings: QuiverHolding[],
+  chamber: 'house' | 'senate',
+  filterYear: number | null,
   dryRun: boolean,
 ): Promise<{ ok: number; err: number }> {
   let totalOk = 0;
   let totalErr = 0;
   let skippedNoOfficial = 0;
+  let skippedWrongYear = 0;
 
   const holdingBatch: OfficialHoldingInsert[] = [];
 
   for (const holding of holdings) {
-    const officialId = await resolveOfficialId(
-      holding.bioguide_id,
-      holding.legislator,
-    );
+    // --- Derive year ---
+    const rawYear = holding.Year ?? holding.ReportYear ?? null;
+    const disclosureYear = rawYear ? Number(rawYear) : null;
 
+    if (filterYear !== null) {
+      if (disclosureYear !== filterYear) {
+        skippedWrongYear++;
+        continue;
+      }
+    }
+
+    if (!disclosureYear || Number.isNaN(disclosureYear)) continue;
+
+    // --- Member name ---
+    const rawName = (
+      chamber === 'house'
+        ? holding.Representative ?? holding.Senator ?? ''
+        : holding.Senator ?? holding.Representative ?? ''
+    ).trim();
+
+    if (!rawName) {
+      skippedNoOfficial++;
+      continue;
+    }
+
+    const officialId = await resolveOfficialId(rawName);
     if (!officialId) {
       skippedNoOfficial++;
       if (skippedNoOfficial <= 5) {
         console.warn(
-          `  WARN: No official found for "${holding.legislator}" — skipping holding`,
+          `  WARN: No official found for "${rawName}" — skipping holding`,
         );
       }
       continue;
     }
 
-    const { low: valueLow, high: valueHigh } = parseAmountRange(holding.value);
-    const { bioguide_id: _b, legislator: _l, ...restMeta } = holding;
+    const { low: valueLow, high: valueHigh } = parseAmountRange(
+      holding.Amount,
+    );
+
+    const { Representative: _r, Senator: _s, ...restMeta } = holding;
 
     holdingBatch.push({
       official_id: officialId,
-      ticker: holding.ticker ?? null,
-      asset_name: holding.asset_name,
+      ticker: holding.Ticker ? holding.Ticker.trim().toUpperCase() : null,
+      asset_name:
+        (holding.AssetName ?? holding.AssetDescription ?? null) || null,
       value_range_low: valueLow,
       value_range_high: valueHigh,
-      disclosure_year: holding.disclosure_year,
-      metadata: restMeta as Record<string, unknown>,
+      disclosure_year: disclosureYear,
+      metadata: {
+        ...restMeta,
+        chamber,
+        raw_name: rawName,
+      } as Record<string, unknown>,
     });
 
     if (holdingBatch.length >= BATCH_SIZE) {
-      const { ok, err } = await flushHoldings(holdingBatch.splice(0, BATCH_SIZE), dryRun);
+      const { ok, err } = await flushHoldings(
+        holdingBatch.splice(0, BATCH_SIZE),
+        dryRun,
+      );
       totalOk += ok;
       totalErr += err;
-      process.stdout.write(`  Flushed holding batch (ok=${ok}, err=${err})\n`);
+      process.stdout.write(
+        `  Flushed holding batch (ok=${ok}, err=${err})\n`,
+      );
     }
   }
 
@@ -859,14 +941,17 @@ async function processHoldings(
     const { ok, err } = await flushHoldings(holdingBatch, dryRun);
     totalOk += ok;
     totalErr += err;
-    process.stdout.write(`  Flushed final holding batch (ok=${ok}, err=${err})\n`);
+    process.stdout.write(
+      `  Flushed final holding batch (ok=${ok}, err=${err})\n`,
+    );
   }
 
-  if (skippedNoOfficial > 0) {
+  if (skippedWrongYear > 0)
+    console.log(`  Skipped ${skippedWrongYear} holdings outside target year.`);
+  if (skippedNoOfficial > 0)
     console.warn(
       `  WARN: ${skippedNoOfficial} holdings skipped — no matching official found.`,
     );
-  }
 
   return { ok: totalOk, err: totalErr };
 }
@@ -878,11 +963,11 @@ async function processHoldings(
 async function importStockTrades(): Promise<void> {
   console.log('=== Import Congressional Stock Trades ===\n');
 
-  // --- Environment configuration ---
   const dryRun = process.env['DRY_RUN'] === '1';
-  const apiKey = process.env['CAPITOL_TRADES_API_KEY'] ?? null;
-  const importYear =
-    Number(process.env['IMPORT_YEAR']) || new Date().getFullYear();
+  // QUIVER_QUANT_API_KEY is optional — requests work without it at a lower rate.
+  const apiKey = process.env['QUIVER_QUANT_API_KEY'] ?? null;
+  const importYearRaw = process.env['IMPORT_YEAR'];
+  const filterYear = importYearRaw ? Number(importYearRaw) : new Date().getFullYear();
   const chamberEnv = (process.env['IMPORT_CHAMBER'] ?? 'both').toLowerCase();
 
   if (!['house', 'senate', 'both'].includes(chamberEnv)) {
@@ -897,17 +982,21 @@ async function importStockTrades(): Promise<void> {
       : [chamberEnv as 'house' | 'senate'];
 
   if (dryRun) {
-    console.log('*** DRY RUN MODE — no database writes will be performed ***\n');
+    console.log(
+      '*** DRY RUN MODE — no database writes will be performed ***\n',
+    );
   }
 
-  console.log(`Import year  : ${importYear}`);
+  console.log(`Import year  : ${filterYear}`);
   console.log(`Chamber(s)   : ${chambers.join(', ')}`);
-  console.log(`API key      : ${apiKey ? 'set' : 'not set (public endpoints only)'}\n`);
+  console.log(
+    `API key      : ${apiKey ? 'set (higher rate limit)' : 'not set (unauthenticated, lower rate limit)'}\n`,
+  );
 
-  // --- Warm caches ---
+  // --- Warm name caches ---
   await warmOfficialCaches();
 
-  // --- Accumulate totals ---
+  // --- Totals ---
   let totalTradesOk = 0;
   let totalTradesErr = 0;
   let totalRelsOk = 0;
@@ -915,14 +1004,28 @@ async function importStockTrades(): Promise<void> {
   let totalHoldingsOk = 0;
   let totalHoldingsErr = 0;
 
+  // --- Fetch holdings once (covers both chambers) ---
+  let allHoldings: QuiverHolding[] = [];
+  try {
+    allHoldings = await fetchQuiverHoldings(apiKey);
+    console.log(`  Fetched ${allHoldings.length} total holding records.\n`);
+  } catch (err) {
+    console.error(
+      `  ERROR fetching holdings: ${(err as Error).message}`,
+    );
+  }
+
   // --- Process each chamber ---
   for (const chamber of chambers) {
-    console.log(`\n--- ${chamber.toUpperCase()} (${importYear}) ---`);
+    console.log(`\n--- ${chamber.toUpperCase()} (${filterYear}) ---`);
 
     // Trades
-    let trades: CapitolTradesTrade[] = [];
+    let trades: QuiverTrade[] = [];
     try {
-      trades = await fetchAllTrades(importYear, chamber, apiKey);
+      trades = await fetchQuiverTrades(chamber, apiKey);
+      console.log(
+        `  Fetched ${trades.length} raw ${chamber} trade records.`,
+      );
     } catch (err) {
       console.error(
         `  ERROR fetching ${chamber} trades: ${(err as Error).message}`,
@@ -930,9 +1033,11 @@ async function importStockTrades(): Promise<void> {
     }
 
     if (trades.length > 0) {
-      console.log(`  Processing ${trades.length} trades …`);
+      console.log(`  Processing ${chamber} trades ...`);
       const { tradesOk, tradesErr, relsOk, relsErr } = await processTrades(
         trades,
+        chamber,
+        filterYear,
         dryRun,
       );
       totalTradesOk += tradesOk;
@@ -941,19 +1046,22 @@ async function importStockTrades(): Promise<void> {
       totalRelsErr += relsErr;
     }
 
-    // Annual holdings
-    let holdings: CapitolTradesHolding[] = [];
-    try {
-      holdings = await fetchAllHoldings(importYear, chamber, apiKey);
-    } catch (err) {
-      console.error(
-        `  ERROR fetching ${chamber} holdings: ${(err as Error).message}`,
+    // Holdings (filter by chamber using Representative/Senator key presence)
+    if (allHoldings.length > 0) {
+      const chamberHoldings = allHoldings.filter((h) =>
+        chamber === 'house'
+          ? h.Representative !== undefined
+          : h.Senator !== undefined,
       );
-    }
-
-    if (holdings.length > 0) {
-      console.log(`  Processing ${holdings.length} holdings …`);
-      const { ok, err } = await processHoldings(holdings, dryRun);
+      console.log(
+        `  Processing ${chamberHoldings.length} ${chamber} holding records ...`,
+      );
+      const { ok, err } = await processHoldings(
+        chamberHoldings,
+        chamber,
+        filterYear,
+        dryRun,
+      );
       totalHoldingsOk += ok;
       totalHoldingsErr += err;
     }
@@ -962,13 +1070,13 @@ async function importStockTrades(): Promise<void> {
   // --- Summary ---
   console.log('\n=== Import Complete ===');
   console.log(
-    `  stock_trades    : inserted/updated ${totalTradesOk}, errors ${totalTradesErr}`,
+    `  stock_trades     : inserted/updated ${totalTradesOk}, errors ${totalTradesErr}`,
   );
   console.log(
     `  official_holdings: inserted/updated ${totalHoldingsOk}, errors ${totalHoldingsErr}`,
   );
   console.log(
-    `  relationships   : inserted/updated ${totalRelsOk}, errors ${totalRelsErr}`,
+    `  relationships    : inserted/updated ${totalRelsOk}, errors ${totalRelsErr}`,
   );
 }
 

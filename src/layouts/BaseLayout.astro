@@ -11,7 +11,7 @@ const canonicalUrl = new URL(Astro.url.pathname, Astro.site ?? 'https://govguide
 const fullTitle = title === 'Home' ? 'GovGuide — Know Your Government' : `${title} | GovGuide`;
 ---
 <!doctype html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -50,7 +50,7 @@ const fullTitle = title === 'Home' ? 'GovGuide — Know Your Government' : `${ti
       }
     })} />
   </head>
-  <body class="min-h-screen flex flex-col">
+  <body class="min-h-screen flex flex-col bg-white">
     <a href="#main-content" class="sr-only focus:not-sr-only focus:fixed focus:top-2 focus:left-2 focus:z-50 focus:px-4 focus:py-2 focus:bg-civic-blue focus:text-white focus:rounded-lg focus:outline-none">
       Skip to main content
     </a>
