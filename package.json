@@ -32,6 +32,7 @@
     "detect:predictions": "npx tsx --env-file=.env scripts/detect-prediction-anomalies.ts",
     "detect:conflicts": "npx tsx --env-file=.env scripts/detect-conflicts.ts",
     "detect:all": "npm run detect:conflicts && npm run detect:predictions",
+    "import:congress-photos": "npx tsx --env-file=.env scripts/import-congress-photos.ts",
     "pipeline:weekly": "npm run import:congress && npm run import:stock-trades && npm run import:predictions && npm run import:tickers && npm run detect:all"
   },
   "dependencies": {
