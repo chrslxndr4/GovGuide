@@ -406,7 +406,7 @@ async function importFecCommittees(): Promise<void> {
     // Build entity_pacs rows for PAC-type committees.
     const pacBatch: EntityPacInsert[] = [];
     for (const { committee } of entityBatch) {
-      if (!PAC_COMMITTEE_TYPES.has(committee.committee_type.toUpperCase())) {
+      if (!committee.committee_type || !PAC_COMMITTEE_TYPES.has(committee.committee_type.toUpperCase())) {
         continue;
       }
 
