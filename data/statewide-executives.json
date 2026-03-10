@@ -2018,5 +2018,649 @@
         }
       }
     ]
+  },
+  "MI": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Garlin",
+          "last_name": "Gilchrist",
+          "party": "democratic",
+          "email": null,
+          "phone": "(517) 373-6800",
+          "website": "https://www.michigan.gov/whitmer/ltgov",
+          "photo_url": null,
+          "term_start": "2023-01-01",
+          "term_end": "2027-01-01"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Dana",
+          "last_name": "Nessel",
+          "party": "democratic",
+          "email": null,
+          "phone": "(517) 335-7622",
+          "website": "https://www.michigan.gov/ag",
+          "photo_url": null,
+          "term_start": "2023-01-01",
+          "term_end": "2027-01-01"
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Jocelyn",
+          "last_name": "Benson",
+          "party": "democratic",
+          "email": null,
+          "phone": "(517) 335-2436",
+          "website": "https://www.michigan.gov/sos",
+          "photo_url": null,
+          "term_start": "2023-01-01",
+          "term_end": "2027-01-01"
+        }
+      }
+    ]
+  },
+  "MN": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Peggy",
+          "last_name": "Flanagan",
+          "party": "democratic",
+          "email": null,
+          "phone": "(651) 201-3400",
+          "website": "https://mn.gov/governor/about/peggyflanagan/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Keith",
+          "last_name": "Ellison",
+          "party": "democratic",
+          "email": null,
+          "phone": "(651) 296-3353",
+          "website": "https://www.ag.state.mn.us/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Steve",
+          "last_name": "Simon",
+          "party": "democratic",
+          "email": null,
+          "phone": "(651) 201-1324",
+          "website": "https://www.sos.state.mn.us/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "State Auditor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Julie",
+          "last_name": "Blaha",
+          "party": "democratic",
+          "email": null,
+          "phone": "(651) 296-2551",
+          "website": "https://www.auditor.state.mn.us/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      }
+    ]
+  },
+  "MS": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Delbert",
+          "last_name": "Hosemann",
+          "party": "republican",
+          "email": null,
+          "phone": "(601) 359-3200",
+          "website": "https://ltgovhosemann.ms.gov/",
+          "photo_url": null,
+          "term_start": "2024-01-09",
+          "term_end": "2028-01-11"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Lynn",
+          "last_name": "Fitch",
+          "party": "republican",
+          "email": null,
+          "phone": "(601) 359-3680",
+          "website": "https://www.ago.state.ms.us/",
+          "photo_url": null,
+          "term_start": "2024-01-09",
+          "term_end": "2028-01-11"
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Michael",
+          "last_name": "Watson",
+          "party": "republican",
+          "email": null,
+          "phone": "(601) 359-1350",
+          "website": "https://www.sos.ms.gov/",
+          "photo_url": null,
+          "term_start": "2024-01-09",
+          "term_end": "2028-01-11"
+        }
+      },
+      {
+        "title": "State Treasurer",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "David",
+          "last_name": "McRae",
+          "party": "republican",
+          "email": null,
+          "phone": "(601) 359-3600",
+          "website": "https://treasury.ms.gov/",
+          "photo_url": null,
+          "term_start": "2024-01-09",
+          "term_end": "2028-01-11"
+        }
+      },
+      {
+        "title": "State Auditor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Shad",
+          "last_name": "White",
+          "party": "republican",
+          "email": null,
+          "phone": "(601) 576-2800",
+          "website": "https://www.osa.ms.gov/",
+          "photo_url": null,
+          "term_start": "2024-01-09",
+          "term_end": "2028-01-11"
+        }
+      },
+      {
+        "title": "Commissioner of Insurance",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Mike",
+          "last_name": "Chaney",
+          "party": "republican",
+          "email": null,
+          "phone": "(601) 359-3569",
+          "website": "https://www.mid.ms.gov/",
+          "photo_url": null,
+          "term_start": "2024-01-09",
+          "term_end": "2028-01-11"
+        }
+      },
+      {
+        "title": "Commissioner of Agriculture and Commerce",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Andy",
+          "last_name": "Gipson",
+          "party": "republican",
+          "email": null,
+          "phone": "(601) 359-1100",
+          "website": "https://www.mdac.ms.gov/",
+          "photo_url": null,
+          "term_start": "2024-01-09",
+          "term_end": "2028-01-11"
+        }
+      }
+    ]
+  },
+  "MO": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "David",
+          "last_name": "Wasinger",
+          "party": "republican",
+          "email": null,
+          "phone": "(573) 751-4727",
+          "website": "https://ltgov.mo.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-13",
+          "term_end": "2029-01-08"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": false,
+        "official": {
+          "first_name": "Catherine",
+          "last_name": "Hanaway",
+          "party": "republican",
+          "email": null,
+          "phone": "(573) 751-3321",
+          "website": "https://ago.mo.gov/",
+          "photo_url": null,
+          "term_start": "2025-09-08",
+          "term_end": "2029-01-08"
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Denny",
+          "last_name": "Hoskins",
+          "party": "republican",
+          "email": null,
+          "phone": "(573) 751-4936",
+          "website": "https://www.sos.mo.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-13",
+          "term_end": "2029-01-08"
+        }
+      },
+      {
+        "title": "State Treasurer",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Vivek",
+          "last_name": "Malek",
+          "party": "republican",
+          "email": null,
+          "phone": "(573) 751-8533",
+          "website": "https://treasurer.mo.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-13",
+          "term_end": "2029-01-08"
+        }
+      },
+      {
+        "title": "State Auditor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Scott",
+          "last_name": "Fitzpatrick",
+          "party": "republican",
+          "email": null,
+          "phone": "(573) 751-4213",
+          "website": "https://auditor.mo.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-09",
+          "term_end": "2027-01-11"
+        }
+      }
+    ]
+  },
+  "MT": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Kristen",
+          "last_name": "Juras",
+          "party": "republican",
+          "email": null,
+          "phone": "(406) 444-3111",
+          "website": "https://governor.mt.gov/about/LieutenantGovernor",
+          "photo_url": null,
+          "term_start": "2025-01-06",
+          "term_end": "2029-01-01"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Austin",
+          "last_name": "Knudsen",
+          "party": "republican",
+          "email": null,
+          "phone": "(406) 444-2026",
+          "website": "https://dojmt.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-06",
+          "term_end": "2029-01-01"
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Christi",
+          "last_name": "Jacobsen",
+          "party": "republican",
+          "email": null,
+          "phone": "(406) 444-2034",
+          "website": "https://sosmt.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-06",
+          "term_end": "2029-01-01"
+        }
+      },
+      {
+        "title": "State Auditor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "James",
+          "last_name": "Brown",
+          "party": "republican",
+          "email": null,
+          "phone": "(406) 444-2040",
+          "website": "https://csimt.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-06",
+          "term_end": "2029-01-01"
+        }
+      },
+      {
+        "title": "Superintendent of Public Instruction",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Susie",
+          "last_name": "Hedalen",
+          "party": "republican",
+          "email": null,
+          "phone": "(406) 444-5372",
+          "website": "https://opi.mt.gov/",
+          "photo_url": null,
+          "term_start": "2025-01-06",
+          "term_end": "2029-01-01"
+        }
+      }
+    ]
+  },
+  "NE": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Joe",
+          "last_name": "Kelly",
+          "party": "republican",
+          "email": null,
+          "phone": "(402) 471-2256",
+          "website": "https://ltgov.nebraska.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-05",
+          "term_end": "2027-01-07"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Mike",
+          "last_name": "Hilgers",
+          "party": "republican",
+          "email": null,
+          "phone": "(402) 471-2683",
+          "website": "https://ago.nebraska.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-05",
+          "term_end": "2027-01-07"
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Bob",
+          "last_name": "Evnen",
+          "party": "republican",
+          "email": null,
+          "phone": "(402) 471-2554",
+          "website": "https://sos.nebraska.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-05",
+          "term_end": "2027-01-07"
+        }
+      },
+      {
+        "title": "State Treasurer",
+        "branch": "executive",
+        "is_elected": false,
+        "official": {
+          "first_name": "Joey",
+          "last_name": "Spellerberg",
+          "party": "republican",
+          "email": null,
+          "phone": "(402) 471-2455",
+          "website": "https://treasurer.nebraska.gov/",
+          "photo_url": null,
+          "term_start": "2025-11-06",
+          "term_end": "2027-01-07"
+        }
+      },
+      {
+        "title": "Auditor of Public Accounts",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Mike",
+          "last_name": "Foley",
+          "party": "republican",
+          "email": null,
+          "phone": "(402) 471-2111",
+          "website": "https://auditors.nebraska.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-05",
+          "term_end": "2027-01-07"
+        }
+      }
+    ]
+  },
+  "NV": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Stavros",
+          "last_name": "Anthony",
+          "party": "republican",
+          "email": null,
+          "phone": "(775) 684-7111",
+          "website": "https://ltgov.nv.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Aaron",
+          "last_name": "Ford",
+          "party": "democratic",
+          "email": null,
+          "phone": "(775) 684-1100",
+          "website": "https://ag.nv.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Cisco",
+          "last_name": "Aguilar",
+          "party": "democratic",
+          "email": null,
+          "phone": "(775) 684-5708",
+          "website": "https://www.nvsos.gov/sos",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "State Treasurer",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Zach",
+          "last_name": "Conine",
+          "party": "democratic",
+          "email": null,
+          "phone": "(702) 486-4140",
+          "website": "https://www.nevadatreasurer.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      },
+      {
+        "title": "State Controller",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Andy",
+          "last_name": "Matthews",
+          "party": "republican",
+          "email": null,
+          "phone": "(775) 684-5750",
+          "website": "https://www.controller.nv.gov/",
+          "photo_url": null,
+          "term_start": "2023-01-02",
+          "term_end": "2027-01-04"
+        }
+      }
+    ]
+  },
+  "NH": {
+    "offices": [
+      {
+        "title": "Attorney General",
+        "branch": "executive",
+        "is_elected": false,
+        "official": {
+          "first_name": "John",
+          "last_name": "Formella",
+          "party": "republican",
+          "email": null,
+          "phone": "(603) 271-3658",
+          "website": "https://www.doj.nh.gov/",
+          "photo_url": null,
+          "term_start": "2021-04-22",
+          "term_end": null
+        }
+      },
+      {
+        "title": "Secretary of State",
+        "branch": "executive",
+        "is_elected": false,
+        "official": {
+          "first_name": "David",
+          "last_name": "Scanlan",
+          "party": "republican",
+          "email": null,
+          "phone": "(603) 271-3242",
+          "website": "https://www.sos.nh.gov/",
+          "photo_url": null,
+          "term_start": "2022-12-07",
+          "term_end": "2026-12-02"
+        }
+      },
+      {
+        "title": "State Treasurer",
+        "branch": "executive",
+        "is_elected": false,
+        "official": {
+          "first_name": "Monica",
+          "last_name": "Mezzapelle",
+          "party": "republican",
+          "email": null,
+          "phone": "(603) 271-2621",
+          "website": "https://www.treasury.nh.gov/",
+          "photo_url": null,
+          "term_start": "2020-12-02",
+          "term_end": "2026-12-02"
+        }
+      }
+    ]
+  },
+  "NJ": {
+    "offices": [
+      {
+        "title": "Lieutenant Governor",
+        "branch": "executive",
+        "is_elected": true,
+        "official": {
+          "first_name": "Dale",
+          "last_name": "Caldwell",
+          "party": "democratic",
+          "email": null,
+          "phone": "(609) 292-6000",
+          "website": "https://www.nj.gov/governor/admin/ltgovernor/",
+          "photo_url": null,
+          "term_start": "2026-01-20",
+          "term_end": "2030-01-15"
+        }
+      }
+    ]
   }
 }
